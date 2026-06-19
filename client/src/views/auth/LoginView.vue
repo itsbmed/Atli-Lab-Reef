@@ -39,7 +39,25 @@
 
         <p class="ap-foot">Noch kein Konto? <RouterLink to="/register" class="link">Konto erstellen</RouterLink></p>
       </div>
-      <aside class="story"></aside>
+      <aside class="story">
+        <div class="story-visual">
+          <div class="story-img"></div>
+          <div class="float-card">
+            <span>Laborstatus</span>
+            <strong>ICP-OES</strong>
+            <em>Analyseportal</em>
+          </div>
+        </div>
+        <div class="story-copy">
+          <span>Reef Pilot</span>
+          <h2>Eine App. Beide Labore.</h2>
+          <p>Testkits, Laborberichte, Empfehlungen und Verläufe — gebündelt in einem neutralen Kundenbereich für ATI und NYOS.</p>
+          <div class="story-brands">
+            <span>ATI ReefLab</span>
+            <span>NYOS</span>
+          </div>
+        </div>
+      </aside>
     </section>
   </main>
 </template>
@@ -80,7 +98,28 @@ const remember = ref(false)
   box-shadow: 0 40px 120px rgba(0,0,0,0.55);
 }
 .form-panel { padding: clamp(26px, 5vw, 46px); }
-.story { min-height: 600px; border-left: 1px solid var(--rp-line); }
+.story {
+  position: relative;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 30px; min-height: 600px;
+  background: linear-gradient(150deg, #0d1118, #0a0d13);
+  border-left: 1px solid var(--rp-line);
+}
+.story-visual { position: relative; height: 300px; border-radius: 20px; overflow: hidden; border: 1px solid var(--rp-line); }
+.story-img { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,12,18,0.2), rgba(9,12,18,0.85)), url('/reef-tank.webp') center / cover; }
+.float-card {
+  position: absolute; right: 16px; bottom: 16px; min-width: 132px;
+  padding: 14px; border-radius: 16px;
+  background: rgba(18,22,30,0.82); border: 1px solid var(--rp-line-2);
+  backdrop-filter: blur(10px);
+}
+.float-card span, .float-card em { display: block; font-style: normal; font-size: 11px; color: var(--rp-muted); }
+.float-card strong { display: block; margin: 4px 0 1px; font-size: 24px; line-height: 1; font-weight: 800; color: var(--rp-accent); }
+.story-copy span { display: block; margin-bottom: 12px; color: var(--rp-accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.story-copy h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.02; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
+.story-copy p { max-width: 420px; color: var(--rp-muted); font-size: 14.5px; line-height: 1.65; }
+.story-brands { display: flex; gap: 8px; margin-top: 18px; }
+.story-brands span { font-size: 11px; font-weight: 700; color: var(--rp-text); border: 1px solid var(--rp-line-2); border-radius: 999px; padding: 6px 13px; }
 
 .ap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; }
 .brand { display: flex; align-items: center; gap: 11px; }
