@@ -18,6 +18,17 @@
           <h1>Willkommen zurück.</h1>
           <p>Melden Sie sich an, um Laborberichte, Aquarienverläufe und Empfehlungen weiterzuführen.</p>
         </div>
+
+        <form class="ap-form" @submit.prevent>
+          <label class="field">
+            <span>Benutzername oder E-Mail</span>
+            <input v-model="form.login" type="text" autocomplete="username" />
+          </label>
+          <label class="field">
+            <span>Passwort</span>
+            <input v-model="form.password" type="password" autocomplete="current-password" />
+          </label>
+        </form>
       </div>
       <aside class="story"></aside>
     </section>
@@ -25,7 +36,9 @@
 </template>
 
 <script setup>
-// Login — wird schrittweise aufgebaut.
+import { ref } from 'vue'
+
+const form = ref({ login: '', password: '' })
 </script>
 
 <style scoped>
@@ -76,6 +89,19 @@
 .eyebrow { display: block; margin-bottom: 12px; color: var(--rp-accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .ap-copy h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
 .ap-copy p { max-width: 380px; color: var(--rp-muted); font-size: 14px; line-height: 1.6; }
+
+.ap-form { display: grid; gap: 14px; }
+.field span { display: block; margin-bottom: 7px; color: var(--rp-muted); font-size: 12px; font-weight: 600; }
+.field input {
+  width: 100%; height: 50px;
+  border: 1px solid var(--rp-line-2); border-radius: 13px;
+  padding: 0 15px;
+  background: var(--rp-panel-2); color: var(--rp-text);
+  font-size: 14px; outline: 0;
+  transition: border-color .16s, box-shadow .16s;
+}
+.field input::placeholder { color: var(--rp-faint); }
+.field input:focus { border-color: var(--rp-accent); box-shadow: 0 0 0 3px var(--rp-accent-soft); }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
