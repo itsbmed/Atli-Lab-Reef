@@ -1,61 +1,66 @@
 <template>
-  <main class="rp-auth">
+  <main class="auth-page">
     <section class="auth-shell">
-      <div class="form-panel">
-        <header class="ap-head">
+      <div class="auth-form-panel">
+        <div class="auth-head">
           <RouterLink to="/" class="brand">
-            <span class="brand-mark">RP</span>
-            <div>
-              <strong>Reef Pilot</strong>
-              <em>by ATI · NYOS</em>
-            </div>
+            <img src="/ati-logo.png" alt="ATI" />
+            <span>Reef Lab Portal</span>
           </RouterLink>
           <span class="lang">DE</span>
-        </header>
+        </div>
 
-        <div class="ap-copy">
+        <div class="auth-copy">
           <span class="eyebrow">Kundenlogin</span>
           <h1>Willkommen zurück.</h1>
           <p>Melden Sie sich an, um Laborberichte, Aquarienverläufe und Empfehlungen weiterzuführen.</p>
         </div>
 
-        <form class="ap-form" @submit.prevent="submit">
+        <div v-if="error" class="alert-error">{{ error }}</div>
+
+        <form class="auth-form" @submit.prevent="submit">
           <label class="field">
             <span>Benutzername oder E-Mail</span>
-            <input v-model="form.login" type="text" autocomplete="username" />
+            <input v-model="form.login" type="text" autocomplete="username" required autofocus />
           </label>
+
           <label class="field">
             <span>Passwort</span>
-            <input v-model="form.password" type="password" autocomplete="current-password" />
+            <input v-model="form.password" type="password" autocomplete="current-password" required />
           </label>
 
           <div class="form-row">
-            <label class="check"><input v-model="remember" type="checkbox" /><span>Angemeldet bleiben</span></label>
-            <a href="#" class="link">Passwort vergessen?</a>
+            <label>
+              <input v-model="remember" type="checkbox" />
+              <span>Angemeldet bleiben</span>
+            </label>
           </div>
 
-          <button type="submit" class="rp-btn primary block lg">Einloggen</button>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" :disabled="loading">
+            {{ loading ? 'Wird angemeldet...' : 'Einloggen' }}
+          </button>
         </form>
 
-        <p class="ap-foot">Noch kein Konto? <RouterLink to="/register" class="link">Konto erstellen</RouterLink></p>
+        <p class="auth-foot">
+          Noch kein Konto?
+          <RouterLink to="/register">Konto erstellen</RouterLink>
+        </p>
       </div>
-      <aside class="story">
+
+      <aside class="auth-story">
         <div class="story-visual">
-          <div class="story-img"></div>
-          <div class="float-card">
+          <div class="tank-thumb"></div>
+          <div class="lab-card">
             <span>Laborstatus</span>
-            <strong>ICP-OES</strong>
+            <strong>ICP</strong>
             <em>Analyseportal</em>
           </div>
         </div>
+
         <div class="story-copy">
-          <span>Reef Pilot</span>
-          <h2>Eine App. Beide Labore.</h2>
-          <p>Testkits, Laborberichte, Empfehlungen und Verläufe — gebündelt in einem neutralen Kundenbereich für ATI und NYOS.</p>
-          <div class="story-brands">
-            <span>ATI ReefLab</span>
-            <span>NYOS</span>
-          </div>
+          <span>ATI Reef Lab</span>
+          <h2>Analyseberichte für Ihr Aquarium.</h2>
+          <p>Verwalten Sie Testkits, Laborberichte, Empfehlungen und Verlaufsdaten in einem geschützten Kundenbereich.</p>
         </div>
       </aside>
     </section>
@@ -69,130 +74,226 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
-const form = ref({ login: '', password: '' })
+const loading = ref(false)
+const error = ref('')
 const remember = ref(false)
+const form = ref({ login: '', password: '' })
 
 function submit() {
   // Frontend-Stub bis das Backend steht: lokale Session setzen.
+  loading.value = true
+  error.value = ''
   auth.setSession({ user: { name: form.value.login || 'Gast' }, token: 'dev' })
   router.push('/')
+  loading.value = false
 }
 </script>
 
 <style scoped>
-.rp-auth {
-  --rp-bg: #090c12; --rp-panel: #11151d; --rp-panel-2: #161b25;
-  --rp-line: rgba(255,255,255,0.08); --rp-line-2: rgba(255,255,255,0.16);
-  --rp-text: #eaeff6; --rp-muted: #8b94a5; --rp-faint: #5c6473;
-  --rp-accent: #00BED0; --rp-accent-2: #0072CE; --rp-accent-ink: #042029;
-  --rp-accent-soft: rgba(0,190,208,0.20); --rp-accent-glow: rgba(0,114,206,0.30);
+.auth-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 32px;
-  color: var(--rp-text);
-  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background:
-    radial-gradient(900px 500px at 15% -5%, rgba(0,190,208,0.10), transparent 60%),
-    radial-gradient(800px 480px at 95% 10%, rgba(0,114,206,0.07), transparent 60%),
-    var(--rp-bg);
+    radial-gradient(circle at 12% 0%, rgba(136,193,233,0.22), transparent 28rem),
+    radial-gradient(circle at 92% 20%, rgba(16,185,129,0.12), transparent 24rem),
+    linear-gradient(180deg, #f9fdfc 0%, var(--bg) 100%);
 }
 .auth-shell {
   width: min(1120px, 100%);
   display: grid;
-  grid-template-columns: minmax(min(100%, 360px), 460px) 1fr;
+  grid-template-columns: minmax(min(100%, 360px), 470px) minmax(min(100%, 520px), 1fr);
   overflow: hidden;
-  border: 1px solid var(--rp-line);
-  border-radius: 26px;
-  background: var(--rp-panel);
-  box-shadow: 0 40px 120px rgba(0,0,0,0.55);
+  border: 1px solid rgba(136,193,233,0.18);
+  border-radius: 30px;
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 28px 90px rgba(10,27,67,0.14);
+  backdrop-filter: blur(18px);
 }
-.form-panel { padding: clamp(26px, 5vw, 46px); }
-.story {
-  position: relative;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 30px; min-height: 600px;
-  background: linear-gradient(150deg, #0d1118, #0a0d13);
-  border-left: 1px solid var(--rp-line);
+.auth-form-panel {
+  padding: clamp(26px, 5vw, 48px);
+  background: rgba(255,255,255,0.88);
 }
-.story-visual { position: relative; height: 300px; border-radius: 20px; overflow: hidden; border: 1px solid var(--rp-line); }
-.story-img { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,12,18,0.2), rgba(9,12,18,0.85)), url('/reef-tank.webp') center / cover; }
-.float-card {
-  position: absolute; right: 16px; bottom: 16px; min-width: 132px;
-  padding: 14px; border-radius: 16px;
-  background: rgba(18,22,30,0.82); border: 1px solid var(--rp-line-2);
-  backdrop-filter: blur(10px);
+.auth-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 56px;
 }
-.float-card span, .float-card em { display: block; font-style: normal; font-size: 11px; color: var(--rp-muted); }
-.float-card strong { display: block; margin: 4px 0 1px; font-size: 24px; line-height: 1; font-weight: 800; color: var(--rp-accent); }
-.story-copy span { display: block; margin-bottom: 12px; color: var(--rp-accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.story-copy h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.02; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
-.story-copy p { max-width: 420px; color: var(--rp-muted); font-size: 14.5px; line-height: 1.65; }
-.story-brands { display: flex; gap: 8px; margin-top: 18px; }
-.story-brands span { font-size: 11px; font-weight: 700; color: var(--rp-text); border: 1px solid var(--rp-line-2); border-radius: 999px; padding: 6px 13px; }
-
-.ap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; }
-.brand { display: flex; align-items: center; gap: 11px; }
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 11px;
-  display: grid; place-items: center;
-  font-size: 14px; font-weight: 800; letter-spacing: -.02em;
-  color: var(--rp-accent-ink);
-  background: linear-gradient(135deg, var(--rp-accent), var(--rp-accent-2));
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.brand strong { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
-.brand em { font-style: normal; font-size: 11px; color: var(--rp-muted); letter-spacing: .06em; }
-.lang { font-size: 11px; font-weight: 700; color: var(--rp-muted); border: 1px solid var(--rp-line); border-radius: 999px; padding: 5px 11px; }
-
-.ap-copy { margin-bottom: 26px; }
-.eyebrow { display: block; margin-bottom: 12px; color: var(--rp-accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.ap-copy h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
-.ap-copy p { max-width: 380px; color: var(--rp-muted); font-size: 14px; line-height: 1.6; }
-
-.ap-form { display: grid; gap: 14px; }
-.field span { display: block; margin-bottom: 7px; color: var(--rp-muted); font-size: 12px; font-weight: 600; }
+.brand img { width: 96px; }
+.lang { font-size: 11px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
+.auth-copy { margin-bottom: 24px; }
+.eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--teal-700);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.auth-copy h1 {
+  margin-bottom: 10px;
+  color: var(--text);
+  font-size: clamp(34px, 5vw, 48px);
+  line-height: 0.98;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.035em;
+}
+.auth-copy p {
+  max-width: 390px;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.alert-error {
+  margin-bottom: 14px; padding: 11px 14px; border-radius: 12px;
+  background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600;
+}
+.auth-form { display: grid; gap: 15px; }
+.field span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
 .field input {
-  width: 100%; height: 50px;
-  border: 1px solid var(--rp-line-2); border-radius: 13px;
+  width: 100%;
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
   padding: 0 15px;
-  background: var(--rp-panel-2); color: var(--rp-text);
-  font-size: 14px; outline: 0;
-  transition: border-color .16s, box-shadow .16s;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  outline: 0;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
-.field input::placeholder { color: var(--rp-faint); }
-.field input:focus { border-color: var(--rp-accent); box-shadow: 0 0 0 3px var(--rp-accent-soft); }
-
-.form-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--rp-muted); }
-.check { display: inline-flex; align-items: center; gap: 8px; }
-.check input { accent-color: var(--rp-accent); }
-.link { color: var(--rp-accent); font-weight: 600; }
-.link:hover { text-decoration: underline; }
-
-.rp-btn {
-  border: 1px solid var(--rp-line-2); background: var(--rp-panel-2); color: var(--rp-text);
-  border-radius: 13px; padding: 0 18px; height: 46px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  transition: transform .12s, box-shadow .16s, background .16s;
+.field input:focus {
+  border-color: var(--teal-400);
+  box-shadow: var(--shadow-focus);
 }
-.rp-btn:hover { transform: translateY(-1px); }
-.rp-btn.primary {
-  background: linear-gradient(135deg, var(--rp-accent), var(--rp-accent-2));
-  color: var(--rp-accent-ink); border-color: transparent;
-  box-shadow: 0 14px 30px var(--rp-accent-glow);
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
-.rp-btn.block { width: 100%; }
-.rp-btn.lg { height: 52px; font-size: 15px; }
-
-.ap-foot { margin-top: 22px; text-align: center; font-size: 13px; color: var(--rp-muted); }
-
+.form-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-row input { accent-color: var(--teal-500); }
+.auth-foot a {
+  color: var(--teal-700);
+  font-weight: var(--fw-semibold);
+}
+.auth-foot {
+  margin-top: 22px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.auth-story {
+  display: flex;
+  min-height: 620px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 30px;
+  background:
+    linear-gradient(105deg, rgba(10,27,67,0.98), rgba(10,27,67,0.84)),
+    url('/reef-tank.webp') center bottom / cover;
+  color: #fff;
+}
+.story-visual {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.story-visual .tank-thumb { height: 100%; border-radius: 0; background: url('/reef-tank.webp') center / cover; }
+.story-visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(10,27,67,0.55));
+}
+.lab-card {
+  position: absolute;
+  z-index: 1;
+  right: 18px;
+  bottom: 18px;
+  min-width: 128px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.92);
+  color: var(--text);
+  box-shadow: 0 20px 46px rgba(0,0,0,0.18);
+}
+.lab-card span,
+.lab-card em {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+.lab-card strong {
+  display: block;
+  margin: 4px 0 1px;
+  color: var(--teal-800);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: var(--fw-semibold);
+}
+.story-copy { max-width: 470px; }
+.story-copy span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--teal-200);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.story-copy h2 {
+  margin-bottom: 12px;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.035em;
+}
+.story-copy p {
+  max-width: 420px;
+  color: rgba(255,255,255,0.68);
+  font-size: 15px;
+  line-height: 1.7;
+}
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
-  .story { display: none; }
+  .auth-story { display: none; }
 }
 @media (max-width: 560px) {
-  .rp-auth { padding: 16px; place-items: stretch; }
+  .auth-page { padding: 16px; place-items: stretch; }
   .auth-shell { border-radius: 22px; }
-  .ap-head { margin-bottom: 36px; }
+  .auth-head { margin-bottom: 36px; }
   .form-row { align-items: flex-start; flex-direction: column; }
 }
 </style>
