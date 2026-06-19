@@ -179,4 +179,10 @@ const remember = ref(false)
   .auth-shell { grid-template-columns: 1fr; }
   .story { display: none; }
 }
+@media (max-width: 560px) {
+  .rp-auth { padding: 16px; place-items: stretch; }
+  .auth-shell { border-radius: 22px; }
+  .ap-head { margin-bottom: 36px; }
+  .form-row { align-items: flex-start; flex-direction: column; }
+}
 </style>
