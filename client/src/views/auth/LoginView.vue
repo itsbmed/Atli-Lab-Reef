@@ -28,6 +28,13 @@
             <span>Passwort</span>
             <input v-model="form.password" type="password" autocomplete="current-password" />
           </label>
+
+          <div class="form-row">
+            <label class="check"><input v-model="remember" type="checkbox" /><span>Angemeldet bleiben</span></label>
+            <a href="#" class="link">Passwort vergessen?</a>
+          </div>
+
+          <button type="submit" class="rp-btn primary block lg">Einloggen</button>
         </form>
       </div>
       <aside class="story"></aside>
@@ -39,6 +46,7 @@
 import { ref } from 'vue'
 
 const form = ref({ login: '', password: '' })
+const remember = ref(false)
 </script>
 
 <style scoped>
@@ -102,6 +110,27 @@ const form = ref({ login: '', password: '' })
 }
 .field input::placeholder { color: var(--rp-faint); }
 .field input:focus { border-color: var(--rp-accent); box-shadow: 0 0 0 3px var(--rp-accent-soft); }
+
+.form-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--rp-muted); }
+.check { display: inline-flex; align-items: center; gap: 8px; }
+.check input { accent-color: var(--rp-accent); }
+.link { color: var(--rp-accent); font-weight: 600; }
+.link:hover { text-decoration: underline; }
+
+.rp-btn {
+  border: 1px solid var(--rp-line-2); background: var(--rp-panel-2); color: var(--rp-text);
+  border-radius: 13px; padding: 0 18px; height: 46px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: transform .12s, box-shadow .16s, background .16s;
+}
+.rp-btn:hover { transform: translateY(-1px); }
+.rp-btn.primary {
+  background: linear-gradient(135deg, var(--rp-accent), var(--rp-accent-2));
+  color: var(--rp-accent-ink); border-color: transparent;
+  box-shadow: 0 14px 30px var(--rp-accent-glow);
+}
+.rp-btn.block { width: 100%; }
+.rp-btn.lg { height: 52px; font-size: 15px; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
