@@ -12,6 +12,12 @@
           </RouterLink>
           <span class="lang">DE</span>
         </header>
+
+        <div class="ap-copy">
+          <span class="eyebrow">Kundenlogin</span>
+          <h1>Willkommen zurück.</h1>
+          <p>Melden Sie sich an, um Laborberichte, Aquarienverläufe und Empfehlungen weiterzuführen.</p>
+        </div>
       </div>
       <aside class="story"></aside>
     </section>
@@ -65,6 +71,11 @@
 .brand strong { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
 .brand em { font-style: normal; font-size: 11px; color: var(--rp-muted); letter-spacing: .06em; }
 .lang { font-size: 11px; font-weight: 700; color: var(--rp-muted); border: 1px solid var(--rp-line); border-radius: 999px; padding: 5px 11px; }
+
+.ap-copy { margin-bottom: 26px; }
+.eyebrow { display: block; margin-bottom: 12px; color: var(--rp-accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.ap-copy h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
+.ap-copy p { max-width: 380px; color: var(--rp-muted); font-size: 14px; line-height: 1.6; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
