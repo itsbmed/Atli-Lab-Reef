@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('@/views/HomeView.vue'), meta: { public: true } },
@@ -11,6 +12,12 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (to.meta.auth && !auth.isLoggedIn) return { name: 'Login' }
+  if (to.meta.guest && auth.isLoggedIn) return { name: 'Home' }
 })
 
 export default router

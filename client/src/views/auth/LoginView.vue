@@ -19,7 +19,7 @@
           <p>Melden Sie sich an, um Laborberichte, Aquarienverläufe und Empfehlungen weiterzuführen.</p>
         </div>
 
-        <form class="ap-form" @submit.prevent>
+        <form class="ap-form" @submit.prevent="submit">
           <label class="field">
             <span>Benutzername oder E-Mail</span>
             <input v-model="form.login" type="text" autocomplete="username" />
@@ -64,9 +64,19 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
+const router = useRouter()
+const auth = useAuthStore()
 const form = ref({ login: '', password: '' })
 const remember = ref(false)
+
+function submit() {
+  // Frontend-Stub bis das Backend steht: lokale Session setzen.
+  auth.setSession({ user: { name: form.value.login || 'Gast' }, token: 'dev' })
+  router.push('/')
+}
 </script>
 
 <style scoped>
