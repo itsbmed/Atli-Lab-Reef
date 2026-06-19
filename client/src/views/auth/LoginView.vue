@@ -36,6 +36,8 @@
 
           <button type="submit" class="rp-btn primary block lg">Einloggen</button>
         </form>
+
+        <p class="ap-foot">Noch kein Konto? <RouterLink to="/register" class="link">Konto erstellen</RouterLink></p>
       </div>
       <aside class="story"></aside>
     </section>
@@ -131,6 +133,8 @@ const remember = ref(false)
 }
 .rp-btn.block { width: 100%; }
 .rp-btn.lg { height: 52px; font-size: 15px; }
+
+.ap-foot { margin-top: 22px; text-align: center; font-size: 13px; color: var(--rp-muted); }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
