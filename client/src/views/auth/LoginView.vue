@@ -1,7 +1,18 @@
 <template>
   <main class="rp-auth">
     <section class="auth-shell">
-      <div class="form-panel"></div>
+      <div class="form-panel">
+        <header class="ap-head">
+          <RouterLink to="/" class="brand">
+            <span class="brand-mark">RP</span>
+            <div>
+              <strong>Reef Pilot</strong>
+              <em>by ATI · NYOS</em>
+            </div>
+          </RouterLink>
+          <span class="lang">DE</span>
+        </header>
+      </div>
       <aside class="story"></aside>
     </section>
   </main>
@@ -41,6 +52,19 @@
 }
 .form-panel { padding: clamp(26px, 5vw, 46px); }
 .story { min-height: 600px; border-left: 1px solid var(--rp-line); }
+
+.ap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; }
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: grid; place-items: center;
+  font-size: 14px; font-weight: 800; letter-spacing: -.02em;
+  color: var(--rp-accent-ink);
+  background: linear-gradient(135deg, var(--rp-accent), var(--rp-accent-2));
+}
+.brand strong { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.brand em { font-style: normal; font-size: 11px; color: var(--rp-muted); letter-spacing: .06em; }
+.lang { font-size: 11px; font-weight: 700; color: var(--rp-muted); border: 1px solid var(--rp-line); border-radius: 999px; padding: 5px 11px; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: 1fr; }
