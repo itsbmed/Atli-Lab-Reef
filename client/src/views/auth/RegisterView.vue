@@ -38,7 +38,7 @@
           <span class="lang">DE</span>
         </div>
 
-        <form class="auth-form" @submit.prevent>
+        <form class="auth-form" @submit.prevent="submit">
           <div class="form-grid">
             <label class="field">
               <span>Benutzername</span>
@@ -82,7 +82,20 @@
               <span>Erinnerungen für regelmäßige Wasseranalysen aktivieren</span>
             </label>
           </div>
+
+          <button type="submit" class="btn btn-primary btn-block btn-lg">Konto erstellen</button>
         </form>
+
+        <div class="auth-footer">
+          <p class="dealer-hint">
+            Sie sind Händler oder Servicebetrieb?
+            <a href="#">Partnerzugang anfragen →</a>
+          </p>
+          <p class="auth-foot">
+            Schon ein Konto?
+            <RouterLink to="/login">Anmelden</RouterLink>
+          </p>
+        </div>
       </div>
     </section>
   </main>
@@ -90,6 +103,11 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
 
 const form = ref({
   username: '',
@@ -121,6 +139,12 @@ const strengthTone = computed(() => {
   if (passwordStrength.value >= 50) return 'medium'
   return 'weak'
 })
+
+function submit() {
+  // Frontend-Stub bis das Backend steht: lokale Session setzen.
+  auth.setSession({ user: { name: form.value.username || 'Gast' }, token: 'dev' })
+  router.push('/')
+}
 </script>
 
 <style scoped>
@@ -305,6 +329,19 @@ const strengthTone = computed(() => {
 }
 .checks label { display: flex; gap: 9px; align-items: flex-start; line-height: 1.4; }
 .checks input { margin-top: 2px; accent-color: var(--teal-500); }
+.auth-footer {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  text-align: center;
+}
+.dealer-hint { color: var(--text-muted); font-size: 13px; }
+.dealer-hint a { color: var(--teal-500); font-weight: var(--fw-semibold); white-space: nowrap; }
+.dealer-hint a:hover { text-decoration: underline; }
+.auth-foot { color: var(--text-muted); font-size: 13px; }
+.auth-foot a { color: var(--teal-700); font-weight: var(--fw-semibold); }
 @media (max-width: 980px) {
   .auth-shell { grid-template-columns: minmax(0, 680px); }
   .auth-context { display: none; }
