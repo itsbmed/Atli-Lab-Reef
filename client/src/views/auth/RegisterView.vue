@@ -37,13 +37,48 @@
           </div>
           <span class="lang">DE</span>
         </div>
+
+        <form class="auth-form" @submit.prevent>
+          <div class="form-grid">
+            <label class="field">
+              <span>Benutzername</span>
+              <input v-model="form.username" type="text" autocomplete="username" />
+            </label>
+            <label class="field">
+              <span>E-Mail</span>
+              <input v-model="form.email" type="email" autocomplete="email" />
+            </label>
+            <label class="field">
+              <span>Passwort</span>
+              <input v-model="form.password" type="password" autocomplete="new-password" minlength="8" />
+            </label>
+            <label class="field">
+              <span>Land</span>
+              <select v-model="form.country">
+                <option value="DE">Deutschland</option>
+                <option value="AT">Österreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+              </select>
+            </label>
+          </div>
+        </form>
       </div>
     </section>
   </main>
 </template>
 
 <script setup>
-// Registrierung — wird schrittweise aufgebaut.
+import { ref } from 'vue'
+
+const form = ref({
+  username: '',
+  email: '',
+  password: '',
+  country: 'DE',
+  newsletter: false,
+})
 </script>
 
 <style scoped>
@@ -168,6 +203,37 @@
   letter-spacing: -0.03em;
 }
 .lang { font-size: 11px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
+.auth-form { display: grid; gap: 15px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+.field span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
+.field input,
+.field select {
+  width: 100%;
+  height: 50px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  outline: 0;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.field input:focus,
+.field select:focus {
+  border-color: var(--teal-400);
+  box-shadow: var(--shadow-focus);
+}
 @media (max-width: 980px) {
   .auth-shell { grid-template-columns: minmax(0, 680px); }
   .auth-context { display: none; }
