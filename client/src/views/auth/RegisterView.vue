@@ -35,7 +35,7 @@
             <span class="eyebrow">Registrierung</span>
             <h2>Neues Konto</h2>
           </div>
-          <span class="lang">DE</span>
+          <LanguageSwitch />
         </div>
 
         <form class="auth-form" @submit.prevent="submit">
@@ -105,6 +105,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -268,7 +269,6 @@ function submit() {
   font-weight: var(--fw-semibold);
   letter-spacing: -0.03em;
 }
-.lang { font-size: 11px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
 .auth-form { display: grid; gap: 15px; }
 .form-grid {
   display: grid;

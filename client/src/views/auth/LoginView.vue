@@ -7,7 +7,7 @@
             <img src="/ati-logo.png" alt="ATI" />
             <span>Reef Lab Portal</span>
           </RouterLink>
-          <span class="lang">DE</span>
+          <LanguageSwitch />
         </div>
 
         <div class="auth-copy">
@@ -71,6 +71,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -134,7 +135,6 @@ function submit() {
   text-transform: uppercase;
 }
 .brand img { width: 96px; }
-.lang { font-size: 11px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
 .auth-copy { margin-bottom: 24px; }
 .eyebrow {
   display: block;
