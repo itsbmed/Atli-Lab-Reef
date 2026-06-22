@@ -1,7 +1,29 @@
 <template>
   <main class="auth-page">
     <section class="auth-shell">
-      <aside class="auth-context"></aside>
+      <aside class="auth-context">
+        <RouterLink to="/" class="brand brand-light">
+          <img src="/ati-logo.png" alt="ATI" />
+          <span>Reef Lab Portal</span>
+        </RouterLink>
+
+        <div class="context-copy">
+          <span>Konto erstellen</span>
+          <h1>Ihr Zugang zum ATI Reef Lab.</h1>
+          <p>Registrieren Sie sich als privater Kunde und verwalten Sie Ihre Aquarienprofile und Analyseberichte zentral an einem Ort.</p>
+        </div>
+
+        <div class="account-explainer">
+          <div>
+            <strong>Privatkunde</strong>
+            <span>Für eigene Aquarien, Testkits und persönliche Analyseberichte.</span>
+          </div>
+          <div class="explainer-dealer">
+            <strong>Sie sind Händler?</strong>
+            <span>Gewerbliche Partnerzugänge richten wir persönlich ein — sprechen Sie uns einfach an.</span>
+          </div>
+        </div>
+      </aside>
       <div class="auth-form-panel"></div>
     </section>
   </main>
@@ -34,12 +56,73 @@
   backdrop-filter: blur(18px);
 }
 .auth-context {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   min-height: 720px;
   padding: 34px;
   color: #fff;
   background:
     linear-gradient(105deg, rgba(10,27,67,0.92), rgba(10,27,67,0.76)),
     url('/reef-tank.webp') center / cover;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brand img { width: 96px; }
+.brand-light { color: rgba(255,255,255,0.75); }
+.context-copy span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--teal-200);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.context-copy h1 {
+  max-width: 350px;
+  margin-bottom: 12px;
+  font-size: 40px;
+  line-height: 1;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.035em;
+}
+.context-copy p {
+  max-width: 360px;
+  color: rgba(255,255,255,0.74);
+  line-height: 1.7;
+}
+.account-explainer { display: grid; gap: 10px; }
+.account-explainer div {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(10px);
+}
+.account-explainer strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+}
+.account-explainer span {
+  display: block;
+  color: rgba(255,255,255,0.66);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.explainer-dealer {
+  border-color: rgba(136,193,233,0.32) !important;
+  background: rgba(136,193,233,0.16) !important;
 }
 .auth-form-panel {
   padding: clamp(24px, 5vw, 44px);
