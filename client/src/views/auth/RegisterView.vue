@@ -24,7 +24,20 @@
           </div>
         </div>
       </aside>
-      <div class="auth-form-panel"></div>
+      <div class="auth-form-panel">
+        <RouterLink to="/" class="brand brand-mobile">
+          <img src="/ati-logo.png" alt="ATI" />
+          <span>Reef Lab Portal</span>
+        </RouterLink>
+
+        <div class="form-heading">
+          <div>
+            <span class="eyebrow">Registrierung</span>
+            <h2>Neues Konto</h2>
+          </div>
+          <span class="lang">DE</span>
+        </div>
+      </div>
     </section>
   </main>
 </template>
@@ -130,9 +143,35 @@
   flex-direction: column;
   justify-content: center;
 }
+.brand-mobile { display: none; margin-bottom: 34px; color: var(--text-muted); }
+.form-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--teal-700);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.form-heading h2 {
+  color: var(--text);
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.03em;
+}
+.lang { font-size: 11px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
 @media (max-width: 980px) {
   .auth-shell { grid-template-columns: minmax(0, 680px); }
   .auth-context { display: none; }
+  .brand-mobile { display: inline-flex; align-items: center; gap: 11px; }
 }
 @media (max-width: 640px) {
   .auth-page { padding: 16px; }
