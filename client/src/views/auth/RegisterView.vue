@@ -63,6 +63,25 @@
               </select>
             </label>
           </div>
+
+          <div class="password-meter">
+            <div>
+              <span>Passwort-Sicherheit</span>
+              <strong>{{ strengthLabel }}</strong>
+            </div>
+            <i><b :class="strengthTone" :style="{ width: `${passwordStrength}%` }"></b></i>
+          </div>
+
+          <div class="checks">
+            <label>
+              <input v-model="form.newsletter" type="checkbox" />
+              <span>ATI Informationen und Produktneuheiten erhalten</span>
+            </label>
+            <label>
+              <input v-model="analysisReminder" type="checkbox" />
+              <span>Erinnerungen für regelmäßige Wasseranalysen aktivieren</span>
+            </label>
+          </div>
         </form>
       </div>
     </section>
@@ -70,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const form = ref({
   username: '',
@@ -78,6 +97,29 @@ const form = ref({
   password: '',
   country: 'DE',
   newsletter: false,
+})
+const analysisReminder = ref(true)
+
+const passwordStrength = computed(() => {
+  const value = form.value.password
+  let score = 0
+  if (value.length >= 8) score += 35
+  if (value.length >= 12) score += 20
+  if (/[A-Z]/.test(value)) score += 15
+  if (/[0-9]/.test(value)) score += 15
+  if (/[^A-Za-z0-9]/.test(value)) score += 15
+  return Math.min(score, 100)
+})
+const strengthLabel = computed(() => {
+  if (!form.value.password) return 'Noch offen'
+  if (passwordStrength.value >= 80) return 'Stark'
+  if (passwordStrength.value >= 50) return 'Solide'
+  return 'Zu schwach'
+})
+const strengthTone = computed(() => {
+  if (passwordStrength.value >= 80) return 'strong'
+  if (passwordStrength.value >= 50) return 'medium'
+  return 'weak'
 })
 </script>
 
@@ -234,6 +276,35 @@ const form = ref({
   border-color: var(--teal-400);
   box-shadow: var(--shadow-focus);
 }
+.password-meter {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.76);
+  border: 1px solid var(--border);
+}
+.password-meter div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.password-meter strong { color: var(--text); font-weight: var(--fw-semibold); }
+.password-meter i { height: 7px; border-radius: 999px; background: rgba(100,130,165,0.16); overflow: hidden; }
+.password-meter b { display: block; height: 100%; border-radius: inherit; transition: width 0.2s; }
+.password-meter b.weak { background: var(--crit); }
+.password-meter b.medium { background: var(--warn); }
+.password-meter b.strong { background: linear-gradient(90deg, var(--teal-400), var(--good)); }
+.checks {
+  display: grid;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.checks label { display: flex; gap: 9px; align-items: flex-start; line-height: 1.4; }
+.checks input { margin-top: 2px; accent-color: var(--teal-500); }
 @media (max-width: 980px) {
   .auth-shell { grid-template-columns: minmax(0, 680px); }
   .auth-context { display: none; }
