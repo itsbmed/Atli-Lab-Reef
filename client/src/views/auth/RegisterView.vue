@@ -144,7 +144,7 @@ const strengthTone = computed(() => {
 function submit() {
   // Frontend-Stub bis das Backend steht: lokale Session setzen.
   auth.setSession({ user: { name: form.value.username || 'Gast' }, token: 'dev' })
-  router.push('/')
+  router.push('/dashboard')
 }
 </script>
 
