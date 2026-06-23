@@ -1,7 +1,9 @@
 <template>
   <main class="nd-home">
     <section class="nd-hero">
-      <div class="nd-hero-copy"></div>
+      <div class="nd-hero-copy">
+        <span class="nd-badge"><i></i> ATI Reef Lab · Einrichtung</span>
+      </div>
       <div class="nd-setup"></div>
     </section>
   </main>
@@ -37,6 +39,27 @@
   box-shadow: 0 34px 90px rgba(10,27,67,0.26);
 }
 .nd-hero-copy { position: relative; z-index: 1; }
+.nd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(136,193,233,0.3);
+  color: var(--brand-sky);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nd-badge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-cyan);
+  box-shadow: 0 0 0 4px rgba(0,190,208,0.22);
+}
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
