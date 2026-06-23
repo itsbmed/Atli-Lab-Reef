@@ -85,7 +85,7 @@ function submit() {
   loading.value = true
   error.value = ''
   auth.setSession({ user: { name: form.value.login || 'Gast' }, token: 'dev' })
-  router.push('/')
+  router.push('/dashboard')
   loading.value = false
 }
 </script>
