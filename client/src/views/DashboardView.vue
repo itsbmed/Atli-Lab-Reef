@@ -9,6 +9,12 @@
           <a class="btn btn-primary btn-lg">Aquarium anlegen</a>
           <a class="btn btn-ghost btn-lg">Tools entdecken</a>
         </div>
+        <div class="nd-trust">
+          <div v-for="t in trustStats" :key="t.label">
+            <strong>{{ t.value }}</strong>
+            <span>{{ t.label }}</span>
+          </div>
+        </div>
       </div>
       <div class="nd-setup"></div>
     </section>
@@ -22,6 +28,12 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const firstName = computed(() => (auth.user?.name || '').split(' ')[0])
+
+const trustStats = [
+  { value: '40+', label: 'Elemente pro Analyse' },
+  { value: 'ICP-OES', label: 'Laborpräzision' },
+  { value: '50.000+', label: 'Aquarianer weltweit' },
+]
 </script>
 
 <style scoped>
@@ -92,6 +104,33 @@ const firstName = computed(() => (auth.user?.name || '').split(' ')[0])
   border: 1px solid rgba(255,255,255,0.18);
 }
 .nd-hero-actions .btn-ghost:hover { background: rgba(255,255,255,0.18); border-color: var(--brand-cyan); }
+.nd-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.14);
+}
+.nd-trust strong {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: linear-gradient(120deg, #fff, var(--brand-sky));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.nd-trust span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
