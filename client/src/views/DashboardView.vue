@@ -46,6 +46,16 @@
         </div>
       </div>
     </section>
+
+    <section class="nd-journey">
+      <div class="nd-section-head">
+        <div>
+          <span class="nd-eyebrow">In 4 Schritten</span>
+          <h2>So kommt Ihr Wasser ins ATI Labor</h2>
+        </div>
+        <a class="btn btn-primary">Jetzt starten</a>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -243,6 +253,43 @@ const setupSteps = [
 .nd-setup-flag { display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 .nd-setup-flag.done { padding: 4px 9px; border-radius: 999px; background: rgba(16,185,129,0.18); color: var(--good); }
 .nd-setup-flag.locked svg { width: 16px; height: 16px; color: rgba(255,255,255,0.55); }
+
+/* ── Sektionen & Überschriften ── */
+.nd-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.nd-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--brand-blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nd-section-head h2 {
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1.05;
+}
+.nd-journey {
+  margin-bottom: 32px;
+  padding: clamp(28px, 4vw, 48px);
+  border-radius: 26px;
+  background: #fff;
+  border: 1px solid rgba(136,193,233,0.2);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 760px) {
+  .nd-section-head { flex-direction: column; align-items: flex-start; }
+}
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
