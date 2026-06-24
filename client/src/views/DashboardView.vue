@@ -5,6 +5,10 @@
         <span class="nd-badge"><i></i> ATI Reef Lab · Einrichtung</span>
         <h1>Willkommen{{ firstName ? `, ${firstName}` : '' }}.<br />Noch 2 Schritte bis zum Dashboard.</h1>
         <p>Ihr Health-Dashboard schaltet sich automatisch frei, sobald Ihr erstes Aquarium angelegt und eine Analyse registriert ist. Wir führen Sie Schritt für Schritt.</p>
+        <div class="nd-hero-actions">
+          <a class="btn btn-primary btn-lg">Aquarium anlegen</a>
+          <a class="btn btn-ghost btn-lg">Tools entdecken</a>
+        </div>
       </div>
       <div class="nd-setup"></div>
     </section>
@@ -80,6 +84,14 @@ const firstName = computed(() => (auth.user?.name || '').split(' ')[0])
   font-size: 15px;
   line-height: 1.7;
 }
+.nd-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.nd-hero-actions .btn { cursor: pointer; }
+.nd-hero-actions .btn-ghost {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.nd-hero-actions .btn-ghost:hover { background: rgba(255,255,255,0.18); border-color: var(--brand-cyan); }
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
