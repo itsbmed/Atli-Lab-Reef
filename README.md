@@ -20,6 +20,3 @@ cd client && npm install && npm run dev
 cd server && npm install && npm run dev
 ```
 
-## Status
-
-Aufbauphase — Fokus zunächst auf dem Frontend. Start mit Login & Registrierung.
