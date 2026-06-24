@@ -16,7 +16,17 @@
           </div>
         </div>
       </div>
-      <div class="nd-setup"></div>
+      <div class="nd-setup">
+        <div class="nd-setup-head">
+          <div>
+            <span>Einrichtung</span>
+            <strong>1 / 3 erledigt</strong>
+          </div>
+          <div class="nd-setup-ring" :style="{ background: 'conic-gradient(var(--brand-cyan) 119deg, rgba(255,255,255,0.16) 0deg)' }">
+            <b>33<small>%</small></b>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </template>
@@ -131,6 +141,51 @@ const trustStats = [
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+
+.nd-setup {
+  position: relative;
+  z-index: 1;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(136,193,233,0.26);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 26px 64px rgba(0,0,0,0.26);
+}
+.nd-setup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.nd-setup-head span {
+  display: block;
+  color: var(--brand-sky);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nd-setup-head strong { display: block; margin-top: 5px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.nd-setup-ring {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+.nd-setup-ring::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: rgba(10,27,67,0.9);
+}
+.nd-setup-ring b { position: relative; z-index: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.04em; }
+.nd-setup-ring small { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: 1px; }
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
