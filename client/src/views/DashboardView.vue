@@ -26,6 +26,24 @@
             <b>33<small>%</small></b>
           </div>
         </div>
+
+        <div class="nd-setup-steps">
+          <div v-for="(step, i) in setupSteps" :key="step.title" :class="['nd-setup-step', { done: step.done, active: step.active, locked: step.locked }]">
+            <span class="nd-setup-check">
+              <svg v-if="step.done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              <template v-else>{{ i + 1 }}</template>
+            </span>
+            <div class="nd-setup-text">
+              <strong>{{ step.title }}</strong>
+              <em>{{ step.caption }}</em>
+            </div>
+            <span v-if="step.done" class="nd-setup-flag done">Fertig</span>
+            <span v-else-if="step.locked" class="nd-setup-flag locked">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+            </span>
+            <span v-else class="nd-setup-arrow">→</span>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -43,6 +61,12 @@ const trustStats = [
   { value: '40+', label: 'Elemente pro Analyse' },
   { value: 'ICP-OES', label: 'Laborpräzision' },
   { value: '50.000+', label: 'Aquarianer weltweit' },
+]
+
+const setupSteps = [
+  { title: 'Konto erstellt', caption: 'Willkommen im ATI Reef Lab.', done: true },
+  { title: 'Aquarium anlegen', caption: 'Volumen, Beckentyp und Besatz hinterlegen.', active: true },
+  { title: 'Erste Analyse registrieren', caption: 'Testkit-Barcode erfassen und Probe einsenden.', locked: true },
 ]
 </script>
 
@@ -186,6 +210,39 @@ const trustStats = [
 }
 .nd-setup-ring b { position: relative; z-index: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.04em; }
 .nd-setup-ring small { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: 1px; }
+.nd-setup-steps { display: grid; gap: 10px; }
+.nd-setup-step {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 13px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.nd-setup-step.active { background: rgba(0,190,208,0.12); border-color: rgba(0,190,208,0.5); box-shadow: 0 0 0 1px rgba(0,190,208,0.2); }
+.nd-setup-step.locked { opacity: 0.5; }
+.nd-setup-check {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  font-size: 15px;
+  font-weight: 800;
+}
+.nd-setup-check svg { width: 18px; height: 18px; }
+.nd-setup-step.active .nd-setup-check { background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); color: #fff; box-shadow: 0 8px 20px rgba(0,190,208,0.4); }
+.nd-setup-step.done .nd-setup-check { background: rgba(16,185,129,0.18); color: var(--good); }
+.nd-setup-text strong { display: block; font-size: 14px; font-weight: 800; letter-spacing: -0.02em; }
+.nd-setup-text em { display: block; margin-top: 2px; color: rgba(255,255,255,0.6); font-size: 11px; font-style: normal; font-weight: 700; line-height: 1.4; }
+.nd-setup-arrow { color: var(--brand-sky); font-size: 18px; font-weight: 800; }
+.nd-setup-flag { display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.nd-setup-flag.done { padding: 4px 9px; border-radius: 999px; background: rgba(16,185,129,0.18); color: var(--good); }
+.nd-setup-flag.locked svg { width: 16px; height: 16px; color: rgba(255,255,255,0.55); }
 
 @media (max-width: 1040px) {
   .nd-hero { grid-template-columns: 1fr; }
