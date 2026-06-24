@@ -55,6 +55,18 @@
         </div>
         <a class="btn btn-primary">Jetzt starten</a>
       </div>
+      <div class="nd-journey-track">
+        <div v-for="(step, i) in journeySteps" :key="step.title" class="nd-step">
+          <div class="nd-step-media">
+            <span class="nd-step-num">{{ i + 1 }}</span>
+            <span class="nd-step-icon" v-html="step.icon"></span>
+          </div>
+          <div class="nd-step-body">
+            <strong>{{ step.title }}</strong>
+            <p>{{ step.caption }}</p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </template>
@@ -77,6 +89,13 @@ const setupSteps = [
   { title: 'Konto erstellt', caption: 'Willkommen im ATI Reef Lab.', done: true },
   { title: 'Aquarium anlegen', caption: 'Volumen, Beckentyp und Besatz hinterlegen.', active: true },
   { title: 'Erste Analyse registrieren', caption: 'Testkit-Barcode erfassen und Probe einsenden.', locked: true },
+]
+
+const journeySteps = [
+  { title: 'Aquarium anlegen', caption: 'Volumen, Beckentyp und Besatz hinterlegen.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 11c2 0 2.2 1.6 4.5 1.6S10 11 12 11s2.2 1.6 4.5 1.6S19 11 21 11"/></svg>` },
+  { title: 'Testkit aktivieren', caption: 'Barcode scannen und mit dem Becken verknüpfen.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>` },
+  { title: 'Probe einsenden', caption: 'Röhrchen füllen und ins ATI Labor senden.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>` },
+  { title: 'Ergebnisse erhalten', caption: 'Scores, Trends und Empfehlungen erscheinen online.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg>` },
 ]
 </script>
 
@@ -286,9 +305,55 @@ const setupSteps = [
   border: 1px solid rgba(136,193,233,0.2);
   box-shadow: var(--shadow);
 }
+.nd-journey-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.nd-step {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(136,193,233,0.2);
+  box-shadow: 0 16px 44px rgba(10,27,67,0.07);
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.nd-step:hover { transform: translateY(-4px); box-shadow: 0 26px 64px rgba(10,27,67,0.13); }
+.nd-step-media {
+  position: relative;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(0,190,208,0.12), transparent 70%),
+    #f5f8fc;
+  border-bottom: 1px solid rgba(136,193,233,0.22);
+}
+.nd-step-icon { display: grid; place-items: center; color: var(--brand-blue); }
+.nd-step-icon :deep(svg) { width: 46px; height: 46px; }
+.nd-step-num {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(0,114,206,0.4);
+}
+.nd-step-body { padding: 18px 20px 22px; }
+.nd-step-body strong { display: block; color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+.nd-step-body p { margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.5; font-weight: 700; }
 
+@media (max-width: 1040px) {
+  .nd-journey-track { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 760px) {
   .nd-section-head { flex-direction: column; align-items: flex-start; }
+  .nd-journey-track { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1040px) {
