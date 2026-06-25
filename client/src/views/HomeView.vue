@@ -11,7 +11,9 @@
       </nav>
     </header>
 
-    <main class="lp-hero"></main>
+    <main class="lp-hero">
+      <h1>Willkommen</h1>
+    </main>
   </div>
 </template>
 
@@ -50,4 +52,10 @@
 .lp-link { color: var(--text); font-size: 14px; font-weight: var(--fw-semibold); }
 .lp-link:hover { color: var(--teal-700); }
 .lp-hero { flex: 1; display: grid; place-items: center; padding: 32px; }
+.lp-hero h1 {
+  font-size: clamp(48px, 11vw, 104px);
+  font-weight: var(--fw-extra-bold);
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
 </style>
