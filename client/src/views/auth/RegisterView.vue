@@ -38,6 +38,8 @@
           <LanguageSwitch />
         </div>
 
+        <div v-if="error" class="alert-error">{{ error }}</div>
+
         <form class="auth-form" @submit.prevent="submit">
           <div class="form-grid">
             <label class="field">
@@ -109,6 +111,7 @@ import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const error = ref('')
 
 const form = ref({
   username: '',
@@ -141,10 +144,19 @@ const strengthTone = computed(() => {
   return 'weak'
 })
 
-function submit() {
-  // Frontend-Stub bis das Backend steht: lokale Session setzen.
-  auth.setSession({ user: { name: form.value.username || 'Gast' }, token: 'dev' })
-  router.push('/dashboard')
+async function submit() {
+  error.value = ''
+  try {
+    await auth.register({
+      username: form.value.username,
+      email: form.value.email,
+      password: form.value.password,
+      country: form.value.country,
+    })
+    router.push('/dashboard')
+  } catch (e) {
+    error.value = e.error || 'Registrierung fehlgeschlagen'
+  }
 }
 </script>
 
@@ -268,6 +280,10 @@ function submit() {
   line-height: 1;
   font-weight: var(--fw-semibold);
   letter-spacing: -0.03em;
+}
+.alert-error {
+  margin-bottom: 14px; padding: 11px 14px; border-radius: 12px;
+  background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600;
 }
 .auth-form { display: grid; gap: 15px; }
 .form-grid {

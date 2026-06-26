@@ -80,13 +80,17 @@ const error = ref('')
 const remember = ref(false)
 const form = ref({ login: '', password: '' })
 
-function submit() {
-  // Frontend-Stub bis das Backend steht: lokale Session setzen.
+async function submit() {
   loading.value = true
   error.value = ''
-  auth.setSession({ user: { name: form.value.login || 'Gast' }, token: 'dev' })
-  router.push('/dashboard')
-  loading.value = false
+  try {
+    await auth.login({ login: form.value.login, password: form.value.password })
+    router.push('/dashboard')
+  } catch (e) {
+    error.value = e.error || 'Anmeldung fehlgeschlagen'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
