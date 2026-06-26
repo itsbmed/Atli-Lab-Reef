@@ -1,6 +1,7 @@
 <template>
   <div class="app-shell">
-    <!-- Sidebar folgt später. -->
+    <aside class="sidebar"></aside>
+
     <div class="main-wrapper">
       <header class="topbar">
         <div class="topbar-page">
@@ -83,10 +84,25 @@ function logout() {
 </script>
 
 <style scoped>
-.app-shell { display: flex; min-height: 100vh; --topbar-height: 68px; }
+.app-shell { display: flex; min-height: 100vh; --sidebar-width: 248px; --topbar-height: 68px; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-width);
+  display: flex; flex-direction: column;
+  position: fixed; top: 14px; left: 14px; bottom: 14px;
+  z-index: 100; overflow-y: auto; overflow-x: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 30px 86px rgba(10,27,67,0.32);
+  background:
+    linear-gradient(180deg, rgba(10,27,67,0.96), rgba(10,27,67,0.99)),
+    url('/reef-tank.webp') center bottom / cover no-repeat,
+    #0a1b43;
+}
 
 /* ── Main wrapper ── */
-.main-wrapper { flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 
 /* ── Topbar ── */
 .topbar {
@@ -133,6 +149,8 @@ function logout() {
 .footer-links a:hover { color: var(--teal-500); }
 
 @media (max-width: 980px) {
+  .sidebar { display: none; }
+  .main-wrapper { margin-left: 0; }
   .topbar { padding: 12px 16px; flex-wrap: wrap; height: auto; }
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; margin: 0; }
   .main-content { padding: 20px 16px; }
