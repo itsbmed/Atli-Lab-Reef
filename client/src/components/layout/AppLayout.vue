@@ -1,6 +1,10 @@
 <template>
   <div class="app-shell">
-    <aside class="sidebar"></aside>
+    <aside class="sidebar">
+      <RouterLink to="/" class="sidebar-logo" title="Zur Startseite">
+        <img src="/ati-logo.png" alt="ATI" class="ati-logo-img" />
+      </RouterLink>
+    </aside>
 
     <div class="main-wrapper">
       <header class="topbar">
@@ -100,6 +104,15 @@ function logout() {
     url('/reef-tank.webp') center bottom / cover no-repeat,
     #0a1b43;
 }
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.ati-logo-img { width: 82px; height: auto; filter: brightness(0) invert(1); opacity: 0.92; }
 
 /* ── Main wrapper ── */
 .main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
