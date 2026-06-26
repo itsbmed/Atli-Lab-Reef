@@ -4,6 +4,14 @@
       <RouterLink to="/" class="sidebar-logo" title="Zur Startseite">
         <img src="/ati-logo.png" alt="ATI" class="ati-logo-img" />
       </RouterLink>
+
+      <div class="sidebar-user">
+        <div class="user-avatar">{{ initials }}</div>
+        <div class="user-info">
+          <span class="user-name">{{ displayName }}</span>
+          <span class="user-status"><span class="status-dot"></span> Online</span>
+        </div>
+      </div>
     </aside>
 
     <div class="main-wrapper">
@@ -113,6 +121,31 @@ function logout() {
   flex-shrink: 0;
 }
 .ati-logo-img { width: 82px; height: auto; filter: brightness(0) invert(1); opacity: 0.92; }
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--teal-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.user-info { display: flex; flex-direction: column; min-width: 0; }
+.user-name { font-size: 14px; font-weight: 700; color: #fff; }
+.user-status { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 5px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
 
 /* ── Main wrapper ── */
 .main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
