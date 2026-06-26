@@ -100,12 +100,7 @@ const journeySteps = [
 </script>
 
 <style scoped>
-.nd-home {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: clamp(20px, 3vw, 38px);
-  min-height: 100vh;
-}
+/* nd-home sitzt innerhalb der AppLayout-Content-Fläche (Breite/Padding kommen von dort). */
 
 .nd-hero {
   display: grid;
