@@ -56,6 +56,11 @@
         <p>Unser Laborteam hilft Ihnen bei Werten und Empfehlungen weiter.</p>
         <a href="#" class="support-btn">Support kontaktieren</a>
       </div>
+
+      <div class="sidebar-version">
+        <span class="version-dot"></span>
+        <span>Version 0.1 · Beta</span>
+      </div>
     </aside>
 
     <div class="main-wrapper">
@@ -223,6 +228,8 @@ const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor"
 .sidebar-support p { margin-top: 4px; font-size: 11.5px; line-height: 1.5; color: rgba(255,255,255,0.6); }
 .support-btn { display: block; margin-top: 12px; padding: 9px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 700; color: var(--brand-900, #0a1b43); background: var(--teal-200); text-decoration: none; transition: background 0.15s; }
 .support-btn:hover { background: #fff; }
+.sidebar-version { display: flex; align-items: center; gap: 7px; padding: 12px 22px 16px; font-size: 11px; color: rgba(255,255,255,0.4); flex-shrink: 0; }
+.version-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal-300); flex-shrink: 0; }
 
 /* ── Main wrapper ── */
 .main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
