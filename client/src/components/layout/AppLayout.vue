@@ -12,6 +12,13 @@
           <span class="user-status"><span class="status-dot"></span> Online</span>
         </div>
       </div>
+
+      <nav class="sidebar-nav">
+        <RouterLink to="/dashboard" class="nav-item nav-item--active">
+          <span class="nav-icon" v-html="iconHome"></span>
+          <span>Übersicht</span>
+        </RouterLink>
+      </nav>
     </aside>
 
     <div class="main-wrapper">
@@ -93,6 +100,8 @@ function logout() {
   auth.logout()
   router.push('/login')
 }
+
+const iconHome = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 9.5L10 3l7 6.5V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M7 19v-6h6v6"/></svg>`
 </script>
 
 <style scoped>
@@ -146,6 +155,22 @@ function logout() {
 .user-name { font-size: 14px; font-weight: 700; color: #fff; }
 .user-status { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 5px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+.sidebar-nav { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 5px; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  color: rgba(255,255,255,0.68);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.16s, color 0.16s, transform 0.16s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.94); transform: translateX(2px); }
+.nav-item--active { background: rgba(136,193,233,0.18); color: #fff; box-shadow: inset 3px 0 0 var(--teal-500), inset 0 0 0 1px rgba(136,193,233,0.22); }
+.nav-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; opacity: 0.92; background: rgba(255,255,255,0.06); }
 
 /* ── Main wrapper ── */
 .main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
