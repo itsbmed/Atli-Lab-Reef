@@ -49,6 +49,13 @@
           <span>Einstellungen</span>
         </a>
       </nav>
+
+      <div class="sidebar-support">
+        <span class="support-icon" v-html="iconLifebuoy"></span>
+        <strong>Fragen zur Analyse?</strong>
+        <p>Unser Laborteam hilft Ihnen bei Werten und Empfehlungen weiter.</p>
+        <a href="#" class="support-btn">Support kontaktieren</a>
+      </div>
     </aside>
 
     <div class="main-wrapper">
@@ -139,6 +146,7 @@ const iconClock = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" st
 const iconTools = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M12 5a3 3 0 0 1 4 4l-7 7-3 1 1-3 5-5z"/><path d="M5 5l3 3"/></svg>`
 const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3 3-5 6-5s6 2 6 5"/></svg>`
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
+const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.2"/><path d="M5.3 5.3l3.4 3.4M13.3 13.3l3.4 3.4M16.7 5.3l-3.4 3.4M8.7 13.3l-3.4 3.4"/></svg>`
 </script>
 
 <style scoped>
@@ -209,6 +217,12 @@ const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
 .nav-item--active { background: rgba(136,193,233,0.18); color: #fff; box-shadow: inset 3px 0 0 var(--teal-500), inset 0 0 0 1px rgba(136,193,233,0.22); }
 .nav-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; opacity: 0.92; background: rgba(255,255,255,0.06); }
 .nav-label { margin: 16px 12px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.38); }
+.sidebar-support { margin: 4px 14px 16px; padding: 16px; border-radius: 16px; border: 1px solid rgba(136,193,233,0.22); background: rgba(136,193,233,0.1); flex-shrink: 0; }
+.support-icon { display: inline-flex; color: var(--teal-200); }
+.sidebar-support strong { display: block; margin-top: 8px; font-size: 13px; font-weight: 700; color: #fff; }
+.sidebar-support p { margin-top: 4px; font-size: 11.5px; line-height: 1.5; color: rgba(255,255,255,0.6); }
+.support-btn { display: block; margin-top: 12px; padding: 9px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 700; color: var(--brand-900, #0a1b43); background: var(--teal-200); text-decoration: none; transition: background 0.15s; }
+.support-btn:hover { background: #fff; }
 
 /* ── Main wrapper ── */
 .main-wrapper { margin-left: calc(var(--sidebar-width) + 28px); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
