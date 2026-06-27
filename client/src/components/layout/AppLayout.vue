@@ -18,6 +18,22 @@
           <span class="nav-icon" v-html="iconHome"></span>
           <span>Übersicht</span>
         </RouterLink>
+        <a href="#" class="nav-item">
+          <span class="nav-icon" v-html="iconTank"></span>
+          <span>Aquarien</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon" v-html="iconChart"></span>
+          <span>Analysen</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon" v-html="iconBulb"></span>
+          <span>Empfehlungen</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon" v-html="iconClock"></span>
+          <span>Chronik</span>
+        </a>
       </nav>
     </aside>
 
@@ -102,6 +118,10 @@ function logout() {
 }
 
 const iconHome = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 9.5L10 3l7 6.5V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M7 19v-6h6v6"/></svg>`
+const iconTank = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 12c2 0 2-1.5 4-1.5S9 12 11 12s2-1.5 4-1.5"/><circle cx="7" cy="8" r="0.6" fill="currentColor"/></svg>`
+const iconChart = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 17V3"/><path d="M3 17h14"/><path d="M6 13l3-4 3 2 4-6"/></svg>`
+const iconBulb = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M7.5 14.5A5 5 0 1 1 12.5 14.5"/><path d="M8 17h4"/><path d="M8.5 14.5h3"/></svg>`
+const iconClock = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>`
 </script>
 
 <style scoped>
