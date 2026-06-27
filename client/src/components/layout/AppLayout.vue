@@ -57,6 +57,9 @@
 
     <div class="main-wrapper">
       <header class="topbar">
+        <button class="menu-toggle" type="button" @click="toggleMenu" aria-label="Menü öffnen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="20" height="20"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
         <div class="topbar-page">
           <h1 class="topbar-title">{{ pageTitle }}</h1>
           <p class="topbar-sub">{{ pageSubtitle }}</p>
@@ -120,6 +123,11 @@ const route = useRoute()
 const searchQuery = ref('')
 const searchOpen = ref(false)
 function closeSearchSoon() { setTimeout(() => { searchOpen.value = false }, 120) }
+
+// Mobile-Menü (Drawer) – Status und Steuerung
+const menuOpen = ref(false)
+function toggleMenu() { menuOpen.value = !menuOpen.value }
+function closeMenu() { menuOpen.value = false }
 
 const displayName = computed(() => auth.user?.name || 'Gast')
 const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
@@ -256,6 +264,8 @@ function isActive(item) {
   padding: 0 36px;
   box-shadow: 0 10px 34px rgba(10,27,67,0.045);
 }
+.menu-toggle { display: none; width: 40px; height: 40px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid rgba(93,132,145,0.16); background: rgba(255,255,255,0.8); color: var(--text); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.menu-toggle:hover { border-color: var(--teal-400); color: var(--teal-500); }
 .topbar-page { flex-shrink: 0; }
 .topbar-title { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.1; letter-spacing: -0.03em; }
 .topbar-sub { font-size: 12px; color: var(--teal-600); font-weight: 600; }
@@ -290,6 +300,7 @@ function isActive(item) {
 .footer-links a:hover { color: var(--teal-500); }
 
 @media (max-width: 980px) {
+  .menu-toggle { display: flex; }
   .sidebar { display: none; }
   .main-wrapper { margin-left: 0; }
   .topbar { padding: 12px 16px; flex-wrap: wrap; height: auto; }
