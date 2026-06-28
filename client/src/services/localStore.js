@@ -39,8 +39,10 @@ export function getUsers() {
 
 export function registerUser(data) {
   const users = getUsers()
+  const uname = (data.username || '').trim().toLowerCase()
+  const email = (data.email || '').trim().toLowerCase()
   const taken = users.some(
-    (u) => u.username === data.username || u.email === data.email
+    (u) => u.username?.toLowerCase() === uname || u.email?.toLowerCase() === email
   )
   if (taken) throw { error: 'Benutzername oder E-Mail ist bereits vergeben.' }
 
@@ -60,7 +62,11 @@ export function registerUser(data) {
 
 export function loginUser({ login, password }) {
   const users = getUsers()
-  const user = users.find((u) => u.username === login || u.email === login)
+  // Benutzername/E-Mail case-insensitiv vergleichen (Passwort bleibt exakt).
+  const needle = (login || '').trim().toLowerCase()
+  const user = users.find(
+    (u) => u.username?.toLowerCase() === needle || u.email?.toLowerCase() === needle
+  )
   if (!user || user.password !== password) {
     throw { error: 'Benutzername/E-Mail oder Passwort ist falsch.' }
   }
