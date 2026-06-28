@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <aside class="sidebar" :class="{ 'sidebar--open': menuOpen }">
+    <aside class="sidebar">
       <RouterLink to="/" class="sidebar-logo" title="Zur Startseite">
         <img src="/ati-logo.png" alt="ATI" class="ati-logo-img" />
       </RouterLink>
@@ -55,13 +55,8 @@
       </div>
     </aside>
 
-    <div v-if="menuOpen" class="menu-overlay" @click="closeMenu"></div>
-
     <div class="main-wrapper">
       <header class="topbar">
-        <button class="menu-toggle" type="button" @click="toggleMenu" aria-label="Menü öffnen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="20" height="20"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        </button>
         <div class="topbar-page">
           <h1 class="topbar-title">{{ pageTitle }}</h1>
           <p class="topbar-sub">{{ pageSubtitle }}</p>
@@ -109,11 +104,72 @@
         <div class="footer-links"><a href="#">Impressum</a><a href="#">Datenschutz</a><a href="#">AGB</a></div>
       </footer>
     </div>
+
+    <!-- ── Mobile bottom tab bar ── -->
+    <nav class="mobile-tabbar">
+      <component
+        v-for="item in mobilePrimary"
+        :key="item.label"
+        :is="item.to ? 'RouterLink' : 'button'"
+        :to="item.to || undefined"
+        type="button"
+        class="tabbar-item"
+        :class="{ 'tabbar-item--active': isActive(item) }"
+      >
+        <span class="tabbar-icon" v-html="item.icon"></span>
+        <span class="tabbar-label">{{ item.label }}</span>
+      </component>
+      <button
+        type="button"
+        class="tabbar-item"
+        :class="{ 'tabbar-item--active': mobileMenuOpen }"
+        @click="mobileMenuOpen = true"
+      >
+        <span class="tabbar-icon" v-html="iconMore"></span>
+        <span class="tabbar-label">Mehr</span>
+      </button>
+    </nav>
+
+    <!-- ── Mobile „Mehr“-Sheet ── -->
+    <transition name="sheet">
+      <div v-if="mobileMenuOpen" class="mobile-sheet-overlay" @click.self="mobileMenuOpen = false">
+        <div class="mobile-sheet">
+          <div class="sheet-grip"></div>
+
+          <div class="sheet-user">
+            <div class="user-avatar">{{ initials }}</div>
+            <div class="sheet-user-info">
+              <strong>{{ displayName }}</strong>
+              <span><span class="status-dot"></span> Online</span>
+            </div>
+            <LanguageSwitch class="sheet-lang" />
+          </div>
+
+          <div class="sheet-grid">
+            <component
+              v-for="item in sheetNav"
+              :key="item.label"
+              :is="item.to ? 'RouterLink' : 'button'"
+              :to="item.to || undefined"
+              type="button"
+              class="sheet-item"
+              :class="{ 'sheet-item--active': isActive(item) }"
+              @click="mobileMenuOpen = false"
+            >
+              <span class="sheet-icon" v-html="item.icon"></span>
+              <span>{{ item.label }}</span>
+            </component>
+          </div>
+
+          <button class="sheet-logout" type="button" @click="logout">Abmelden</button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
@@ -126,16 +182,9 @@ const searchQuery = ref('')
 const searchOpen = ref(false)
 function closeSearchSoon() { setTimeout(() => { searchOpen.value = false }, 120) }
 
-// Mobile-Menü (Drawer) – Status und Steuerung
-const menuOpen = ref(false)
-function toggleMenu() { menuOpen.value = !menuOpen.value }
-function closeMenu() { menuOpen.value = false }
-
-// Drawer schließen: bei Navigation und mit der Escape-Taste.
-watch(() => route.path, () => closeMenu())
-function onKeydown(e) { if (e.key === 'Escape') closeMenu() }
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+// Mobiles Menü: Bottom-Tabbar + „Mehr“-Sheet (wie im Hauptprojekt).
+const mobileMenuOpen = ref(false)
+watch(() => route.fullPath, () => { mobileMenuOpen.value = false })
 
 const displayName = computed(() => auth.user?.name || 'Gast')
 const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
@@ -178,6 +227,12 @@ const adminNav = [
 function isActive(item) {
   return !!item.to && route.path === item.to
 }
+
+const iconMore = `<svg viewBox="0 0 20 20" fill="currentColor" width="17" height="17"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg>`
+
+// Bottom-Tabbar: 4 Hauptziele, der Rest steckt im „Mehr“-Sheet.
+const mobilePrimary = mainNav.slice(0, 4)
+const sheetNav = [...mainNav, ...adminNav]
 </script>
 
 <style scoped>
@@ -272,9 +327,6 @@ function isActive(item) {
   padding: 0 36px;
   box-shadow: 0 10px 34px rgba(10,27,67,0.045);
 }
-.menu-toggle { display: none; width: 40px; height: 40px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid rgba(93,132,145,0.16); background: rgba(255,255,255,0.8); color: var(--text); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
-.menu-toggle:hover { border-color: var(--teal-400); color: var(--teal-500); }
-.menu-overlay { display: none; }
 .topbar-page { flex-shrink: 0; }
 .topbar-title { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.1; letter-spacing: -0.03em; }
 .topbar-sub { font-size: 12px; color: var(--teal-600); font-weight: 600; }
@@ -308,14 +360,23 @@ function isActive(item) {
 .footer-links a { color: var(--text-muted); }
 .footer-links a:hover { color: var(--teal-500); }
 
+/* ── Mobile bottom tab bar + sheet (hidden on desktop) ── */
+.mobile-tabbar { display: none; }
+.mobile-sheet-overlay { display: none; }
+
 @media (max-width: 980px) {
-  .menu-toggle { display: flex; }
-  .sidebar { transform: translateX(calc(-100% - 24px)); transition: transform 0.28s ease; }
-  .sidebar--open { transform: translateX(0); }
-  .menu-overlay { display: block; position: fixed; inset: 0; z-index: 90; background: rgba(10,27,67,0.45); backdrop-filter: blur(2px); }
-  .main-wrapper { margin-left: 0; }
-  .topbar { padding: 12px 16px; flex-wrap: wrap; height: auto; }
+  .app-shell { display: block; padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .sidebar { display: none; }
+  .main-wrapper { margin-left: 0; min-height: 100vh; }
+
+  .topbar { height: auto; padding: 12px 16px; flex-wrap: wrap; gap: 10px 12px; }
+  .topbar-page { min-width: 0; flex: 1; }
+  .topbar-title { font-size: 18px; }
+  .topbar-actions { margin-left: auto; gap: 8px; }
+  .topbar-actions .lang-switch,
+  .user-menu { display: none; }          /* wandern ins „Mehr“-Sheet */
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; margin: 0; }
   .main-content { padding: 20px 16px; }
+  .main-footer { padding: 14px 16px 20px; flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 </style>
