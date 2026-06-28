@@ -18,7 +18,30 @@
       <form class="aqn-form" @submit.prevent="submit">
         <p v-if="error" class="alert-error">{{ error }}</p>
 
-        <!-- Formularabschnitte folgen (Grunddaten, Becken & Technik) -->
+        <div class="aqn-section">
+          <div class="aqn-section-head"><span>01</span><h2>Grunddaten</h2></div>
+          <div class="form-group">
+            <label>Name des Aquariums</label>
+            <input v-model="form.name" type="text" placeholder="z. B. Wohnzimmer Reef" required autofocus />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Wassertyp</label>
+              <select v-model="form.water_type" required>
+                <option>Meerwasser</option>
+                <option>Süßwasser</option>
+                <option>Osmosewasser</option>
+                <option>Meersalz</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nettovolumen (Liter)</label>
+              <input v-model.number="form.net_volume" type="number" min="1" placeholder="300" required />
+            </div>
+          </div>
+        </div>
+
+        <!-- Abschnitt „Becken & Technik“ folgt -->
 
         <div class="aqn-foot">
           <RouterLink to="/aquariums" class="btn btn-ghost">Abbrechen</RouterLink>
@@ -73,6 +96,32 @@ function submit() {}
 .aqn-layout { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
 .aqn-form { padding: clamp(22px, 3vw, 32px); border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
 .alert-error { margin-bottom: 16px; padding: 11px 14px; border-radius: 12px; background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600; }
+
+.aqn-section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid var(--border); }
+.aqn-section:last-of-type { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.aqn-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.aqn-section-head span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: rgba(136,193,233,0.16); color: var(--brand-blue); font-size: 12px; font-weight: 800; }
+.aqn-section-head h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
+.aqn-section-head em { margin-left: 4px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+
+.form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-group label { font-size: 12px; font-weight: var(--fw-semibold); color: var(--text-muted); }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%; height: 48px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 13px;
+  background: #fff; color: var(--text); font-size: 14px; outline: 0;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.form-group textarea { height: auto; padding: 12px 14px; resize: vertical; }
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
+.form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
 .aqn-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 
 @media (max-width: 900px) {
