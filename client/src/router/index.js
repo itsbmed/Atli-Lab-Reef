@@ -7,6 +7,7 @@ const routes = [
   { path: '/register', name: 'Register', component: () => import('@/views/auth/RegisterView.vue'), meta: { guest: true } },
   // TEMP: public für die Vorschau; shell = rendert in AppLayout. Vor Produktiv auf { auth: true, shell: true }.
   { path: '/dashboard', name: 'Dashboard', component: () => import('@/views/DashboardView.vue'), meta: { public: true, shell: true } },
+  { path: '/aquariums', name: 'Aquariums', component: () => import('@/views/aquariums/AquariumsView.vue'), meta: { public: true, shell: true } },
 
   // 404 → Startseite
   { path: '/:pathMatch(.*)*', redirect: '/' },

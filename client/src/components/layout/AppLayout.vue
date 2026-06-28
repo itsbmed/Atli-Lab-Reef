@@ -191,6 +191,7 @@ const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
 
 const routeMeta = {
   '/dashboard': { title: 'Übersicht', sub: (u) => `Willkommen zurück, ${u}!` },
+  '/aquariums': { title: 'Aquarien', sub: () => 'Ihre Becken im Überblick' },
 }
 const pageTitle = computed(() => routeMeta[route.path]?.title || 'ATI Reef Lab')
 const pageSubtitle = computed(() => routeMeta[route.path]?.sub?.(displayName.value) || '')
@@ -214,7 +215,7 @@ const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor"
 // Einträge ohne `to` sind Platzhalter bis die jeweiligen Seiten existieren.
 const mainNav = [
   { label: 'Übersicht', icon: iconHome, to: '/dashboard' },
-  { label: 'Aquarien', icon: iconTank, to: null },
+  { label: 'Aquarien', icon: iconTank, to: '/aquariums' },
   { label: 'Analysen', icon: iconChart, to: null },
   { label: 'Empfehlungen', icon: iconBulb, to: null },
   { label: 'Chronik', icon: iconClock, to: null },
