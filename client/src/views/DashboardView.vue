@@ -87,6 +87,12 @@
             <a class="nd-feature-link">Anleitung lesen →</a>
           </div>
         </article>
+
+        <article v-for="tip in prepTips" :key="tip.title" class="nd-tip">
+          <span class="nd-tip-icon" v-html="tip.icon"></span>
+          <strong>{{ tip.title }}</strong>
+          <p>{{ tip.text }}</p>
+        </article>
       </div>
     </section>
   </main>
@@ -117,6 +123,12 @@ const journeySteps = [
   { title: 'Testkit aktivieren', caption: 'Barcode scannen und mit dem Becken verknüpfen.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>` },
   { title: 'Probe einsenden', caption: 'Röhrchen füllen und ins ATI Labor senden.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>` },
   { title: 'Ergebnisse erhalten', caption: 'Scores, Trends und Empfehlungen erscheinen online.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg>` },
+]
+
+const prepTips = [
+  { title: 'Hände vorher spülen', text: 'Keine Cremes oder Seifenreste – sie verfälschen Spurenelemente.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V6a2 2 0 0 1 4 0v5"/><path d="M11 11V5a2 2 0 0 1 4 0v6"/><path d="M15 11V7a2 2 0 0 1 4 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5.2-3L4 13a1.5 1.5 0 0 1 2.5-1.6L8 13"/></svg>` },
+  { title: 'Becken nicht frisch dosiert', text: 'Mindestens 12 Stunden Abstand zu Wasserwechsel und Zugaben.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>` },
+  { title: 'Röhrchen randvoll füllen', text: 'Luft im Röhrchen kann einzelne Messwerte beeinflussen.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8"/><path d="M9 2v6l-3.5 9A2 2 0 0 0 7.4 20h9.2a2 2 0 0 0 1.9-2.6L15 8V2"/><path d="M7 14h10"/></svg>` },
 ]
 </script>
 
@@ -332,6 +344,20 @@ const journeySteps = [
 .nd-feature p { max-width: 320px; font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.82); }
 .nd-feature-link { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
 .nd-feature-link:hover { text-decoration: underline; }
+.nd-tip {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 18px;
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid rgba(136,193,233,0.2);
+  box-shadow: var(--shadow);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.nd-tip:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(10,27,67,0.1); }
+.nd-tip-icon { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 11px; background: rgba(136,193,233,0.16); color: var(--brand-blue); }
+.nd-tip-icon svg { width: 20px; height: 20px; }
+.nd-tip strong { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -0.01em; }
+.nd-tip p { font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 @media (max-width: 720px) {
   .nd-bento { grid-template-columns: 1fr; }
   .nd-feature { grid-column: 1; grid-row: auto; min-height: 240px; }
