@@ -378,5 +378,29 @@ const sheetNav = [...mainNav, ...adminNav]
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; margin: 0; }
   .main-content { padding: 20px 16px; }
   .main-footer { padding: 14px 16px 20px; flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Bottom tab bar */
+  .mobile-tabbar {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    position: fixed; left: 10px; right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 120; padding: 8px 6px;
+    background: linear-gradient(180deg, rgba(10,27,67,0.97), rgba(10,27,67,0.99));
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px;
+    box-shadow: 0 22px 54px rgba(10,27,67,0.36);
+  }
+  .tabbar-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px 4px;
+    border: 0; background: none; cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    font-size: 10px; font-weight: var(--fw-bold);
+    text-decoration: none; -webkit-tap-highlight-color: transparent;
+  }
+  .tabbar-icon { display: grid; place-items: center; width: 38px; height: 30px; border-radius: 11px; transition: background 0.16s, box-shadow 0.16s; }
+  .tabbar-item--active { color: #fff; }
+  .tabbar-item--active .tabbar-icon { background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); box-shadow: 0 8px 18px rgba(0,114,206,0.42); }
+  .tabbar-label { white-space: nowrap; }
 }
 </style>
