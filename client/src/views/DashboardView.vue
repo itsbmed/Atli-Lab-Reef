@@ -68,6 +68,16 @@
         </div>
       </div>
     </section>
+
+    <section class="nd-tips">
+      <div class="nd-section-head">
+        <div>
+          <span class="nd-eyebrow">Gut vorbereitet</span>
+          <h2>Tipps für aussagekräftige Proben</h2>
+        </div>
+        <a class="nd-tips-all">Alle Tipps ansehen →</a>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -292,6 +302,9 @@ const journeySteps = [
   color: var(--text);
   line-height: 1.05;
 }
+.nd-tips { margin-bottom: 32px; }
+.nd-tips-all { color: var(--brand-blue); font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.nd-tips-all:hover { text-decoration: underline; }
 .nd-journey {
   margin-bottom: 32px;
   padding: clamp(28px, 4vw, 48px);
