@@ -14,40 +14,32 @@
       </div>
 
       <nav class="sidebar-nav">
-        <RouterLink to="/dashboard" class="nav-item nav-item--active">
-          <span class="nav-icon" v-html="iconHome"></span>
-          <span>Übersicht</span>
-        </RouterLink>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconTank"></span>
-          <span>Aquarien</span>
-        </a>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconChart"></span>
-          <span>Analysen</span>
-        </a>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconBulb"></span>
-          <span>Empfehlungen</span>
-        </a>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconClock"></span>
-          <span>Chronik</span>
-        </a>
+        <component
+          v-for="item in mainNav"
+          :key="item.label"
+          :is="item.to ? 'RouterLink' : 'a'"
+          :to="item.to || undefined"
+          :href="item.to ? undefined : '#'"
+          class="nav-item"
+          :class="{ 'nav-item--active': isActive(item) }"
+        >
+          <span class="nav-icon" v-html="item.icon"></span>
+          <span>{{ item.label }}</span>
+        </component>
 
         <span class="nav-label">Verwaltung</span>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconTools"></span>
-          <span>Tools</span>
-        </a>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconUser"></span>
-          <span>Profil</span>
-        </a>
-        <a href="#" class="nav-item">
-          <span class="nav-icon" v-html="iconSettings"></span>
-          <span>Einstellungen</span>
-        </a>
+        <component
+          v-for="item in adminNav"
+          :key="item.label"
+          :is="item.to ? 'RouterLink' : 'a'"
+          :to="item.to || undefined"
+          :href="item.to ? undefined : '#'"
+          class="nav-item"
+          :class="{ 'nav-item--active': isActive(item) }"
+        >
+          <span class="nav-icon" v-html="item.icon"></span>
+          <span>{{ item.label }}</span>
+        </component>
       </nav>
 
       <div class="sidebar-support">
@@ -152,6 +144,24 @@ const iconTools = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" st
 const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3 3-5 6-5s6 2 6 5"/></svg>`
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
 const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.2"/><path d="M5.3 5.3l3.4 3.4M13.3 13.3l3.4 3.4M16.7 5.3l-3.4 3.4M8.7 13.3l-3.4 3.4"/></svg>`
+
+// Navigation – Aktiv-Zustand wird aus der aktuellen Route abgeleitet.
+// Einträge ohne `to` sind Platzhalter bis die jeweiligen Seiten existieren.
+const mainNav = [
+  { label: 'Übersicht', icon: iconHome, to: '/dashboard' },
+  { label: 'Aquarien', icon: iconTank, to: null },
+  { label: 'Analysen', icon: iconChart, to: null },
+  { label: 'Empfehlungen', icon: iconBulb, to: null },
+  { label: 'Chronik', icon: iconClock, to: null },
+]
+const adminNav = [
+  { label: 'Tools', icon: iconTools, to: null },
+  { label: 'Profil', icon: iconUser, to: null },
+  { label: 'Einstellungen', icon: iconSettings, to: null },
+]
+function isActive(item) {
+  return !!item.to && route.path === item.to
+}
 </script>
 
 <style scoped>
@@ -220,6 +230,7 @@ const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor"
 }
 .nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.94); transform: translateX(2px); }
 .nav-item--active { background: rgba(136,193,233,0.18); color: #fff; box-shadow: inset 3px 0 0 var(--teal-500), inset 0 0 0 1px rgba(136,193,233,0.22); }
+.nav-item--active .nav-icon { background: var(--teal-500); color: #fff; opacity: 1; }
 .nav-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; opacity: 0.92; background: rgba(255,255,255,0.06); }
 .nav-label { margin: 16px 12px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.38); }
 .sidebar-support { margin: 4px 14px 16px; padding: 16px; border-radius: 16px; border: 1px solid rgba(136,193,233,0.22); background: rgba(136,193,233,0.1); flex-shrink: 0; }
