@@ -93,6 +93,14 @@
           <strong>{{ tip.title }}</strong>
           <p>{{ tip.text }}</p>
         </article>
+
+        <article class="nd-bento-cta">
+          <div>
+            <strong>Noch Fragen offen?</strong>
+            <p>Unser Laborteam unterstützt Sie persönlich bei der Probenvorbereitung.</p>
+          </div>
+          <a class="btn btn-primary">Kontakt aufnehmen</a>
+        </article>
       </div>
     </section>
   </main>
@@ -358,6 +366,16 @@ const prepTips = [
 .nd-tip-icon svg { width: 20px; height: 20px; }
 .nd-tip strong { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -0.01em; }
 .nd-tip p { font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.nd-bento-cta {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+  padding: 20px;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(140deg, var(--brand-blue), #0a1b43);
+}
+.nd-bento-cta strong { font-size: 15px; font-weight: 800; }
+.nd-bento-cta p { margin-top: 6px; font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.78); }
+.nd-bento-cta .btn { align-self: flex-start; }
 @media (max-width: 720px) {
   .nd-bento { grid-template-columns: 1fr; }
   .nd-feature { grid-column: 1; grid-row: auto; min-height: 240px; }
