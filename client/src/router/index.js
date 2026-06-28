@@ -8,6 +8,7 @@ const routes = [
   // TEMP: public für die Vorschau; shell = rendert in AppLayout. Vor Produktiv auf { auth: true, shell: true }.
   { path: '/dashboard', name: 'Dashboard', component: () => import('@/views/DashboardView.vue'), meta: { public: true, shell: true } },
   { path: '/aquariums', name: 'Aquariums', component: () => import('@/views/aquariums/AquariumsView.vue'), meta: { public: true, shell: true } },
+  { path: '/aquariums/new', name: 'AquariumNew', component: () => import('@/views/aquariums/AquariumNewView.vue'), meta: { public: true, shell: true } },
 
   // 404 → Startseite
   { path: '/:pathMatch(.*)*', redirect: '/' },
