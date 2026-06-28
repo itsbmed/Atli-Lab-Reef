@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'sidebar--open': menuOpen }">
       <RouterLink to="/" class="sidebar-logo" title="Zur Startseite">
         <img src="/ati-logo.png" alt="ATI" class="ati-logo-img" />
       </RouterLink>
@@ -301,7 +301,8 @@ function isActive(item) {
 
 @media (max-width: 980px) {
   .menu-toggle { display: flex; }
-  .sidebar { display: none; }
+  .sidebar { transform: translateX(calc(-100% - 24px)); transition: transform 0.28s ease; }
+  .sidebar--open { transform: translateX(0); }
   .main-wrapper { margin-left: 0; }
   .topbar { padding: 12px 16px; flex-wrap: wrap; height: auto; }
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; margin: 0; }
