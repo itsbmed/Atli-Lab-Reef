@@ -41,7 +41,75 @@
           </div>
         </div>
 
-        <!-- Abschnitt „Becken & Technik“ folgt -->
+        <div class="aqn-section">
+          <div class="aqn-section-head"><span>02</span><h2>Becken &amp; Technik <em>optional</em></h2></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Beckentyp</label>
+              <select v-model="form.aquarium_type">
+                <option value="">Bitte wählen</option>
+                <option>Mischbecken</option>
+                <option>SPS</option>
+                <option>LPS</option>
+                <option>Weichkorallen</option>
+                <option>Fischbecken</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Maße</label>
+              <input v-model="form.dimensions" type="text" placeholder="120×50×50 cm" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Zielwerte</label>
+              <select v-model="form.target_mode">
+                <option value="ati">ATI Empfehlung</option>
+                <option value="natural">Natürliches Meerwasser</option>
+                <option value="custom">Eigene Zielwerte</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Besatzdichte</label>
+              <select v-model="form.stocking_density">
+                <option value="">Bitte wählen</option>
+                <option>Gering</option>
+                <option>Mittel</option>
+                <option>Hoch</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Beleuchtung</label>
+              <select v-model="form.lighting_type">
+                <option value="">Bitte wählen</option>
+                <option>LED</option>
+                <option>T5</option>
+                <option>Hybrid</option>
+                <option>Halogen</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Versorgungssystem</label>
+              <input v-model="form.supply_system" type="text" placeholder="ATI Essentials, ION B…" />
+            </div>
+          </div>
+
+          <div class="check-grid">
+            <label :class="{ on: form.sump }"><input v-model="form.sump" type="checkbox" /> Technikbecken</label>
+            <label :class="{ on: form.refugium }"><input v-model="form.refugium" type="checkbox" /> Algenrefugium</label>
+            <label :class="{ on: form.skimmer }"><input v-model="form.skimmer" type="checkbox" /> Eiweißabschäumer</label>
+          </div>
+          <div v-if="form.skimmer" class="form-group">
+            <label>Abschäumer Modell</label>
+            <input v-model="form.skimmer_model" type="text" placeholder="z. B. ATI PowerCone" />
+          </div>
+          <div class="form-group">
+            <label>Notizen</label>
+            <textarea v-model="form.notes" rows="2" placeholder="Kurze Beschreibung…"></textarea>
+          </div>
+        </div>
 
         <div class="aqn-foot">
           <RouterLink to="/aquariums" class="btn btn-ghost">Abbrechen</RouterLink>
@@ -121,6 +189,18 @@ function submit() {}
 .form-group textarea:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
 .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+.check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 14px; }
+.check-grid label {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-radius: 13px;
+  border: 1px solid var(--border); background: #fff;
+  color: var(--text); font-size: 13px; font-weight: var(--fw-semibold);
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.check-grid label.on { border-color: var(--teal-400); background: rgba(136,193,233,0.12); color: var(--brand-blue); }
+.check-grid input { accent-color: var(--teal-500); }
+@media (max-width: 560px) { .check-grid { grid-template-columns: 1fr; } }
 
 .aqn-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 
