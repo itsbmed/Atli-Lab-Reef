@@ -113,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
@@ -130,6 +130,12 @@ function closeSearchSoon() { setTimeout(() => { searchOpen.value = false }, 120)
 const menuOpen = ref(false)
 function toggleMenu() { menuOpen.value = !menuOpen.value }
 function closeMenu() { menuOpen.value = false }
+
+// Drawer schließen: bei Navigation und mit der Escape-Taste.
+watch(() => route.path, () => closeMenu())
+function onKeydown(e) { if (e.key === 'Escape') closeMenu() }
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 const displayName = computed(() => auth.user?.name || 'Gast')
 const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
