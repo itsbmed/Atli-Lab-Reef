@@ -77,6 +77,17 @@
         </div>
         <a class="nd-tips-all">Alle Tipps ansehen →</a>
       </div>
+
+      <div class="nd-bento">
+        <article class="nd-feature">
+          <div class="nd-feature-overlay">
+            <span class="nd-feature-tag">Empfohlen</span>
+            <h3>Wasserprobe richtig entnehmen</h3>
+            <p>So vermeiden Sie Verfälschungen und erhalten präzise, reproduzierbare Laborwerte.</p>
+            <a class="nd-feature-link">Anleitung lesen →</a>
+          </div>
+        </article>
+      </div>
     </section>
   </main>
 </template>
@@ -305,6 +316,26 @@ const journeySteps = [
 .nd-tips { margin-bottom: 32px; }
 .nd-tips-all { color: var(--brand-blue); font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .nd-tips-all:hover { text-decoration: underline; }
+.nd-bento { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(150px, 1fr); gap: 16px; }
+.nd-feature {
+  grid-column: 1; grid-row: 1 / 3;
+  position: relative; overflow: hidden;
+  min-height: 320px;
+  display: flex; align-items: flex-end;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(10,27,67,0.12), rgba(10,27,67,0.86)), url('/reef-tank.webp') center / cover;
+}
+.nd-feature-overlay { padding: 22px; }
+.nd-feature-tag { display: inline-block; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.18); backdrop-filter: blur(6px); font-size: 11px; font-weight: 700; }
+.nd-feature h3 { margin: 12px 0 6px; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.nd-feature p { max-width: 320px; font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.82); }
+.nd-feature-link { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
+.nd-feature-link:hover { text-decoration: underline; }
+@media (max-width: 720px) {
+  .nd-bento { grid-template-columns: 1fr; }
+  .nd-feature { grid-column: 1; grid-row: auto; min-height: 240px; }
+}
 .nd-journey {
   margin-bottom: 32px;
   padding: clamp(28px, 4vw, 48px);
