@@ -22,7 +22,10 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.auth && !auth.isLoggedIn) return { name: 'Login' }
-  if (to.meta.guest && auth.isLoggedIn) return { name: 'Home' }
+  // TEMP (Vorschau): Gäste-Weiterleitung deaktiviert, damit Login/Registrierung
+  // während der Entwicklung jederzeit aufrufbar sind – auch bei aktiver Session.
+  // Vor Produktiv wieder aktivieren (Ziel dann bewusst /dashboard statt Landing):
+  // if (to.meta.guest && auth.isLoggedIn) return { name: 'Dashboard' }
 })
 
 export default router
