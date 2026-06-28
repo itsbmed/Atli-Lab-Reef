@@ -55,6 +55,8 @@
       </div>
     </aside>
 
+    <div v-if="menuOpen" class="menu-overlay" @click="closeMenu"></div>
+
     <div class="main-wrapper">
       <header class="topbar">
         <button class="menu-toggle" type="button" @click="toggleMenu" aria-label="Menü öffnen">
@@ -266,6 +268,7 @@ function isActive(item) {
 }
 .menu-toggle { display: none; width: 40px; height: 40px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; border: 1px solid rgba(93,132,145,0.16); background: rgba(255,255,255,0.8); color: var(--text); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
 .menu-toggle:hover { border-color: var(--teal-400); color: var(--teal-500); }
+.menu-overlay { display: none; }
 .topbar-page { flex-shrink: 0; }
 .topbar-title { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.1; letter-spacing: -0.03em; }
 .topbar-sub { font-size: 12px; color: var(--teal-600); font-weight: 600; }
@@ -303,6 +306,7 @@ function isActive(item) {
   .menu-toggle { display: flex; }
   .sidebar { transform: translateX(calc(-100% - 24px)); transition: transform 0.28s ease; }
   .sidebar--open { transform: translateX(0); }
+  .menu-overlay { display: block; position: fixed; inset: 0; z-index: 90; background: rgba(10,27,67,0.45); backdrop-filter: blur(2px); }
   .main-wrapper { margin-left: 0; }
   .topbar { padding: 12px 16px; flex-wrap: wrap; height: auto; }
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; margin: 0; }
