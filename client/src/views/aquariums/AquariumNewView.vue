@@ -165,8 +165,26 @@ const previewTheme = computed(() => {
   return map[form.value.water_type] || 'reef-mixed'
 })
 
-// Anlege-Logik folgt in einem späteren Schritt.
-function submit() {}
+function submit() {
+  error.value = ''
+  if (!form.value.name.trim()) {
+    error.value = 'Bitte geben Sie einen Namen für das Aquarium an.'
+    return
+  }
+  if (!form.value.net_volume || form.value.net_volume < 1) {
+    error.value = 'Bitte geben Sie ein gültiges Nettovolumen an.'
+    return
+  }
+  saving.value = true
+  try {
+    const aquarium = aquariums.create({ ...form.value, image_theme: previewTheme.value })
+    router.push(`/aquariums/${aquarium.id}`)
+  } catch (e) {
+    error.value = e.error || 'Fehler beim Anlegen des Aquariums.'
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
