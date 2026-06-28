@@ -120,14 +120,34 @@
       </form>
 
       <aside class="aqn-preview">
-        <!-- Live-Vorschau folgt -->
+        <div class="aqn-preview-card">
+          <div class="aqn-preview-media">
+            <div :class="`aqn-thumb ${previewTheme}`"></div>
+            <span class="aqn-preview-badge">{{ form.water_type }}</span>
+          </div>
+          <div class="aqn-preview-body">
+            <span class="aqn-preview-kicker">Vorschau</span>
+            <strong>{{ form.name || 'Neues Aquarium' }}</strong>
+            <p>{{ form.net_volume ? `${form.net_volume} L` : 'Volumen offen' }}<template v-if="form.aquarium_type"> · {{ form.aquarium_type }}</template></p>
+            <div class="aqn-preview-tags">
+              <em v-if="form.lighting_type">{{ form.lighting_type }}</em>
+              <em v-if="form.skimmer">Abschäumer</em>
+              <em v-if="form.refugium">Refugium</em>
+              <em v-if="form.sump">Technikbecken</em>
+            </div>
+          </div>
+        </div>
+        <div class="aqn-hint">
+          <strong>Was passiert danach?</strong>
+          <p>Nach dem Anlegen führen wir Sie direkt zur Analyse-Registrierung — Barcode erfassen, Probe einsenden, fertig.</p>
+        </div>
       </aside>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { emptyAquarium } from '@/services/aquariumStore'
@@ -137,6 +157,13 @@ const aquariums = useAquariumsStore()
 const saving = ref(false)
 const error = ref('')
 const form = ref(emptyAquarium())
+
+// Vorschau-Thema aus Beckentyp bzw. Wassertyp ableiten.
+const previewTheme = computed(() => {
+  if (form.value.aquarium_type === 'SPS') return 'reef-sps'
+  const map = { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps' }
+  return map[form.value.water_type] || 'reef-mixed'
+})
 
 // Anlege-Logik folgt in einem späteren Schritt.
 function submit() {}
@@ -204,7 +231,28 @@ function submit() {}
 
 .aqn-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 
+/* Live-Vorschau */
+.aqn-preview { position: sticky; top: 88px; display: flex; flex-direction: column; gap: 16px; }
+.aqn-preview-card { border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
+.aqn-preview-media { position: relative; height: 120px; }
+.aqn-thumb { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
+.aqn-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
+.aqn-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
+.aqn-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
+.aqn-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
+.aqn-preview-badge { position: absolute; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.92); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
+.aqn-preview-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.aqn-preview-kicker { color: var(--brand-blue); font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.aqn-preview-body strong { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.aqn-preview-body p { color: var(--text-muted); font-size: 13px; }
+.aqn-preview-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.aqn-preview-tags em { padding: 3px 9px; border-radius: 999px; background: rgba(136,193,233,0.16); color: var(--brand-blue); font-style: normal; font-size: 11px; font-weight: 700; }
+.aqn-hint { padding: 16px 18px; border-radius: 18px; background: rgba(136,193,233,0.1); border: 1px solid rgba(136,193,233,0.22); }
+.aqn-hint strong { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 800; color: var(--text); }
+.aqn-hint p { font-size: 12.5px; line-height: 1.55; color: var(--text-muted); }
+
 @media (max-width: 900px) {
+  .aqn-preview { position: static; }
   .aqn-layout { grid-template-columns: 1fr; }
   .aqn-hero { flex-direction: column; align-items: flex-start; gap: 16px; }
 }
