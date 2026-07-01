@@ -7,13 +7,39 @@
 
     <!-- Leerzustand -->
     <div v-if="!aquariums.count" class="aq-empty">
-      <div class="aq-empty-media"><div class="aq-thumb reef-mixed"></div></div>
-      <span class="aq-empty-kicker">Erster Schritt</span>
-      <h3>Legen Sie Ihr erstes Aquarium an</h3>
-      <p>Ein Aquarium-Profil verbindet Testkits, Laborberichte und Verlauf. Sie können danach direkt eine Analyse registrieren.</p>
-      <div class="aq-empty-actions">
-        <RouterLink to="/aquariums/new" class="btn btn-primary btn-lg">＋ Aquarium anlegen</RouterLink>
-        <RouterLink to="/dashboard" class="btn btn-ghost btn-lg">Zur Übersicht</RouterLink>
+      <div class="aq-empty-hero">
+        <div class="aq-empty-glow"></div>
+        <div class="aq-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="30" height="30"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 12c2 0 2.2 1.6 4.5 1.6S10 12 12 12s2.2 1.6 4.5 1.6S19 12 21 12"/><circle cx="7.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <span class="aq-empty-kicker">Willkommen · Erster Schritt</span>
+        <h3>Richten Sie Ihr erstes Aquarium ein</h3>
+        <p>Ein Aquarium-Profil bündelt Testkits, Laborberichte und Verlaufsdaten an einem Ort — die Grundlage für Ihre erste ICP-Analyse.</p>
+        <div class="aq-empty-actions">
+          <RouterLink to="/aquariums/new" class="btn btn-primary btn-lg">＋ Aquarium anlegen</RouterLink>
+          <RouterLink to="/dashboard" class="btn btn-ghost btn-lg">Zur Übersicht</RouterLink>
+        </div>
+      </div>
+
+      <div class="aq-empty-steps">
+        <div class="aq-empty-step">
+          <span class="step-num">1</span>
+          <span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 11c2 0 2.2 1.6 4.5 1.6S10 11 12 11s2.2 1.6 4.5 1.6S19 11 21 11"/></svg></span>
+          <strong>Aquarium anlegen</strong>
+          <p>Volumen, Wassertyp und Technik hinterlegen.</p>
+        </div>
+        <div class="aq-empty-step">
+          <span class="step-num">2</span>
+          <span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg></span>
+          <strong>Testkit aktivieren</strong>
+          <p>Barcode scannen und mit dem Becken verknüpfen.</p>
+        </div>
+        <div class="aq-empty-step">
+          <span class="step-num">3</span>
+          <span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg></span>
+          <strong>Ergebnisse erhalten</strong>
+          <p>Scores, Trends und Empfehlungen einsehen.</p>
+        </div>
       </div>
     </div>
 
@@ -77,12 +103,43 @@ function waterClass(type) {
 .aq-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 
 /* Leerzustand */
-.aq-empty { max-width: 560px; margin: 12px auto; padding: 40px 32px; text-align: center; border-radius: 26px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
-.aq-empty-media { width: 96px; height: 96px; margin: 0 auto 20px; border-radius: 22px; overflow: hidden; }
-.aq-empty-kicker { color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.aq-empty h3 { margin: 8px 0 10px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
-.aq-empty p { margin-bottom: 22px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
-.aq-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.aq-empty { max-width: 780px; margin: 24px auto; }
+.aq-empty-hero {
+  position: relative; overflow: hidden; text-align: center;
+  padding: clamp(38px, 6vw, 58px) 32px;
+  border-radius: 30px;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(136,193,233,0.22), transparent 62%),
+    linear-gradient(180deg, #ffffff, #f5fafd);
+  border: 1px solid rgba(136,193,233,0.22);
+  box-shadow: 0 30px 80px rgba(10,27,67,0.1);
+}
+.aq-empty-glow {
+  position: absolute; top: -90px; left: 50%; transform: translateX(-50%);
+  width: 340px; height: 340px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,190,208,0.26), transparent 70%);
+  animation: aqPulse 5s ease-in-out infinite;
+}
+@keyframes aqPulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+.aq-empty-icon {
+  position: relative; display: grid; place-items: center;
+  width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 22px; color: #fff;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+  box-shadow: 0 18px 42px rgba(0,114,206,0.4);
+  animation: aqFloat 4s ease-in-out infinite;
+}
+@keyframes aqFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.aq-empty-kicker { position: relative; color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.aq-empty h3 { position: relative; margin: 10px 0 12px; font-size: clamp(24px, 3.4vw, 33px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+.aq-empty-hero p { position: relative; max-width: 448px; margin: 0 auto 26px; color: var(--text-muted); font-size: 15px; line-height: 1.65; }
+.aq-empty-actions { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+
+.aq-empty-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+.aq-empty-step { position: relative; padding: 20px 18px; border-radius: 20px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
+.aq-empty-step .step-num { position: absolute; top: 14px; right: 16px; font-size: 12px; font-weight: 800; color: rgba(136,193,233,0.75); }
+.aq-empty-step .step-ic { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 12px; border-radius: 13px; background: rgba(136,193,233,0.14); color: var(--brand-blue); }
+.aq-empty-step strong { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 800; color: var(--text); }
+.aq-empty-step p { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
 
 /* Kartenraster */
 .aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 22px; }
@@ -121,7 +178,7 @@ function waterClass(type) {
   .aq-grid { gap: 16px; }
   .aq-card-media { height: 150px; }
   .aq-card-add { min-height: 200px; }
-  .aq-empty { padding: 32px 20px; }
+  .aq-empty-steps { grid-template-columns: 1fr; }
   .aq-empty-actions { flex-direction: column; }
   .aq-empty-actions .btn { width: 100%; }
 }
