@@ -1,11 +1,8 @@
 <template>
   <div class="aq-list">
     <div class="aq-list-head">
-      <div>
-        <h2>Ihre Aquarien</h2>
-        <p>Verwalten Sie Ihre Becken, Zielwerte und Technik an einem Ort.</p>
-      </div>
-      <RouterLink v-if="aquariums.count" to="/aquariums/new" class="btn btn-primary">＋ Aquarium anlegen</RouterLink>
+      <h2>Meine Aquarien <small>{{ aquariums.count }} Becken</small></h2>
+      <RouterLink to="/aquariums/new" class="btn btn-primary">＋ Aquarium anlegen</RouterLink>
     </div>
 
     <!-- Leerzustand -->
@@ -58,9 +55,9 @@ function formatDate(iso) {
 </script>
 
 <style scoped>
-.aq-list-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.aq-list-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .aq-list-head h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); line-height: 1.05; }
-.aq-list-head p { margin-top: 6px; color: var(--text-muted); font-size: 14px; }
+.aq-list-head h2 small { margin-left: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text-muted); }
 
 /* Thumb-Themen (rein CSS, ohne externe Bilder) */
 .aq-thumb { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
