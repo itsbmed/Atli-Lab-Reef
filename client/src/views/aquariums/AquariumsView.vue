@@ -27,11 +27,12 @@
         <div class="aq-card-body">
           <h3>{{ a.name }}</h3>
           <div class="aq-card-meta">
-            <span>{{ a.net_volume ? `${a.net_volume} L` : 'Volumen offen' }}</span>
+            <span>🐠 {{ a.net_volume ? `${a.net_volume} L` : 'Volumen offen' }}</span>
             <span v-if="a.aquarium_type">· {{ a.aquarium_type }}</span>
+            <span v-if="a.dimensions">· {{ a.dimensions }}</span>
           </div>
           <div class="aq-card-foot">
-            <span>Angelegt: {{ formatDate(a.createdAt) }}</span>
+            <span>📅 Erstellt: {{ formatDate(a.createdAt) }}</span>
             <span class="aq-card-link">Details →</span>
           </div>
         </div>
@@ -95,9 +96,9 @@ function waterClass(type) {
 .aq-card-badge.wt-osmo { color: #0e7490; }
 .aq-card-badge.wt-salt { color: #7c3aed; }
 .aq-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.aq-card-body h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
-.aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 13px; }
-.aq-card-foot { margin-top: auto; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); }
+.aq-card-body h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 12.5px; }
+.aq-card-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .aq-card-link { color: var(--brand-blue); font-weight: 700; }
 
 .aq-card-add { align-items: center; justify-content: center; gap: 10px; min-height: 220px; border-style: dashed; box-shadow: none; color: var(--text-muted); font-size: 13px; font-weight: 700; }
