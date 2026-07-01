@@ -101,9 +101,19 @@ function waterClass(type) {
 .aq-card-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .aq-card-link { color: var(--brand-blue); font-weight: 700; }
 
-.aq-card-add { align-items: center; justify-content: center; gap: 10px; min-height: 220px; border-style: dashed; box-shadow: none; color: var(--text-muted); font-size: 13px; font-weight: 700; }
-.aq-card-add:hover { color: var(--brand-blue); border-color: var(--teal-400); }
-.aq-add-circle { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: rgba(136,193,233,0.16); color: var(--brand-blue); font-size: 24px; }
+.aq-card-add {
+  align-items: center; justify-content: center; gap: 12px; min-height: 270px;
+  border: 2px dashed rgba(136,193,233,0.42); box-shadow: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(238,245,251,0.84));
+  color: var(--teal-700, #0f5d6b); font-size: 14px; font-weight: 800;
+}
+.aq-card-add:hover { transform: none; border-color: var(--teal-500); background: var(--teal-50, #eef6fb); }
+.aq-add-circle {
+  display: grid; place-items: center; width: 58px; height: 58px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--teal-100, #d6ecf6), #fff);
+  color: var(--teal-600, #1a7f97); font-size: 30px; font-weight: 800;
+  box-shadow: 0 16px 34px rgba(10,27,67,0.1);
+}
 
 @media (max-width: 620px) {
   .aq-list-head { flex-direction: column; align-items: flex-start; }
