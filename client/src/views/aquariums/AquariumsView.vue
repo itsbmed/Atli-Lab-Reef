@@ -10,8 +10,11 @@
       <div class="aq-empty-media"><div class="aq-thumb reef-mixed"></div></div>
       <span class="aq-empty-kicker">Erster Schritt</span>
       <h3>Legen Sie Ihr erstes Aquarium an</h3>
-      <p>Ein Aquarium-Profil verbindet Testkits, Laborberichte und Verlauf. Danach können Sie direkt eine Analyse registrieren.</p>
-      <RouterLink to="/aquariums/new" class="btn btn-primary btn-lg">＋ Aquarium anlegen</RouterLink>
+      <p>Ein Aquarium-Profil verbindet Testkits, Laborberichte und Verlauf. Sie können danach direkt eine Analyse registrieren.</p>
+      <div class="aq-empty-actions">
+        <RouterLink to="/aquariums/new" class="btn btn-primary btn-lg">＋ Aquarium anlegen</RouterLink>
+        <RouterLink to="/dashboard" class="btn btn-ghost btn-lg">Zur Übersicht</RouterLink>
+      </div>
     </div>
 
     <!-- Kartenraster -->
@@ -72,6 +75,7 @@ function formatDate(iso) {
 .aq-empty-kicker { color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .aq-empty h3 { margin: 8px 0 10px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .aq-empty p { margin-bottom: 22px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+.aq-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 
 /* Kartenraster */
 .aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 18px; }
