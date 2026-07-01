@@ -85,9 +85,9 @@ function waterClass(type) {
 .aq-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 
 /* Kartenraster */
-.aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 18px; }
-.aq-card { display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
-.aq-card:hover { transform: translateY(-3px); box-shadow: 0 20px 48px rgba(10,27,67,0.12); }
+.aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 22px; }
+.aq-card { display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.18); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+.aq-card:hover { transform: translateY(-4px); border-color: rgba(136,193,233,0.5); box-shadow: 0 22px 50px rgba(10,27,67,0.13); }
 .aq-card-media { position: relative; height: 170px; }
 .aq-card-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(10,27,67,0.3)); }
 .aq-card-badge { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.94); color: var(--brand-blue); font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(10,27,67,0.14); }
@@ -116,6 +116,13 @@ function waterClass(type) {
 }
 
 @media (max-width: 620px) {
-  .aq-list-head { flex-direction: column; align-items: flex-start; }
+  .aq-list-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .aq-list-head .btn { width: 100%; }
+  .aq-grid { gap: 16px; }
+  .aq-card-media { height: 150px; }
+  .aq-card-add { min-height: 200px; }
+  .aq-empty { padding: 32px 20px; }
+  .aq-empty-actions { flex-direction: column; }
+  .aq-empty-actions .btn { width: 100%; }
 }
 </style>
