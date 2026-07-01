@@ -20,8 +20,9 @@
     <!-- Kartenraster -->
     <div v-else class="aq-grid">
       <RouterLink v-for="a in aquariums.items" :key="a.id" :to="`/aquariums/${a.id}`" class="aq-card">
-        <div class="aq-card-media"><div :class="`aq-thumb ${a.image_theme}`"></div>
-          <span class="aq-card-badge">{{ a.water_type }}</span>
+        <div class="aq-card-media">
+          <div :class="`aq-thumb ${a.image_theme}`"></div>
+          <span :class="['aq-card-badge', waterClass(a.water_type)]">{{ a.water_type }}</span>
         </div>
         <div class="aq-card-body">
           <h3>{{ a.name }}</h3>
@@ -55,6 +56,11 @@ function formatDate(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+// Wassertyp → sichere CSS-Klasse für die Badge-Färbung.
+function waterClass(type) {
+  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+}
 </script>
 
 <style scoped>
@@ -81,8 +87,13 @@ function formatDate(iso) {
 .aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 18px; }
 .aq-card { display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
 .aq-card:hover { transform: translateY(-3px); box-shadow: 0 20px 48px rgba(10,27,67,0.12); }
-.aq-card-media { position: relative; height: 132px; }
-.aq-card-badge { position: absolute; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.92); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
+.aq-card-media { position: relative; height: 170px; }
+.aq-card-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(10,27,67,0.3)); }
+.aq-card-badge { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.94); color: var(--brand-blue); font-size: 11px; font-weight: 800; box-shadow: 0 6px 16px rgba(10,27,67,0.14); }
+.aq-card-badge.wt-sea { color: var(--brand-blue); }
+.aq-card-badge.wt-fresh { color: #0f766e; }
+.aq-card-badge.wt-osmo { color: #0e7490; }
+.aq-card-badge.wt-salt { color: #7c3aed; }
 .aq-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .aq-card-body h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 13px; }
