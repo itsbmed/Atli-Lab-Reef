@@ -23,6 +23,14 @@
         </div>
       </div>
     </section>
+
+    <section class="fd-strip">
+      <div v-for="c in commandCards" :key="c.label" :class="['fd-stat', c.tone]">
+        <span class="fd-stat-label">{{ c.label }}</span>
+        <strong class="fd-stat-value">{{ c.value }}</strong>
+        <em class="fd-stat-caption">{{ c.caption }}</em>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -53,6 +61,15 @@ const portfolioRingStyle = computed(() => ({
 }))
 const dashboardGreeting = computed(() => `Hallo ${firstName.value || 'zurück'}, Ihr Wasser im Blick.`)
 const dashboardSummary = computed(() => `${tanks.value.length} Becken · Portfolio-Score ${overallScore.value}% · ${criticalAnalyses.value.length} kritisch, ${watchAnalyses.value.length} beobachten.`)
+
+// KPI-Leiste.
+const totalIssues = computed(() => demoAnalyses.reduce((s, a) => s + a.issue_count, 0))
+const commandCards = computed(() => [
+  { label: 'Aquarien', value: tanks.value.length, caption: 'aktiv im Portfolio', tone: 'neutral' },
+  { label: 'Analysen', value: demoAnalyses.length, caption: 'Berichte gesamt', tone: 'neutral' },
+  { label: 'Ø Portfolio-Score', value: `${overallScore.value}%`, caption: portfolioLabel.value, tone: overallScore.value >= 85 ? 'good' : overallScore.value >= 70 ? 'warn' : 'crit' },
+  { label: 'Offene Hinweise', value: totalIssues.value, caption: `${criticalAnalyses.value.length} kritisch`, tone: totalIssues.value > 8 ? 'warn' : 'good' },
+])
 </script>
 
 <style scoped>
@@ -84,8 +101,23 @@ const dashboardSummary = computed(() => `${tanks.value.length} Becken · Portfol
 .fd-portfolio-meta > strong { font-size: 18px; font-weight: 800; }
 .fd-portfolio-meta em { font-size: 12px; font-style: normal; color: rgba(255,255,255,0.75); }
 
+/* KPI-Leiste */
+.fd-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.fd-stat { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; border-radius: 20px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
+.fd-stat::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 3px; background: var(--brand-blue); }
+.fd-stat.good::before { background: #10b981; }
+.fd-stat.warn::before { background: #f59e0b; }
+.fd-stat.crit::before { background: #e85d4f; }
+.fd-stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.fd-stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--text); }
+.fd-stat-caption { font-size: 12px; font-style: normal; color: var(--text-muted); }
+
 @media (max-width: 860px) {
   .fd-hero { grid-template-columns: 1fr; }
   .fd-portfolio { min-height: 200px; }
+  .fd-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .fd-strip { grid-template-columns: 1fr; }
 }
 </style>
