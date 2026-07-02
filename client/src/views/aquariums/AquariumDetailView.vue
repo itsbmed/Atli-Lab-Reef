@@ -92,6 +92,7 @@
       <section v-else class="aqd-edit">
         <p v-if="error" class="aqd-alert">{{ error }}</p>
         <form @submit.prevent="saveEdit">
+          <p class="aqd-edit-section">Grunddaten</p>
           <div class="form-group">
             <label>Name</label>
             <input v-model="editForm.name" type="text" required />
@@ -102,6 +103,7 @@
             </div>
             <div class="form-group"><label>Nettovolumen (L)</label><input v-model.number="editForm.net_volume" type="number" min="1" /></div>
           </div>
+          <p class="aqd-edit-section">Becken &amp; Technik</p>
           <div class="form-row">
             <div class="form-group"><label>Beckentyp</label>
               <select v-model="editForm.aquarium_type"><option value="">Bitte wählen</option><option>Mischbecken</option><option>SPS</option><option>LPS</option><option>Weichkorallen</option><option>Fischbecken</option></select>
@@ -295,6 +297,8 @@ function waterClass(type) {
 /* Bearbeiten */
 .aqd-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .aqd-edit { padding: clamp(20px, 3vw, 28px); border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
+.aqd-edit-section { margin: 0 0 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand-blue); }
+.aqd-edit-section:not(:first-child) { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .aqd-alert { margin-bottom: 14px; padding: 11px 14px; border-radius: 12px; background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600; }
 .aqd-edit .form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
 .aqd-edit label { font-size: 12px; font-weight: var(--fw-semibold); color: var(--text-muted); }
