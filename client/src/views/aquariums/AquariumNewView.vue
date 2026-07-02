@@ -123,7 +123,7 @@
         <div class="aqn-preview-card">
           <div class="aqn-preview-media">
             <div :class="`aqn-thumb ${previewTheme}`"></div>
-            <span class="aqn-preview-badge">{{ form.water_type }}</span>
+            <span :class="['aqn-preview-badge', waterClass(form.water_type)]">{{ form.water_type }}</span>
           </div>
           <div class="aqn-preview-body">
             <span class="aqn-preview-kicker">Vorschau</span>
@@ -157,6 +157,11 @@ const aquariums = useAquariumsStore()
 const saving = ref(false)
 const error = ref('')
 const form = ref(emptyAquarium())
+
+// Wassertyp → sichere CSS-Klasse für die Badge-Färbung (einheitlich mit der Liste).
+function waterClass(type) {
+  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+}
 
 // Vorschau-Thema aus Beckentyp bzw. Wassertyp ableiten.
 const previewTheme = computed(() => {
@@ -259,6 +264,10 @@ function submit() {
 .aqn-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
 .aqn-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 .aqn-preview-badge { position: absolute; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,0.92); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
+.aqn-preview-badge.wt-sea { color: var(--brand-blue); }
+.aqn-preview-badge.wt-fresh { color: #0f766e; }
+.aqn-preview-badge.wt-osmo { color: #0e7490; }
+.aqn-preview-badge.wt-salt { color: #7c3aed; }
 .aqn-preview-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
 .aqn-preview-kicker { color: var(--brand-blue); font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .aqn-preview-body strong { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }

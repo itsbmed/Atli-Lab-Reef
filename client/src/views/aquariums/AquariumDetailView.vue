@@ -12,7 +12,7 @@
       <section class="aqd-hero">
         <div :class="`aqd-hero-thumb ${aquarium.image_theme}`"></div>
         <div class="aqd-hero-copy">
-          <span class="aqd-hero-badge">{{ aquarium.water_type }}</span>
+          <span :class="['aqd-hero-badge', waterClass(aquarium.water_type)]">{{ aquarium.water_type }}</span>
           <h1>{{ aquarium.name }}</h1>
           <p>{{ aquarium.net_volume ? `${aquarium.net_volume} L` : 'Volumen offen' }}<template v-if="aquarium.aquarium_type"> · {{ aquarium.aquarium_type }}</template></p>
           <span class="aqd-hero-date">Angelegt: {{ formatDate(aquarium.createdAt) }}</span>
@@ -171,6 +171,11 @@ function formatDate(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+// Wassertyp → sichere CSS-Klasse für die Badge-Färbung (einheitlich mit der Liste).
+function waterClass(type) {
+  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+}
 </script>
 
 <style scoped>
@@ -189,6 +194,10 @@ function formatDate(iso) {
 .aqd-hero-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 .aqd-hero-copy { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
 .aqd-hero-badge { align-self: flex-start; padding: 4px 11px; border-radius: 999px; background: rgba(136,193,233,0.16); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
+.aqd-hero-badge.wt-sea { color: var(--brand-blue); }
+.aqd-hero-badge.wt-fresh { color: #0f766e; }
+.aqd-hero-badge.wt-osmo { color: #0e7490; }
+.aqd-hero-badge.wt-salt { color: #7c3aed; }
 .aqd-hero-copy h1 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
 .aqd-hero-copy p { color: var(--text-muted); font-size: 15px; }
 .aqd-hero-date { color: var(--text-muted); font-size: 12px; }
