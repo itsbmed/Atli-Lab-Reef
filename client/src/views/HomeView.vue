@@ -1,5 +1,7 @@
 <template>
   <div class="landing">
+    <div class="lp-aurora" aria-hidden="true"></div>
+
     <header class="lp-nav" :class="{ scrolled }">
       <RouterLink to="/" class="lp-brand">
         <img src="/ati-logo.png" alt="ATI Reef Lab" />
@@ -71,6 +73,8 @@ const heroGauges = [
 
 <style scoped>
 .landing {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -78,6 +82,11 @@ const heroGauges = [
     radial-gradient(circle at 12% 0%, rgba(136,193,233,0.22), transparent 28rem),
     linear-gradient(180deg, #f9fdfc 0%, var(--bg) 100%);
 }
+.lp-aurora { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.lp-aurora::before, .lp-aurora::after { content: ''; position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5; }
+.lp-aurora::before { width: 460px; height: 460px; top: -120px; left: -80px; background: radial-gradient(circle, rgba(0,114,206,0.35), transparent 70%); }
+.lp-aurora::after { width: 520px; height: 520px; top: 40px; right: -140px; background: radial-gradient(circle, rgba(0,190,208,0.26), transparent 70%); }
+.lp-hero { position: relative; z-index: 1; }
 .lp-nav {
   position: sticky; top: 0; z-index: 50;
   display: flex;
@@ -135,5 +144,13 @@ const heroGauges = [
   .lp-hero { grid-template-columns: 1fr; }
   .hero-card-score { left: 12px; }
   .hero-card-gauges { right: 12px; }
+}
+@media (max-width: 600px) {
+  .hero-copy > p { font-size: 15px; }
+  .hero-actions { gap: 10px; }
+  .hero-actions .btn { flex: 1; text-align: center; }
+  .hero-trust { gap: 14px; }
+  .hero-card { padding: 11px 13px; }
+  .hero-card-gauges { width: 150px; }
 }
 </style>
