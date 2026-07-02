@@ -16,9 +16,13 @@
           <h1>{{ aquarium.name }}</h1>
           <p>{{ aquarium.net_volume ? `${aquarium.net_volume} L` : 'Volumen offen' }}<template v-if="aquarium.aquarium_type"> · {{ aquarium.aquarium_type }}</template></p>
           <span class="aqd-hero-date">Angelegt: {{ formatDate(aquarium.createdAt) }}</span>
+          <div v-if="!editing" class="aqd-hero-actions">
+            <button class="btn btn-primary" type="button" @click="startEdit">Bearbeiten</button>
+          </div>
         </div>
       </section>
 
+      <div v-if="!editing" class="aqd-read">
       <div class="aqd-grid">
         <div class="aqd-fact"><span>Wassertyp</span><strong>{{ aquarium.water_type }}</strong></div>
         <div class="aqd-fact"><span>Nettovolumen</span><strong>{{ aquarium.net_volume ? `${aquarium.net_volume} L` : '—' }}</strong></div>
@@ -44,12 +48,61 @@
         <span class="aqd-section-label">Notizen</span>
         <p>{{ aquarium.notes }}</p>
       </div>
+      </div>
+
+      <section v-else class="aqd-edit">
+        <p v-if="error" class="aqd-alert">{{ error }}</p>
+        <form @submit.prevent="saveEdit">
+          <div class="form-group">
+            <label>Name</label>
+            <input v-model="editForm.name" type="text" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Wassertyp</label>
+              <select v-model="editForm.water_type"><option>Meerwasser</option><option>Süßwasser</option><option>Osmosewasser</option><option>Meersalz</option></select>
+            </div>
+            <div class="form-group"><label>Nettovolumen (L)</label><input v-model.number="editForm.net_volume" type="number" min="1" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Beckentyp</label>
+              <select v-model="editForm.aquarium_type"><option value="">Bitte wählen</option><option>Mischbecken</option><option>SPS</option><option>LPS</option><option>Weichkorallen</option><option>Fischbecken</option></select>
+            </div>
+            <div class="form-group"><label>Maße</label><input v-model="editForm.dimensions" type="text" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Zielwerte</label>
+              <select v-model="editForm.target_mode"><option value="ati">ATI Empfehlung</option><option value="natural">Natürliches Meerwasser</option><option value="custom">Eigene Zielwerte</option></select>
+            </div>
+            <div class="form-group"><label>Besatzdichte</label>
+              <select v-model="editForm.stocking_density"><option value="">Bitte wählen</option><option>Gering</option><option>Mittel</option><option>Hoch</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Beleuchtung</label>
+              <select v-model="editForm.lighting_type"><option value="">Bitte wählen</option><option>LED</option><option>T5</option><option>Hybrid</option><option>Halogen</option></select>
+            </div>
+            <div class="form-group"><label>Versorgungssystem</label><input v-model="editForm.supply_system" type="text" /></div>
+          </div>
+          <div class="check-grid">
+            <label :class="{ on: editForm.sump }"><input v-model="editForm.sump" type="checkbox" /> Technikbecken</label>
+            <label :class="{ on: editForm.refugium }"><input v-model="editForm.refugium" type="checkbox" /> Algenrefugium</label>
+            <label :class="{ on: editForm.skimmer }"><input v-model="editForm.skimmer" type="checkbox" /> Eiweißabschäumer</label>
+          </div>
+          <div v-if="editForm.skimmer" class="form-group"><label>Abschäumer Modell</label><input v-model="editForm.skimmer_model" type="text" /></div>
+          <div class="form-group"><label>Notizen</label><textarea v-model="editForm.notes" rows="2"></textarea></div>
+
+          <div class="aqd-edit-foot">
+            <button type="button" class="btn btn-ghost" @click="cancelEdit">Abbrechen</button>
+            <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Wird gespeichert…' : 'Speichern' }}</button>
+          </div>
+        </form>
+      </section>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 
@@ -58,6 +111,38 @@ const aquariums = useAquariumsStore()
 onMounted(() => { if (!aquariums.items.length) aquariums.load() })
 
 const aquarium = computed(() => aquariums.byId(route.params.id))
+
+// ── Bearbeiten ──
+const editing = ref(false)
+const editForm = ref({})
+const saving = ref(false)
+const error = ref('')
+
+function themeFor(f) {
+  if (f.aquarium_type === 'SPS') return 'reef-sps'
+  return { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps' }[f.water_type] || 'reef-mixed'
+}
+
+function startEdit() {
+  editForm.value = { ...aquarium.value }
+  error.value = ''
+  editing.value = true
+}
+function cancelEdit() { editing.value = false }
+function saveEdit() {
+  error.value = ''
+  if (!editForm.value.name?.trim()) { error.value = 'Bitte einen Namen angeben.'; return }
+  if (!editForm.value.net_volume || editForm.value.net_volume < 1) { error.value = 'Bitte ein gültiges Nettovolumen angeben.'; return }
+  saving.value = true
+  try {
+    aquariums.update(aquarium.value.id, { ...editForm.value, image_theme: themeFor(editForm.value) })
+    editing.value = false
+  } catch (e) {
+    error.value = e.error || 'Fehler beim Speichern.'
+  } finally {
+    saving.value = false
+  }
+}
 
 const TARGET_LABELS = { ati: 'ATI Empfehlung', natural: 'Natürliches Meerwasser', custom: 'Eigene Zielwerte' }
 const targetLabel = computed(() => TARGET_LABELS[aquarium.value?.target_mode] || '—')
@@ -101,6 +186,23 @@ function formatDate(iso) {
 
 .aqd-notes { padding: 18px; border-radius: 18px; background: #fff; border: 1px solid var(--border); }
 .aqd-notes p { color: var(--text); font-size: 14px; line-height: 1.6; }
+
+/* Bearbeiten */
+.aqd-hero-actions { margin-top: 8px; }
+.aqd-edit { padding: clamp(20px, 3vw, 28px); border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
+.aqd-alert { margin-bottom: 14px; padding: 11px 14px; border-radius: 12px; background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600; }
+.aqd-edit .form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.aqd-edit label { font-size: 12px; font-weight: var(--fw-semibold); color: var(--text-muted); }
+.aqd-edit input, .aqd-edit select, .aqd-edit textarea { width: 100%; height: 46px; padding: 0 13px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); font-size: 14px; outline: 0; transition: border-color 0.18s, box-shadow 0.18s; }
+.aqd-edit textarea { height: auto; padding: 11px 13px; resize: vertical; }
+.aqd-edit input:focus, .aqd-edit select:focus, .aqd-edit textarea:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
+.aqd-edit .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.aqd-edit .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 14px; }
+.aqd-edit .check-grid label { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 13px; font-weight: var(--fw-semibold); cursor: pointer; }
+.aqd-edit .check-grid label.on { border-color: var(--teal-400); background: rgba(136,193,233,0.12); color: var(--brand-blue); }
+.aqd-edit .check-grid input { width: auto; height: auto; accent-color: var(--teal-500); }
+.aqd-edit-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+@media (max-width: 560px) { .aqd-edit .form-row, .aqd-edit .check-grid { grid-template-columns: 1fr; } }
 
 @media (max-width: 620px) {
   .aqd-hero { flex-direction: column; }
