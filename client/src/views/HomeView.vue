@@ -66,6 +66,19 @@
         </div>
       </div>
     </section>
+
+    <section class="lp-cta">
+      <div class="lp-cta-inner">
+        <h2>Bereit, Ihr Wasser wirklich zu verstehen?</h2>
+        <p>Starten Sie Ihre erste ICP-Analyse — in wenigen Minuten eingerichtet.</p>
+        <RouterLink to="/register" class="btn btn-primary btn-lg">Jetzt Analyse starten</RouterLink>
+      </div>
+    </section>
+
+    <footer class="lp-footer">
+      <span>© 2026 ATI Aquaristik. Alle Rechte vorbehalten.</span>
+      <div class="lp-footer-links"><a href="#">Impressum</a><a href="#">Datenschutz</a><a href="#">AGB</a></div>
+    </footer>
   </div>
 </template>
 
@@ -190,4 +203,18 @@ const features = [
 .strip-card p { color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
 @media (max-width: 900px) { .strip-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .strip-grid { grid-template-columns: 1fr; } }
+
+/* Abschluss-CTA */
+.lp-cta { position: relative; z-index: 1; max-width: 1160px; width: 100%; margin: 0 auto clamp(40px, 6vw, 72px); padding: 0 clamp(20px, 4vw, 48px); }
+.lp-cta-inner { position: relative; overflow: hidden; text-align: center; padding: clamp(40px, 6vw, 64px) 32px; border-radius: 28px; color: #fff; background: linear-gradient(135deg, var(--brand-blue), #0a1b43); box-shadow: 0 30px 70px rgba(10,27,67,0.28); }
+.lp-cta-inner h2 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -0.03em; }
+.lp-cta-inner p { max-width: 480px; margin: 12px auto 24px; color: rgba(255,255,255,0.8); font-size: 16px; line-height: 1.6; }
+.lp-cta-inner .btn-primary { background: #fff; color: var(--brand-blue); }
+.lp-cta-inner .btn-primary:hover { background: rgba(255,255,255,0.9); }
+
+/* Footer */
+.lp-footer { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; max-width: 1160px; width: 100%; margin: 0 auto; padding: 24px clamp(20px, 4vw, 48px) 40px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+.lp-footer-links a { color: var(--text-muted); margin-left: 18px; }
+.lp-footer-links a:hover { color: var(--teal-700); }
+@media (max-width: 520px) { .lp-footer-links a { margin: 0 18px 0 0; } }
 </style>
