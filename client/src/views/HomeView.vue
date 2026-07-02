@@ -16,7 +16,20 @@
     </header>
 
     <main class="lp-hero">
-      <h1>Willkommen</h1>
+      <div class="hero-copy">
+        <span class="eyebrow"><i></i> ICP-Laboranalyse für Meerwasser</span>
+        <h1>Verstehen Sie Ihr Wasser.<br /><em>Nicht nur messen.</em></h1>
+        <p>Senden Sie Ihre Wasserprobe ein und erhalten Sie einen verständlichen Laborbericht mit Scores, Trends und konkreten Handlungsempfehlungen — statt einer nackten Zahlentabelle.</p>
+        <div class="hero-actions">
+          <RouterLink to="/register" class="btn btn-primary btn-lg">Analyse starten</RouterLink>
+          <RouterLink to="/login" class="btn btn-ghost btn-lg">Einloggen</RouterLink>
+        </div>
+        <ul class="hero-trust">
+          <li>39 gemessene Werte</li>
+          <li>Echtes ICP-Labor</li>
+          <li>Made in Germany</li>
+        </ul>
+      </div>
     </main>
   </div>
 </template>
@@ -64,11 +77,15 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 .lp-link { color: var(--text); font-size: 14px; font-weight: var(--fw-semibold); }
 .lp-link:hover { color: var(--teal-700); }
 @media (max-width: 760px) { .lp-nav-links { display: none; } }
-.lp-hero { flex: 1; display: grid; place-items: center; padding: 32px; }
-.lp-hero h1 {
-  font-size: clamp(48px, 11vw, 104px);
-  font-weight: var(--fw-extra-bold);
-  letter-spacing: -0.04em;
-  color: var(--text);
-}
+.lp-hero { flex: 1; display: flex; align-items: center; max-width: 1240px; width: 100%; margin: 0 auto; padding: clamp(36px, 7vw, 84px) clamp(20px, 4vw, 48px); }
+.hero-copy { max-width: 620px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px; color: var(--teal-700); font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-cyan); box-shadow: 0 0 0 4px rgba(0,190,208,0.18); }
+.hero-copy h1 { font-size: clamp(38px, 6vw, 68px); font-weight: 800; line-height: 1.02; letter-spacing: -0.04em; color: var(--text); }
+.hero-copy h1 em { font-style: normal; background: linear-gradient(120deg, var(--brand-blue), var(--brand-cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-copy > p { max-width: 520px; margin: 20px 0 28px; color: var(--text-muted); font-size: 17px; line-height: 1.65; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 30px; }
+.hero-trust { display: flex; flex-wrap: wrap; gap: 20px; list-style: none; padding: 0; margin: 0; }
+.hero-trust li { position: relative; padding-left: 22px; color: var(--text); font-size: 13.5px; font-weight: 600; }
+.hero-trust li::before { content: '✓'; position: absolute; left: 0; color: var(--brand-cyan); font-weight: 800; }
 </style>
