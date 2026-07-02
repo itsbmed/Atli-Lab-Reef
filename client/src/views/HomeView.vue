@@ -52,21 +52,6 @@
       </div>
     </main>
 
-    <section id="leistungen" class="lp-strip">
-      <div class="strip-head">
-        <span class="eyebrow"><i></i> Was Sie bekommen</span>
-        <h2>Aus 39 Messwerten wird ein klarer Plan.</h2>
-        <p>Kein Rätselraten mehr über Tabellen — Ihr Wasserbericht zeigt, was gut läuft und was Aufmerksamkeit braucht.</p>
-      </div>
-      <div class="strip-grid">
-        <div class="strip-card" v-for="f in features" :key="f.title">
-          <span class="strip-ico" v-html="f.icon"></span>
-          <strong>{{ f.title }}</strong>
-          <p>{{ f.text }}</p>
-        </div>
-      </div>
-    </section>
-
     <section class="lp-cta">
       <div class="lp-cta-inner">
         <h2>Bereit, Ihr Wasser wirklich zu verstehen?</h2>
@@ -96,14 +81,6 @@ const heroGauges = [
   { sym: 'Ca', val: '420', pos: 62 },
   { sym: 'KH', val: '8.1', pos: 54 },
   { sym: 'Mg', val: '1350', pos: 70 },
-]
-
-// Feature-Strip (zweiter Abschnitt).
-const features = [
-  { title: 'Verständlicher Bericht', text: 'Scores, Ampeln und Klartext statt roher Zahlenkolonnen.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg>` },
-  { title: '39 Wasserwerte', text: 'Von Calcium bis Spurenelement — alles auf einen Blick.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>` },
-  { title: 'Echtes ICP-Labor', text: 'Analyse in einem echten Labor, Made in Germany.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M9 3h6"/><path d="M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 14h9"/></svg>` },
-  { title: 'Konkrete Empfehlungen', text: 'Was zu tun ist — in der richtigen Reihenfolge.', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>` },
 ]
 </script>
 
@@ -189,20 +166,6 @@ const features = [
   .hero-card { padding: 11px 13px; }
   .hero-card-gauges { width: 150px; }
 }
-
-/* Zweiter Abschnitt: Feature-Strip */
-.lp-strip { position: relative; z-index: 1; max-width: 1160px; width: 100%; margin: 0 auto; padding: clamp(40px, 7vw, 80px) clamp(20px, 4vw, 48px); }
-.strip-head { max-width: 640px; margin-bottom: 40px; }
-.strip-head h2 { margin-top: 10px; font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: var(--text); }
-.strip-head > p { margin-top: 14px; color: var(--text-muted); font-size: 16px; line-height: 1.6; }
-.strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.strip-card { padding: 24px 22px; border-radius: 22px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); transition: transform 0.16s, box-shadow 0.16s; }
-.strip-card:hover { transform: translateY(-4px); box-shadow: 0 22px 50px rgba(10,27,67,0.12); }
-.strip-ico { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 16px; border-radius: 15px; color: #fff; background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); box-shadow: 0 12px 26px rgba(0,114,206,0.3); }
-.strip-card strong { display: block; margin-bottom: 7px; font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
-.strip-card p { color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
-@media (max-width: 900px) { .strip-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 520px) { .strip-grid { grid-template-columns: 1fr; } }
 
 /* Abschluss-CTA */
 .lp-cta { position: relative; z-index: 1; max-width: 1160px; width: 100%; margin: 0 auto clamp(40px, 6vw, 72px); padding: 0 clamp(20px, 4vw, 48px); }
