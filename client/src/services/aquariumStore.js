@@ -69,3 +69,19 @@ export function removeAquarium(id) {
   const all = read(AQUARIUMS_KEY, [])
   write(AQUARIUMS_KEY, all.filter((a) => a.id !== id))
 }
+
+// Demo-Aquarien für das Vollkonto (demo-full), damit die Liste befüllt ist.
+const DEMO_OWNER = 'demo-full'
+const DEMO_AQUARIUMS = [
+  { name: 'Wohnzimmer Reef', water_type: 'Meerwasser', net_volume: 350, aquarium_type: 'Mischbecken', dimensions: '120×55×55 cm', target_mode: 'ati', stocking_density: 'Mittel', lighting_type: 'LED', supply_system: 'ATI Essentials', sump: true, refugium: true, skimmer: true, skimmer_model: 'ATI PowerCone 250', notes: 'Hauptbecken im Wohnzimmer.', image_theme: 'reef-mixed' },
+  { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps' },
+]
+
+export function ensureDemoAquariums() {
+  const all = read(AQUARIUMS_KEY, [])
+  if (all.some((a) => a.ownerId === DEMO_OWNER)) return
+  for (const a of DEMO_AQUARIUMS) {
+    all.push({ ...emptyAquarium(), ...a, id: makeId(), ownerId: DEMO_OWNER, createdAt: new Date().toISOString() })
+  }
+  write(AQUARIUMS_KEY, all)
+}
