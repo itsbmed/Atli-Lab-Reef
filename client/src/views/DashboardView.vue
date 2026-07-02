@@ -1,5 +1,6 @@
 <template>
-  <main class="nd-home">
+  <FullDashboard v-if="isFull" />
+  <main v-else class="nd-home">
     <section class="nd-hero">
       <div class="nd-hero-copy">
         <span class="nd-badge"><i></i> ATI Reef Lab · Einrichtung</span>
@@ -107,11 +108,14 @@
 </template>
 
 <script setup>
-// Dashboard für neue Kunden — wird schrittweise aufgebaut.
+// Dashboard: Vollkonto (kind === 'full') sieht das Bestandskunden-Dashboard,
+// alle anderen den Einrichtungs-/Neukunden-Zustand.
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import FullDashboard from '@/components/dashboard/FullDashboard.vue'
 
 const auth = useAuthStore()
+const isFull = computed(() => auth.user?.kind === 'full')
 const firstName = computed(() => (auth.user?.name || '').split(' ')[0])
 
 const trustStats = [
