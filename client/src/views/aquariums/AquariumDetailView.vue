@@ -58,6 +58,16 @@
         <p>{{ aquarium.notes }}</p>
       </div>
 
+      <div class="aqd-history">
+        <span class="aqd-section-label">Laborverlauf</span>
+        <div class="aqd-history-empty">
+          <span class="aqd-history-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg></span>
+          <strong>Noch keine Analysen</strong>
+          <p>Sobald die erste ICP-Analyse vorliegt, erscheinen hier Score, Verlauf und Hinweise.</p>
+          <a class="btn btn-primary">Analyse registrieren</a>
+        </div>
+      </div>
+
       <div class="aqd-targets">
         <span class="aqd-section-label">Zielwert-Profil <em>ATI Standard</em></span>
         <div class="aqd-target-grid">
@@ -253,6 +263,12 @@ function waterClass(type) {
 
 .aqd-notes { padding: 18px; border-radius: 18px; background: #fff; border: 1px solid var(--border); }
 .aqd-notes p { color: var(--text); font-size: 14px; line-height: 1.6; }
+
+.aqd-history { margin-top: 22px; }
+.aqd-history-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 36px 24px; border-radius: 20px; background: #fff; border: 1px dashed rgba(136,193,233,0.4); }
+.aqd-history-ico { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: 15px; background: rgba(136,193,233,0.14); color: var(--brand-blue); }
+.aqd-history-empty strong { margin-bottom: 6px; font-size: 16px; font-weight: 800; color: var(--text); }
+.aqd-history-empty p { max-width: 360px; margin-bottom: 18px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
 
 .aqd-targets { margin-top: 22px; }
 .aqd-section-label em { margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; color: var(--text-muted); }
