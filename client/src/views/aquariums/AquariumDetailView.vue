@@ -78,6 +78,15 @@
           </div>
         </div>
       </div>
+
+      <div class="aqd-actions-card">
+        <span class="aqd-section-label">Schnellaktionen</span>
+        <div class="aqd-quick">
+          <a class="aqd-quick-link">Analyse registrieren</a>
+          <RouterLink to="/aquariums" class="aqd-quick-link">Zur Übersicht</RouterLink>
+          <a class="aqd-quick-link">Tools öffnen</a>
+        </div>
+      </div>
       </div>
 
       <section v-else class="aqd-edit">
@@ -277,6 +286,11 @@ function waterClass(type) {
 .aqd-target > span { font-size: 12px; font-weight: 700; color: var(--text); }
 .aqd-target strong { font-size: 15px; font-weight: 800; color: var(--brand-blue); }
 .aqd-target em { font-size: 11px; font-style: normal; color: var(--text-muted); }
+
+.aqd-actions-card { margin-top: 22px; }
+.aqd-quick { display: flex; flex-wrap: wrap; gap: 10px; }
+.aqd-quick-link { padding: 12px 16px; border-radius: 12px; background: #fff; border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: border-color 0.15s, color 0.15s, transform 0.15s; }
+.aqd-quick-link:hover { border-color: var(--teal-400); color: var(--brand-blue); transform: translateY(-2px); }
 
 /* Bearbeiten */
 .aqd-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
