@@ -218,7 +218,7 @@ function waterClass(type) {
 .aqd-notes p { color: var(--text); font-size: 14px; line-height: 1.6; }
 
 /* Bearbeiten */
-.aqd-hero-actions { margin-top: 8px; }
+.aqd-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .aqd-edit { padding: clamp(20px, 3vw, 28px); border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
 .aqd-alert { margin-bottom: 14px; padding: 11px 14px; border-radius: 12px; background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600; }
 .aqd-edit .form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
@@ -246,5 +246,9 @@ function waterClass(type) {
 @media (max-width: 620px) {
   .aqd-hero { flex-direction: column; }
   .aqd-hero-thumb { width: 100%; height: 120px; }
+  .aqd-hero-actions { width: 100%; }
+  .aqd-hero-actions > * { flex: 1; text-align: center; }
+  .aqd-edit-foot, .aqd-confirm-foot { flex-direction: column-reverse; }
+  .aqd-edit-foot > *, .aqd-confirm-foot > * { width: 100%; }
 }
 </style>
