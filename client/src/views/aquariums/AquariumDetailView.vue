@@ -21,6 +21,14 @@
             <button class="aqd-delete-btn" type="button" @click="confirmDelete = true">Löschen</button>
           </div>
         </div>
+        <div class="aqd-health">
+          <div class="health-ring"><strong>—</strong></div>
+          <div class="health-copy">
+            <span>Letzter Lab-Score</span>
+            <strong>Noch keine Analyse</strong>
+            <em>Reichen Sie eine Wasserprobe ein.</em>
+          </div>
+        </div>
       </section>
 
       <div v-if="!editing" class="aqd-read">
@@ -202,6 +210,14 @@ function waterClass(type) {
 .aqd-hero-copy h1 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
 .aqd-hero-copy p { color: var(--text-muted); font-size: 15px; }
 .aqd-hero-date { color: var(--text-muted); font-size: 12px; }
+.aqd-health { margin-left: auto; align-self: center; flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: rgba(136,193,233,0.08); border: 1px solid rgba(136,193,233,0.2); }
+.health-ring { position: relative; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: conic-gradient(var(--brand-cyan) 0deg, rgba(136,193,233,0.2) 0deg); }
+.health-ring::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
+.health-ring strong { position: relative; z-index: 1; font-size: 18px; font-weight: 800; color: var(--text-muted); }
+.health-copy { display: flex; flex-direction: column; gap: 2px; }
+.health-copy > span { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.health-copy > strong { font-size: 14px; font-weight: 800; color: var(--text); }
+.health-copy em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
 
 .aqd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-bottom: 22px; }
 .aqd-fact { padding: 16px; border-radius: 16px; background: #fff; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
@@ -246,6 +262,7 @@ function waterClass(type) {
 @media (max-width: 620px) {
   .aqd-hero { flex-direction: column; }
   .aqd-hero-thumb { width: 100%; height: 120px; }
+  .aqd-health { margin-left: 0; width: 100%; }
   .aqd-hero-actions { width: 100%; }
   .aqd-hero-actions > * { flex: 1; text-align: center; }
   .aqd-edit-foot, .aqd-confirm-foot { flex-direction: column-reverse; }
