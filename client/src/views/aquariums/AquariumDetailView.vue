@@ -57,6 +57,17 @@
         <span class="aqd-section-label">Notizen</span>
         <p>{{ aquarium.notes }}</p>
       </div>
+
+      <div class="aqd-targets">
+        <span class="aqd-section-label">Zielwert-Profil <em>ATI Standard</em></span>
+        <div class="aqd-target-grid">
+          <div class="aqd-target" v-for="t in targetValues" :key="t.name">
+            <span>{{ t.name }}</span>
+            <strong>{{ t.range }}</strong>
+            <em>{{ t.note }}</em>
+          </div>
+        </div>
+      </div>
       </div>
 
       <section v-else class="aqd-edit">
@@ -175,6 +186,16 @@ function saveEdit() {
 const TARGET_LABELS = { ati: 'ATI Empfehlung', natural: 'Natürliches Meerwasser', custom: 'Eigene Zielwerte' }
 const targetLabel = computed(() => TARGET_LABELS[aquarium.value?.target_mode] || '—')
 
+// ATI-Standard-Zielbereiche (statisch – echte Werte folgen mit der Analyse).
+const targetValues = [
+  { name: 'Calcium (Ca)', range: '420–440 mg/l', note: 'Gerüstbildung' },
+  { name: 'Karbonhärte (KH)', range: '7,5–8,5 °dKH', note: 'Stabilität' },
+  { name: 'Magnesium (Mg)', range: '1300–1400 mg/l', note: 'Ca/KH-Balance' },
+  { name: 'Salinität', range: '34–35 PSU', note: 'Dichte' },
+  { name: 'Nitrat (NO₃)', range: '2–10 mg/l', note: 'Nährstoffe' },
+  { name: 'Phosphat (PO₄)', range: '0,02–0,1 mg/l', note: 'Nährstoffe' },
+]
+
 function formatDate(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -232,6 +253,14 @@ function waterClass(type) {
 
 .aqd-notes { padding: 18px; border-radius: 18px; background: #fff; border: 1px solid var(--border); }
 .aqd-notes p { color: var(--text); font-size: 14px; line-height: 1.6; }
+
+.aqd-targets { margin-top: 22px; }
+.aqd-section-label em { margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+.aqd-target-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.aqd-target { padding: 14px 16px; border-radius: 16px; background: #fff; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+.aqd-target > span { font-size: 12px; font-weight: 700; color: var(--text); }
+.aqd-target strong { font-size: 15px; font-weight: 800; color: var(--brand-blue); }
+.aqd-target em { font-size: 11px; font-style: normal; color: var(--text-muted); }
 
 /* Bearbeiten */
 .aqd-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
