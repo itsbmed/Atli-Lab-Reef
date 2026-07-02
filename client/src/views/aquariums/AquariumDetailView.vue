@@ -187,7 +187,8 @@ function waterClass(type) {
 .aqd-missing p { color: var(--text-muted); margin-bottom: 20px; }
 
 .aqd-hero { display: flex; gap: 22px; align-items: stretch; margin-bottom: 22px; padding: 20px; border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
-.aqd-hero-thumb { width: 180px; flex-shrink: 0; border-radius: 18px; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
+.aqd-hero-thumb { position: relative; overflow: hidden; width: 180px; flex-shrink: 0; border-radius: 18px; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
+.aqd-hero-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(10,27,67,0.25)); }
 .aqd-hero-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
 .aqd-hero-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
 .aqd-hero-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
