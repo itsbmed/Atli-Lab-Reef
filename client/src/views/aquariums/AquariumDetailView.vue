@@ -18,6 +18,7 @@
           <span class="aqd-hero-date">Angelegt: {{ formatDate(aquarium.createdAt) }}</span>
           <div v-if="!editing" class="aqd-hero-actions">
             <button class="btn btn-primary" type="button" @click="startEdit">Bearbeiten</button>
+            <button class="aqd-delete-btn" type="button" @click="confirmDelete = true">Löschen</button>
           </div>
         </div>
       </section>
@@ -97,16 +98,28 @@
           </div>
         </form>
       </section>
+
+      <div v-if="confirmDelete" class="aqd-confirm-overlay" @click.self="confirmDelete = false">
+        <div class="aqd-confirm">
+          <h3>Aquarium löschen?</h3>
+          <p>„{{ aquarium.name }}“ wird dauerhaft entfernt. Das kann nicht rückgängig gemacht werden.</p>
+          <div class="aqd-confirm-foot">
+            <button type="button" class="btn btn-ghost" @click="confirmDelete = false">Abbrechen</button>
+            <button type="button" class="aqd-delete-btn" @click="removeAquarium">Endgültig löschen</button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 
 const route = useRoute()
+const router = useRouter()
 const aquariums = useAquariumsStore()
 onMounted(() => { if (!aquariums.items.length) aquariums.load() })
 
@@ -129,6 +142,13 @@ function startEdit() {
   editing.value = true
 }
 function cancelEdit() { editing.value = false }
+
+// ── Löschen ──
+const confirmDelete = ref(false)
+function removeAquarium() {
+  aquariums.remove(aquarium.value.id)
+  router.push('/aquariums')
+}
 function saveEdit() {
   error.value = ''
   if (!editForm.value.name?.trim()) { error.value = 'Bitte einen Namen angeben.'; return }
@@ -203,6 +223,15 @@ function formatDate(iso) {
 .aqd-edit .check-grid input { width: auto; height: auto; accent-color: var(--teal-500); }
 .aqd-edit-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
 @media (max-width: 560px) { .aqd-edit .form-row, .aqd-edit .check-grid { grid-template-columns: 1fr; } }
+
+/* Löschen */
+.aqd-delete-btn { height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid #e85d4f; background: #fdecea; color: #c5392c; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+.aqd-delete-btn:hover { background: #e85d4f; color: #fff; }
+.aqd-confirm-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(10,27,67,0.45); backdrop-filter: blur(4px); }
+.aqd-confirm { width: min(420px, 100%); padding: 26px; border-radius: 22px; background: #fff; box-shadow: 0 28px 80px rgba(10,27,67,0.3); }
+.aqd-confirm h3 { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.aqd-confirm p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+.aqd-confirm-foot { display: flex; justify-content: flex-end; gap: 12px; }
 
 @media (max-width: 620px) {
   .aqd-hero { flex-direction: column; }
