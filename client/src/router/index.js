@@ -10,6 +10,8 @@ const routes = [
   { path: '/aquariums', name: 'Aquariums', component: () => import('@/views/aquariums/AquariumsView.vue'), meta: { public: true, shell: true } },
   { path: '/aquariums/new', name: 'AquariumNew', component: () => import('@/views/aquariums/AquariumNewView.vue'), meta: { public: true, shell: true } },
   { path: '/aquariums/:id', name: 'AquariumDetail', component: () => import('@/views/aquariums/AquariumDetailView.vue'), meta: { public: true, shell: true } },
+  { path: '/analyses', name: 'Analyses', component: () => import('@/views/analyses/AnalysesView.vue'), meta: { public: true, shell: true } },
+  { path: '/analyses/activate', name: 'ActivateAnalysis', component: () => import('@/views/analyses/ActivateView.vue'), meta: { public: true, shell: true } },
 
   // 404 → Startseite
   { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -192,6 +192,8 @@ const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
 const routeMeta = {
   '/dashboard': { title: 'Übersicht', sub: (u) => `Willkommen zurück, ${u}!` },
   '/aquariums': { title: 'Aquarien', sub: () => 'Ihre Becken im Überblick' },
+  '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
+  '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
 }
 const pageTitle = computed(() => routeMeta[route.path]?.title || 'ATI Reef Lab')
 const pageSubtitle = computed(() => routeMeta[route.path]?.sub?.(displayName.value) || '')
@@ -216,7 +218,7 @@ const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor"
 const mainNav = [
   { label: 'Übersicht', icon: iconHome, to: '/dashboard' },
   { label: 'Aquarien', icon: iconTank, to: '/aquariums' },
-  { label: 'Analysen', icon: iconChart, to: null },
+  { label: 'Analysen', icon: iconChart, to: '/analyses' },
   { label: 'Empfehlungen', icon: iconBulb, to: null },
   { label: 'Chronik', icon: iconClock, to: null },
 ]
@@ -226,7 +228,7 @@ const adminNav = [
   { label: 'Einstellungen', icon: iconSettings, to: null },
 ]
 function isActive(item) {
-  return !!item.to && route.path === item.to
+  return !!item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`))
 }
 
 const iconMore = `<svg viewBox="0 0 20 20" fill="currentColor" width="17" height="17"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg>`

@@ -5,10 +5,12 @@ import router from './router'
 import './assets/styles/main.css'
 import { ensureDemoUsers } from '@/services/localStore'
 import { ensureDemoAquariums } from '@/services/aquariumStore'
+import { ensureDemoAnalyses } from '@/services/analysisStore'
 
-// Demo-Konten und -Aquarien anlegen (falls noch nicht vorhanden).
+// Demo-Konten, -Aquarien und -Analysen anlegen (falls noch nicht vorhanden).
 ensureDemoUsers()
 ensureDemoAquariums()
+ensureDemoAnalyses()
 
 const app = createApp(App)
 app.use(createPinia())
