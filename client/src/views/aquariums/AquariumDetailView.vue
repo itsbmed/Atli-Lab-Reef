@@ -1,170 +1,259 @@
 <template>
-  <div class="aqd">
-    <RouterLink to="/aquariums" class="back-link">← Zurück zu den Aquarien</RouterLink>
+  <div>
+    <RouterLink to="/aquariums" class="back-link">Zurück zu Meine Aquarien</RouterLink>
 
-    <div v-if="!aquarium" class="aqd-missing">
+    <div v-if="!profile" class="missing-card card">
       <h2>Aquarium nicht gefunden</h2>
-      <p>Dieses Aquarium existiert nicht (mehr).</p>
+      <p>Dieses Aquarium existiert nicht mehr oder wurde entfernt.</p>
       <RouterLink to="/aquariums" class="btn btn-primary">Zur Übersicht</RouterLink>
     </div>
 
     <template v-else>
-      <section class="aqd-hero">
-        <div class="aqd-hero-thumb" :class="!aquarium.image && aquarium.image_theme">
-          <img v-if="aquarium.image" :src="aquarium.image" alt="Aquarium-Foto" />
+      <section class="tank-hero">
+        <div class="tank-hero-visual">
+          <img v-if="profile.image" :src="profile.image" alt="" />
+          <div v-else :class="`tank-thumb ${profile.image_theme || 'reef-sps'}`"></div>
+          <span>{{ profile.water_type }}</span>
         </div>
-        <div class="aqd-hero-copy">
-          <span :class="['aqd-hero-badge', waterClass(aquarium.water_type)]">{{ aquarium.water_type }}</span>
-          <h1>{{ aquarium.name }}</h1>
-          <p>{{ aquarium.net_volume ? `${aquarium.net_volume} L` : 'Volumen offen' }}<template v-if="aquarium.aquarium_type"> · {{ aquarium.aquarium_type }}</template></p>
-          <span class="aqd-hero-date">Angelegt: {{ formatDate(aquarium.createdAt) }}</span>
-          <div v-if="!editing" class="aqd-hero-actions">
-            <button class="btn btn-primary" type="button" @click="startEdit">Bearbeiten</button>
-            <button class="aqd-delete-btn" type="button" @click="confirmDelete = true">Löschen</button>
+        <div class="tank-hero-copy">
+          <div class="hero-kicker">Aquarium-Profil · #{{ shortId }}</div>
+          <h1>{{ profile.name }}</h1>
+          <p>{{ profile.notes || 'Noch keine Notizen hinterlegt.' }}</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" @click="startEdit">Profil bearbeiten</button>
+            <RouterLink :to="`/analyses/activate?aquarium_id=${profile.id}`" class="btn btn-ghost">Analyse registrieren</RouterLink>
           </div>
         </div>
-        <div class="aqd-health">
-          <div class="health-ring"><strong>—</strong></div>
-          <div class="health-copy">
-            <span>Letzter Lab-Score</span>
-            <strong>Noch keine Analyse</strong>
-            <em>Reichen Sie eine Wasserprobe ein.</em>
+        <div class="tank-health-card">
+          <div class="health-ring" :style="healthRingStyle">
+            <strong>{{ latestScore ?? '—' }}</strong>
+            <span>{{ latestScore === null ? '' : '%' }}</span>
+          </div>
+          <div>
+            <span>Letzter Lab Score</span>
+            <strong>{{ healthLabel }}</strong>
+            <em>{{ latestAnalysis ? `${latestAnalysis.issueCount || 0} Hinweise · ${formatDate(latestAnalysis.createdAt)}` : 'Keine Analyse vorhanden' }}</em>
           </div>
         </div>
       </section>
 
-      <div v-if="!editing" class="aqd-read">
-      <div class="aqd-grid">
-        <div class="aqd-fact"><span>Wassertyp</span><strong>{{ aquarium.water_type }}</strong></div>
-        <div class="aqd-fact"><span>Nettovolumen</span><strong>{{ aquarium.net_volume ? `${aquarium.net_volume} L` : '—' }}</strong></div>
-        <div class="aqd-fact"><span>Beckentyp</span><strong>{{ aquarium.aquarium_type || '—' }}</strong></div>
-        <div class="aqd-fact"><span>Maße</span><strong>{{ aquarium.dimensions || '—' }}</strong></div>
-        <div class="aqd-fact"><span>Zielwerte</span><strong>{{ targetLabel }}</strong></div>
-        <div class="aqd-fact"><span>Besatzdichte</span><strong>{{ aquarium.stocking_density || '—' }}</strong></div>
-        <div class="aqd-fact"><span>Beleuchtung</span><strong>{{ aquarium.lighting_type || '—' }}</strong></div>
-        <div class="aqd-fact"><span>Versorgungssystem</span><strong>{{ aquarium.supply_system || '—' }}</strong></div>
-      </div>
-
-      <div class="aqd-tech">
-        <span class="aqd-section-label">Technik</span>
-        <div class="aqd-chips">
-          <span v-if="aquarium.sump" class="aqd-chip">Technikbecken</span>
-          <span v-if="aquarium.refugium" class="aqd-chip">Algenrefugium</span>
-          <span v-if="aquarium.skimmer" class="aqd-chip">Eiweißabschäumer<template v-if="aquarium.skimmer_model"> · {{ aquarium.skimmer_model }}</template></span>
-          <span v-if="!aquarium.sump && !aquarium.refugium && !aquarium.skimmer" class="aqd-chip aqd-chip-muted">Keine Angaben</span>
+      <section class="metric-grid">
+        <div v-for="metric in profileMetrics" :key="metric.label" class="metric-card">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+          <em>{{ metric.caption }}</em>
         </div>
-      </div>
+      </section>
 
-      <div v-if="aquarium.notes" class="aqd-notes">
-        <span class="aqd-section-label">Notizen</span>
-        <p>{{ aquarium.notes }}</p>
-      </div>
-
-      <div class="aqd-history">
-        <span class="aqd-section-label">Laborverlauf</span>
-        <div class="aqd-history-empty">
-          <span class="aqd-history-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 2 4-5"/></svg></span>
-          <strong>Noch keine Analysen</strong>
-          <p>Sobald die erste ICP-Analyse vorliegt, erscheinen hier Score, Verlauf und Hinweise.</p>
-          <a class="btn btn-primary">Analyse registrieren</a>
-        </div>
-      </div>
-
-      <div class="aqd-targets">
-        <span class="aqd-section-label">Zielwert-Profil <em>ATI Standard</em></span>
-        <div class="aqd-target-grid">
-          <div class="aqd-target" v-for="t in targetValues" :key="t.name">
-            <span>{{ t.name }}</span>
-            <strong>{{ t.range }}</strong>
-            <em>{{ t.note }}</em>
-          </div>
-        </div>
-      </div>
-
-      <div class="aqd-actions-card">
-        <span class="aqd-section-label">Schnellaktionen</span>
-        <div class="aqd-quick">
-          <a class="aqd-quick-link">Analyse registrieren</a>
-          <RouterLink to="/aquariums" class="aqd-quick-link">Zur Übersicht</RouterLink>
-          <a class="aqd-quick-link">Tools öffnen</a>
-        </div>
-      </div>
-      </div>
-
-      <section v-else class="aqd-edit">
-        <p v-if="error" class="aqd-alert">{{ error }}</p>
-        <form @submit.prevent="saveEdit">
-          <p class="aqd-edit-section">Grunddaten</p>
-          <div class="form-group">
-            <label>Name</label>
-            <input v-model="editForm.name" type="text" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Wassertyp</label>
-              <select v-model="editForm.water_type"><option>Meerwasser</option><option>Süßwasser</option><option>Osmosewasser</option><option>Meersalz</option></select>
-            </div>
-            <div class="form-group"><label>Nettovolumen (L)</label><input v-model.number="editForm.net_volume" type="number" min="1" /></div>
-          </div>
-          <div class="form-group">
-            <label>Foto</label>
-            <div class="aqd-photo">
-              <div class="aqd-photo-thumb">
-                <img v-if="editForm.image" :src="editForm.image" alt="Aquarium-Foto" />
-                <div v-else class="aqd-photo-fallback"></div>
+      <div v-if="!editing" class="detail-layout">
+        <main class="main-column">
+          <section class="card lab-panel">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Laborverlauf</div>
+                <p class="section-sub">Die letzten Analysen dieses Aquariums mit Score und Hinweisen.</p>
               </div>
-              <div class="aqd-photo-side">
-                <label class="btn btn-ghost">
-                  {{ editForm.image ? 'Anderes Foto' : 'Foto hochladen' }}
-                  <input type="file" accept="image/*" @change="onEditPhoto" hidden />
-                </label>
-                <button v-if="editForm.image" type="button" class="aqd-photo-remove" @click="editForm.image = null">Entfernen</button>
-                <p v-if="photoError" class="aqd-photo-error">{{ photoError }}</p>
+              <RouterLink to="/analyses" class="section-link">Alle Berichte</RouterLink>
+            </div>
+
+            <div class="score-chart">
+              <Line :data="scoreChartData" :options="scoreChartOptions" />
+            </div>
+
+            <div v-if="profileAnalyses.length" class="analysis-timeline">
+              <RouterLink v-for="a in profileAnalyses" :key="a.id" to="/analyses" :class="['timeline-row', analysisTone(a)]">
+                <span class="timeline-dot"></span>
+                <div>
+                  <strong>{{ formatDate(a.createdAt) }}</strong>
+                  <em>{{ a.barcode }} · {{ a.packageLabel }}</em>
+                </div>
+                <b>{{ a.score ?? '—' }}<template v-if="a.score !== null">%</template></b>
+                <small>{{ a.issueCount || 0 }} Hinweise</small>
+              </RouterLink>
+            </div>
+            <div v-else class="timeline-empty">
+              <strong>Noch keine Analysen</strong>
+              <span>Registrieren Sie ein Testkit, um Score, Verlauf und Hinweise hier zu sehen.</span>
+            </div>
+          </section>
+
+          <section class="card target-panel">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Zielwert-Profil</div>
+                <p class="section-sub">Dummy-Zielbereiche für schnelle Produkt- und Reporttests.</p>
+              </div>
+              <span class="badge badge-created">ATI Defaults</span>
+            </div>
+
+            <div class="target-grid">
+              <div v-for="target in targetValues" :key="target.name" class="target-card">
+                <span>{{ target.name }}</span>
+                <strong>{{ target.range }}</strong>
+                <em>{{ target.note }}</em>
               </div>
             </div>
-          </div>
-          <p class="aqd-edit-section">Becken &amp; Technik</p>
-          <div class="form-row">
-            <div class="form-group"><label>Beckentyp</label>
-              <select v-model="editForm.aquarium_type"><option value="">Bitte wählen</option><option>Mischbecken</option><option>SPS</option><option>LPS</option><option>Weichkorallen</option><option>Fischbecken</option></select>
-            </div>
-            <div class="form-group"><label>Maße</label><input v-model="editForm.dimensions" type="text" /></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Zielwerte</label>
-              <select v-model="editForm.target_mode"><option value="ati">ATI Empfehlung</option><option value="natural">Natürliches Meerwasser</option><option value="custom">Eigene Zielwerte</option></select>
-            </div>
-            <div class="form-group"><label>Besatzdichte</label>
-              <select v-model="editForm.stocking_density"><option value="">Bitte wählen</option><option>Gering</option><option>Mittel</option><option>Hoch</option></select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Beleuchtung</label>
-              <select v-model="editForm.lighting_type"><option value="">Bitte wählen</option><option>LED</option><option>T5</option><option>Hybrid</option><option>Halogen</option></select>
-            </div>
-            <div class="form-group"><label>Versorgungssystem</label><input v-model="editForm.supply_system" type="text" /></div>
-          </div>
-          <div class="check-grid">
-            <label :class="{ on: editForm.sump }"><input v-model="editForm.sump" type="checkbox" /> Technikbecken</label>
-            <label :class="{ on: editForm.refugium }"><input v-model="editForm.refugium" type="checkbox" /> Algenrefugium</label>
-            <label :class="{ on: editForm.skimmer }"><input v-model="editForm.skimmer" type="checkbox" /> Eiweißabschäumer</label>
-          </div>
-          <div v-if="editForm.skimmer" class="form-group"><label>Abschäumer Modell</label><input v-model="editForm.skimmer_model" type="text" /></div>
-          <div class="form-group"><label>Notizen</label><textarea v-model="editForm.notes" rows="2"></textarea></div>
+          </section>
+        </main>
 
-          <div class="aqd-edit-foot">
-            <button type="button" class="btn btn-ghost" @click="cancelEdit">Abbrechen</button>
-            <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Wird gespeichert…' : 'Speichern' }}</button>
+        <aside class="side-column">
+          <section class="card system-card">
+            <div class="section-title">Systemdaten</div>
+            <div class="spec-list">
+              <div v-for="spec in systemSpecs" :key="spec.label">
+                <span>{{ spec.label }}</span>
+                <strong>{{ spec.value }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="card attention-card">
+            <div class="section-title">Aufmerksamkeit</div>
+            <div v-if="topIssues.length" class="issue-list">
+              <div v-for="issue in topIssues" :key="issue.label" :class="['issue-pill', issue.tone]">
+                <span>{{ issue.label }}</span>
+                <strong>{{ issue.value }}</strong>
+              </div>
+            </div>
+            <div v-else class="clean-note">
+              <strong>Keine aktuellen Auffälligkeiten</strong>
+              <span>Letzte Analyse wirkt stabil.</span>
+            </div>
+          </section>
+
+          <section class="card action-card">
+            <div class="section-title">Schnellaktionen</div>
+            <div class="quick-actions">
+              <RouterLink to="/analyses">Berichte filtern</RouterLink>
+              <RouterLink :to="`/analyses/activate?aquarium_id=${profile.id}`">Analyse registrieren</RouterLink>
+              <RouterLink to="/dashboard">Trenddiagramm</RouterLink>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <section v-else class="card edit-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Profil bearbeiten</div>
+            <p class="section-sub">Basisdaten und optionale technische Angaben.</p>
+          </div>
+          <button class="btn btn-ghost" @click="editing = false">Abbrechen</button>
+        </div>
+
+        <p v-if="saveError" class="alert alert-error">{{ saveError }}</p>
+
+        <form @submit.prevent="save">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Name</label>
+              <input v-model="editForm.name" type="text" required />
+            </div>
+            <div class="form-group">
+              <label>Wassertyp</label>
+              <select v-model="editForm.water_type">
+                <option>Meerwasser</option>
+                <option>Süßwasser</option>
+                <option>Osmosewasser</option>
+                <option>Meersalz</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nettovolumen (L)</label>
+              <input v-model.number="editForm.net_volume" type="number" min="1" required />
+            </div>
+            <div class="form-group">
+              <label>Beckentyp</label>
+              <select v-model="editForm.aquarium_type">
+                <option value="">Keine Angabe</option>
+                <option>SPS</option>
+                <option>LPS</option>
+                <option>Mischbecken</option>
+                <option>Weichkorallen</option>
+                <option>Fisch</option>
+                <option>Versorgung</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Abmessungen</label>
+              <input v-model="editForm.dimensions" type="text" />
+            </div>
+            <div class="form-group">
+              <label>Zielwerte</label>
+              <select v-model="editForm.target_mode">
+                <option value="ati">ATI Zielwerte nutzen</option>
+                <option value="custom">Eigene Zielwerte</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Besatzdichte</label>
+              <select v-model="editForm.stocking_density">
+                <option value="">Keine Angabe</option>
+                <option>niedrig</option>
+                <option>mittel</option>
+                <option>hoch</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Beleuchtung</label>
+              <select v-model="editForm.lighting_type">
+                <option value="">Keine Angabe</option>
+                <option>HQI</option>
+                <option>T5</option>
+                <option>LED</option>
+                <option>Hybrid</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Versorgungssystem</label>
+              <input v-model="editForm.supply_system" type="text" />
+            </div>
+            <div class="check-grid wide">
+              <label><input v-model="editForm.sump" type="checkbox" /> Technikbecken</label>
+              <label><input v-model="editForm.refugium" type="checkbox" /> Algenrefugium</label>
+              <label><input v-model="editForm.skimmer" type="checkbox" /> Eiweißabschäumer</label>
+            </div>
+            <div v-if="editForm.skimmer" class="form-group wide">
+              <label>Abschäumer Modell</label>
+              <input v-model="editForm.skimmer_model" type="text" />
+            </div>
+            <div class="form-group wide">
+              <label>Foto</label>
+              <div class="photo-edit">
+                <div class="photo-preview">
+                  <img v-if="editForm.image" :src="editForm.image" alt="" />
+                  <div v-else :class="`tank-thumb ${editForm.image_theme || 'reef-mixed'}`"></div>
+                </div>
+                <div>
+                  <label class="btn btn-ghost">
+                    {{ editForm.image ? 'Anderes Foto' : 'Foto hochladen' }}
+                    <input type="file" accept="image/*" hidden @change="onEditPhoto" />
+                  </label>
+                  <button v-if="editForm.image" type="button" class="photo-remove" @click="editForm.image = null">Entfernen</button>
+                  <p v-if="photoError" class="alert alert-error">{{ photoError }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="form-group wide">
+              <label>Notizen</label>
+              <textarea v-model="editForm.notes" rows="4"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Speichern...' : 'Änderungen speichern' }}</button>
+            <button type="button" class="btn btn-ghost" @click="editing = false">Abbrechen</button>
+            <button type="button" class="btn btn-danger" @click="confirmDelete = true">Profil löschen</button>
           </div>
         </form>
       </section>
 
-      <div v-if="confirmDelete" class="aqd-confirm-overlay" @click.self="confirmDelete = false">
-        <div class="aqd-confirm">
-          <h3>Aquarium löschen?</h3>
-          <p>„{{ aquarium.name }}“ wird dauerhaft entfernt. Das kann nicht rückgängig gemacht werden.</p>
-          <div class="aqd-confirm-foot">
+      <div v-if="confirmDelete" class="confirm-overlay" @click.self="confirmDelete = false">
+        <div class="confirm-card card">
+          <h3>Profil wirklich löschen?</h3>
+          <p>„{{ profile.name }}“ wird dauerhaft entfernt. Das kann nicht rückgängig gemacht werden.</p>
+          <div class="form-actions">
             <button type="button" class="btn btn-ghost" @click="confirmDelete = false">Abbrechen</button>
-            <button type="button" class="aqd-delete-btn" @click="removeAquarium">Endgültig löschen</button>
+            <button type="button" class="btn btn-danger" @click="deleteProfile">Profil löschen</button>
           </div>
         </div>
       </div>
@@ -173,25 +262,148 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Line } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
 import { useAquariumsStore } from '@/stores/aquariums'
+import { useAnalysesStore } from '@/stores/analyses'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
 const route = useRoute()
 const router = useRouter()
 const aquariums = useAquariumsStore()
-onMounted(() => { if (!aquariums.items.length) aquariums.load() })
-
-const aquarium = computed(() => aquariums.byId(route.params.id))
-
-// ── Bearbeiten ──
+const analysesStore = useAnalysesStore()
 const editing = ref(false)
-const editForm = ref({})
 const saving = ref(false)
-const error = ref('')
+const saveError = ref('')
 const photoError = ref('')
+const editForm = ref({})
+const confirmDelete = ref(false)
 
+onMounted(() => {
+  aquariums.load()
+  analysesStore.load()
+})
+
+const profile = computed(() => aquariums.byId(route.params.id))
+const shortId = computed(() => profile.value?.id?.slice(-6) || route.params.id)
+const profileAnalyses = computed(() => analysesStore.items.filter((a) => a.aquariumId === profile.value?.id || a.aquariumName === profile.value?.name))
+const latestAnalysis = computed(() => profileAnalyses.value[0] || null)
+const latestScore = computed(() => latestAnalysis.value?.score ?? null)
+const healthLabel = computed(() => {
+  if (latestScore.value === null) return 'Noch offen'
+  if (latestScore.value >= 96) return 'Sehr stabil'
+  if (latestScore.value >= 88) return 'Beobachten'
+  return 'Korrektur nötig'
+})
+const healthRingStyle = computed(() => {
+  const score = latestScore.value ?? 0
+  const color = score >= 96 ? '#10b981' : score >= 88 ? '#f59e0b' : '#e85d4f'
+  return { background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.18) 0deg)` }
+})
+
+const profileMetrics = computed(() => [
+  { label: 'Volumen', value: `${profile.value.net_volume || '—'} L`, caption: 'Nettovolumen' },
+  { label: 'Analysen', value: profileAnalyses.value.length, caption: 'Laborberichte' },
+  { label: 'Letzter Score', value: latestScore.value === null ? '—' : `${latestScore.value}%`, caption: healthLabel.value },
+  { label: 'Intervall', value: analysisInterval.value, caption: 'zwischen Checks' },
+])
+const analysisInterval = computed(() => {
+  if (profileAnalyses.value.length < 2) return '—'
+  const [latest, previous] = profileAnalyses.value
+  const days = Math.round((new Date(latest.createdAt) - new Date(previous.createdAt)) / 86400000)
+  return `${Math.abs(days)} Tage`
+})
+const systemSpecs = computed(() => [
+  { label: 'Wassertyp', value: profile.value.water_type },
+  { label: 'Beckentyp', value: profile.value.aquarium_type || 'Nicht gesetzt' },
+  { label: 'Abmessungen', value: profile.value.dimensions || 'Nicht gesetzt' },
+  { label: 'Zielwerte', value: profile.value.target_mode === 'custom' ? 'Eigene Zielwerte' : 'ATI Defaults' },
+  { label: 'Besatzdichte', value: profile.value.stocking_density || 'Nicht gesetzt' },
+  { label: 'Technikbecken', value: profile.value.sump ? 'Ja' : 'Nein' },
+  { label: 'Algenrefugium', value: profile.value.refugium ? 'Ja' : 'Nein' },
+  { label: 'Abschäumer', value: profile.value.skimmer ? (profile.value.skimmer_model || 'Ja') : 'Nein' },
+  { label: 'Erstellt', value: formatDate(profile.value.createdAt) },
+  { label: 'Versorgung', value: profile.value.water_type === 'Osmosewasser' ? 'RO/DI Kontrolle' : (profile.value.supply_system || 'ATI Essentials Pro') },
+  { label: 'Licht', value: profile.value.lighting_type || (profile.value.aquarium_type === 'SPS' ? 'High PAR' : 'Standard Profil') },
+])
+const topIssues = computed(() => {
+  const latest = latestAnalysis.value
+  if (!latest?.issueCount) return []
+  const labels = latest.score < 86 ? ['NO3 / PO4', 'Silikat'] : ['Jod', 'Eisen / Mangan']
+  return labels.map((label, index) => ({
+    label,
+    value: index === 0 ? 'Priorität' : 'Prüfen',
+    tone: latest.score < 86 ? 'critical' : 'watch',
+  }))
+})
+const targetValues = computed(() => {
+  if (profile.value.water_type === 'Osmosewasser') {
+    return [
+      { name: 'Silikat', range: '0-0.08 mg/L', note: 'Harzfilter Indikator' },
+      { name: 'Phosphat', range: '0-0.03 mg/L', note: 'RO Reinheit' },
+      { name: 'Salinität', range: '0-0.1 ppt', note: 'keine Beimischung' },
+      { name: 'Metalle', range: '< LOD', note: 'Leitungswasser-Check' },
+    ]
+  }
+  if (profile.value.water_type === 'Süßwasser') {
+    return [
+      { name: 'Nitrat', range: '5-30 mg/L', note: 'Pflanzenversorgung' },
+      { name: 'Phosphat', range: '0.05-0.8 mg/L', note: 'Makro Balance' },
+      { name: 'Calcium', range: '50-120 mg/L', note: 'GH Baustein' },
+      { name: 'Magnesium', range: '15-40 mg/L', note: 'Pflanzenstoffwechsel' },
+    ]
+  }
+  return [
+    { name: 'Calcium', range: '380-450 mg/L', note: 'Korallenwachstum' },
+    { name: 'Magnesium', range: '1200-1400 mg/L', note: 'Ionische Stabilität' },
+    { name: 'Alkalinität', range: '7-9.5 dKH', note: 'pH Puffer' },
+    { name: 'Phosphat', range: '0.01-0.1 mg/L', note: 'Nährstoffkontrolle' },
+  ]
+})
+const chartAnalyses = computed(() => {
+  const scored = profileAnalyses.value.filter((a) => a.score !== null && a.score !== undefined)
+  if (scored.length) return scored
+  return [
+    { createdAt: new Date(Date.now() - 1000 * 86400 * 60).toISOString(), score: 82 },
+    { createdAt: new Date(Date.now() - 1000 * 86400 * 35).toISOString(), score: 88 },
+    { createdAt: new Date(Date.now() - 1000 * 86400 * 12).toISOString(), score: latestScore.value || 90 },
+  ]
+})
+const scoreChartData = computed(() => ({
+  labels: [...chartAnalyses.value].reverse().map(a => new Date(a.createdAt).toLocaleDateString('de-DE', { month: 'short', day: '2-digit' })),
+  datasets: [{
+    data: [...chartAnalyses.value].reverse().map(a => a.score),
+    borderColor: '#0072CE',
+    backgroundColor: 'rgba(136,193,233,0.08)',
+    borderWidth: 3,
+    fill: true,
+    tension: 0.35,
+    pointRadius: 5,
+    pointBackgroundColor: '#fff',
+    pointBorderColor: '#0072CE',
+    pointBorderWidth: 2,
+  }],
+}))
+const scoreChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: '#5b7a99', font: { size: 11 } } },
+    y: { min: 70, max: 100, grid: { color: '#e9f1fb' }, ticks: { color: '#5b7a99', callback: v => `${v}%` } },
+  },
+}
+
+function startEdit() {
+  editForm.value = { ...profile.value }
+  saveError.value = ''
+  photoError.value = ''
+  editing.value = true
+}
 async function onEditPhoto(e) {
   const file = e.target.files?.[0]
   if (!file) return
@@ -203,174 +415,174 @@ async function onEditPhoto(e) {
   }
   e.target.value = ''
 }
-
 function themeFor(f) {
   if (f.aquarium_type === 'SPS') return 'reef-sps'
   return { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps' }[f.water_type] || 'reef-mixed'
 }
-
-function startEdit() {
-  editForm.value = { ...aquarium.value }
-  error.value = ''
-  editing.value = true
-}
-function cancelEdit() { editing.value = false }
-
-// ── Löschen ──
-const confirmDelete = ref(false)
-function removeAquarium() {
-  aquariums.remove(aquarium.value.id)
-  router.push('/aquariums')
-}
-function saveEdit() {
-  error.value = ''
-  if (!editForm.value.name?.trim()) { error.value = 'Bitte einen Namen angeben.'; return }
-  if (!editForm.value.net_volume || editForm.value.net_volume < 1) { error.value = 'Bitte ein gültiges Nettovolumen angeben.'; return }
+function save() {
   saving.value = true
+  saveError.value = ''
   try {
-    aquariums.update(aquarium.value.id, { ...editForm.value, image_theme: themeFor(editForm.value) })
+    aquariums.update(profile.value.id, { ...editForm.value, image_theme: themeFor(editForm.value) })
     editing.value = false
   } catch (e) {
-    error.value = e.error || 'Fehler beim Speichern.'
+    saveError.value = e.error || 'Speichern fehlgeschlagen'
   } finally {
     saving.value = false
   }
 }
-
-const TARGET_LABELS = { ati: 'ATI Empfehlung', natural: 'Natürliches Meerwasser', custom: 'Eigene Zielwerte' }
-const targetLabel = computed(() => TARGET_LABELS[aquarium.value?.target_mode] || '—')
-
-// ATI-Standard-Zielbereiche (statisch – echte Werte folgen mit der Analyse).
-const targetValues = [
-  { name: 'Calcium (Ca)', range: '420–440 mg/l', note: 'Gerüstbildung' },
-  { name: 'Karbonhärte (KH)', range: '7,5–8,5 °dKH', note: 'Stabilität' },
-  { name: 'Magnesium (Mg)', range: '1300–1400 mg/l', note: 'Ca/KH-Balance' },
-  { name: 'Salinität', range: '34–35 PSU', note: 'Dichte' },
-  { name: 'Nitrat (NO₃)', range: '2–10 mg/l', note: 'Nährstoffe' },
-  { name: 'Phosphat (PO₄)', range: '0,02–0,1 mg/l', note: 'Nährstoffe' },
-]
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
+function deleteProfile() {
+  aquariums.remove(profile.value.id)
+  router.push('/aquariums')
 }
-
-// Wassertyp → sichere CSS-Klasse für die Badge-Färbung (einheitlich mit der Liste).
-function waterClass(type) {
-  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+function analysisTone(a) {
+  if ((a.score ?? 100) < 86 || (a.issueCount || 0) >= 3) return 'critical'
+  if ((a.score ?? 100) < 96 || (a.issueCount || 0) > 0) return 'watch'
+  return 'good'
 }
+function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }
 </script>
 
 <style scoped>
-.back-link { display: inline-flex; margin-bottom: 16px; color: var(--text-muted); font-size: 13px; font-weight: var(--fw-semibold); text-decoration: none; }
-.back-link:hover { color: var(--brand-blue); }
-
-.aqd-missing { max-width: 460px; margin: 40px auto; text-align: center; }
-.aqd-missing h2 { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
-.aqd-missing p { color: var(--text-muted); margin-bottom: 20px; }
-
-.aqd-hero { display: flex; gap: 22px; align-items: stretch; margin-bottom: 22px; padding: 20px; border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
-.aqd-hero-thumb { position: relative; overflow: hidden; width: 180px; flex-shrink: 0; border-radius: 18px; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
-.aqd-hero-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(10,27,67,0.25)); }
-.aqd-hero-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.aqd-hero-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
-.aqd-hero-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
-.aqd-hero-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
-.aqd-hero-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
-.aqd-hero-copy { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.aqd-hero-badge { align-self: flex-start; padding: 4px 11px; border-radius: 999px; background: rgba(136,193,233,0.16); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
-.aqd-hero-badge.wt-sea { color: var(--brand-blue); }
-.aqd-hero-badge.wt-fresh { color: #0f766e; }
-.aqd-hero-badge.wt-osmo { color: #0e7490; }
-.aqd-hero-badge.wt-salt { color: #7c3aed; }
-.aqd-hero-copy h1 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
-.aqd-hero-copy p { color: var(--text-muted); font-size: 15px; }
-.aqd-hero-date { color: var(--text-muted); font-size: 12px; }
-.aqd-health { margin-left: auto; align-self: center; flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: rgba(136,193,233,0.08); border: 1px solid rgba(136,193,233,0.2); }
-.health-ring { position: relative; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: conic-gradient(var(--brand-cyan) 0deg, rgba(136,193,233,0.2) 0deg); }
-.health-ring::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
-.health-ring strong { position: relative; z-index: 1; font-size: 18px; font-weight: 800; color: var(--text-muted); }
-.health-copy { display: flex; flex-direction: column; gap: 2px; }
-.health-copy > span { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
-.health-copy > strong { font-size: 14px; font-weight: 800; color: var(--text); }
-.health-copy em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
-
-.aqd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-bottom: 22px; }
-.aqd-fact { padding: 16px; border-radius: 16px; background: #fff; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
-.aqd-fact span { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
-.aqd-fact strong { font-size: 15px; font-weight: 700; color: var(--text); }
-
-.aqd-section-label { display: block; margin-bottom: 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand-blue); }
-.aqd-tech { margin-bottom: 22px; }
-.aqd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.aqd-chip { padding: 8px 14px; border-radius: 999px; background: rgba(136,193,233,0.12); border: 1px solid rgba(136,193,233,0.24); color: var(--brand-blue); font-size: 13px; font-weight: 700; }
-.aqd-chip-muted { background: none; border-color: var(--border); color: var(--text-muted); }
-
-.aqd-notes { padding: 18px; border-radius: 18px; background: #fff; border: 1px solid var(--border); }
-.aqd-notes p { color: var(--text); font-size: 14px; line-height: 1.6; }
-
-.aqd-history { margin-top: 22px; }
-.aqd-history-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 36px 24px; border-radius: 20px; background: #fff; border: 1px dashed rgba(136,193,233,0.4); }
-.aqd-history-ico { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: 15px; background: rgba(136,193,233,0.14); color: var(--brand-blue); }
-.aqd-history-empty strong { margin-bottom: 6px; font-size: 16px; font-weight: 800; color: var(--text); }
-.aqd-history-empty p { max-width: 360px; margin-bottom: 18px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
-
-.aqd-targets { margin-top: 22px; }
-.aqd-section-label em { margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; color: var(--text-muted); }
-.aqd-target-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 12px; }
-.aqd-target { padding: 14px 16px; border-radius: 16px; background: #fff; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
-.aqd-target > span { font-size: 12px; font-weight: 700; color: var(--text); }
-.aqd-target strong { font-size: 15px; font-weight: 800; color: var(--brand-blue); }
-.aqd-target em { font-size: 11px; font-style: normal; color: var(--text-muted); }
-
-.aqd-actions-card { margin-top: 22px; }
-.aqd-quick { display: flex; flex-wrap: wrap; gap: 10px; }
-.aqd-quick-link { padding: 12px 16px; border-radius: 12px; background: #fff; border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: border-color 0.15s, color 0.15s, transform 0.15s; }
-.aqd-quick-link:hover { border-color: var(--teal-400); color: var(--brand-blue); transform: translateY(-2px); }
-
-/* Bearbeiten */
-.aqd-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.aqd-edit { padding: clamp(20px, 3vw, 28px); border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
-.aqd-edit-section { margin: 0 0 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand-blue); }
-.aqd-edit-section:not(:first-child) { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
-.aqd-alert { margin-bottom: 14px; padding: 11px 14px; border-radius: 12px; background: #fdecea; color: #c5392c; font-size: 13px; font-weight: 600; }
-.aqd-edit .form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
-.aqd-edit label { font-size: 12px; font-weight: var(--fw-semibold); color: var(--text-muted); }
-.aqd-edit input, .aqd-edit select, .aqd-edit textarea { width: 100%; height: 46px; padding: 0 13px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); font-size: 14px; outline: 0; transition: border-color 0.18s, box-shadow 0.18s; }
-.aqd-edit textarea { height: auto; padding: 11px 13px; resize: vertical; }
-.aqd-edit input:focus, .aqd-edit select:focus, .aqd-edit textarea:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
-.aqd-edit .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.aqd-edit .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 14px; }
-.aqd-edit .check-grid label { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 13px; font-weight: var(--fw-semibold); cursor: pointer; }
-.aqd-edit .check-grid label.on { border-color: var(--teal-400); background: rgba(136,193,233,0.12); color: var(--brand-blue); }
-.aqd-edit .check-grid input { width: auto; height: auto; accent-color: var(--teal-500); }
-.aqd-edit-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
-.aqd-photo { display: flex; gap: 14px; align-items: center; }
-.aqd-photo-thumb { width: 92px; height: 68px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
-.aqd-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.aqd-photo-fallback { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
-.aqd-photo-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.aqd-photo-side .btn { cursor: pointer; }
-.aqd-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
-.aqd-photo-error { color: #c5392c; font-size: 12px; }
-@media (max-width: 560px) { .aqd-edit .form-row, .aqd-edit .check-grid { grid-template-columns: 1fr; } }
-
-/* Löschen */
-.aqd-delete-btn { height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid #e85d4f; background: #fdecea; color: #c5392c; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
-.aqd-delete-btn:hover { background: #e85d4f; color: #fff; }
-.aqd-confirm-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(10,27,67,0.45); backdrop-filter: blur(4px); }
-.aqd-confirm { width: min(420px, 100%); padding: 26px; border-radius: 22px; background: #fff; box-shadow: 0 28px 80px rgba(10,27,67,0.3); }
-.aqd-confirm h3 { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
-.aqd-confirm p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
-.aqd-confirm-foot { display: flex; justify-content: flex-end; gap: 12px; }
-
-@media (max-width: 620px) {
-  .aqd-hero { flex-direction: column; }
-  .aqd-hero-thumb { width: 100%; height: 120px; }
-  .aqd-health { margin-left: 0; width: 100%; }
-  .aqd-hero-actions { width: 100%; }
-  .aqd-hero-actions > * { flex: 1; text-align: center; }
-  .aqd-edit-foot, .aqd-confirm-foot { flex-direction: column-reverse; }
-  .aqd-edit-foot > *, .aqd-confirm-foot > * { width: 100%; }
+.back-link { display: inline-flex; margin-bottom: 16px; color: var(--teal-700); font-weight: var(--fw-extra-bold, 800); }
+.missing-card { max-width: 460px; padding: 24px; text-align: center; }
+.tank-thumb { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
+.tank-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
+.tank-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
+.tank-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
+.card { border-radius: var(--radius); background: rgba(255,255,255,0.9); border: 1px solid rgba(136,193,233,0.18); box-shadow: var(--shadow); }
+.tank-hero {
+  display: grid;
+  grid-template-columns: minmax(min(100%, 220px), 270px) minmax(min(100%, 420px), 1fr) minmax(min(100%, 300px), 330px);
+  gap: 24px;
+  align-items: stretch;
+  padding: 26px;
+  margin-bottom: 18px;
+  border-radius: 30px;
+  background:
+    linear-gradient(105deg, rgba(10,27,67,0.98), rgba(10,27,67,0.9) 45%, rgba(10,27,67,0.54)),
+    url('/reef-tank.webp') center bottom / cover;
+  color: #fff;
+  box-shadow: 0 30px 86px rgba(10,27,67,0.24);
+  overflow: hidden;
+  position: relative;
+}
+.tank-hero::after { content: ''; position: absolute; right: 34%; top: 0; bottom: 0; width: 1px; background: linear-gradient(transparent, rgba(136,193,233,0.42), transparent); }
+.tank-hero-visual,
+.tank-hero-copy,
+.tank-health-card { position: relative; z-index: 1; }
+.tank-hero-visual { min-height: 230px; border-radius: 24px; overflow: hidden; box-shadow: 0 28px 80px rgba(0,0,0,0.28); }
+.tank-hero-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tank-hero-visual span { position: absolute; left: 16px; top: 16px; padding: 6px 11px; border-radius: 999px; background: rgba(10,27,67,0.58); color: #fff; font-size: 11px; font-weight: 800; backdrop-filter: blur(12px); }
+.tank-hero-copy { align-self: center; }
+.hero-kicker { color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; }
+.tank-hero h1 { font-size: clamp(34px, 4.5vw, 56px); line-height: 0.98; font-weight: 800; letter-spacing: -0.055em; margin-bottom: 12px; }
+.tank-hero p { max-width: 580px; color: rgba(255,255,255,0.72); font-size: 15px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.btn-ghost { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
+.btn-danger { background: #e85d4f; color: #fff; border: 0; }
+.tank-health-card { align-self: center; display: grid; grid-template-columns: 122px 1fr; gap: 16px; align-items: center; padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(18px); }
+.health-ring { width: 122px; height: 122px; border-radius: 50%; display: grid; place-items: center; position: relative; }
+.health-ring::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: linear-gradient(rgba(10,27,67,0.9), rgba(10,27,67,0.94)), url('/reef-tank.webp') center / cover; }
+.health-ring strong,
+.health-ring span { position: relative; z-index: 1; }
+.health-ring strong { align-self: end; font-size: 38px; font-weight: 800; letter-spacing: -0.06em; }
+.health-ring span { align-self: start; margin-top: -8px; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 800; }
+.tank-health-card span { display: block; color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.tank-health-card strong { display: block; margin-top: 5px; font-size: 22px; line-height: 1.05; font-weight: 800; }
+.tank-health-card em { display: block; margin-top: 8px; color: rgba(255,255,255,0.66); font-size: 12px; font-style: normal; font-weight: 800; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 14px; margin-bottom: 20px; }
+.metric-card { padding: 18px; border-radius: var(--radius); background: rgba(255,255,255,0.76); border: 1px solid rgba(255,255,255,0.78); box-shadow: var(--shadow); }
+.metric-card span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.metric-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 28px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+.metric-card em { display: block; margin-top: 6px; color: var(--teal-700); font-size: 12px; font-style: normal; font-weight: 700; }
+.detail-layout { display: grid; grid-template-columns: minmax(min(100%, 560px), 1fr) minmax(min(100%, 320px), 0.42fr); gap: 22px; align-items: start; }
+.main-column,
+.side-column { display: grid; gap: 18px; }
+.side-column { position: sticky; top: 98px; }
+.lab-panel,
+.target-panel,
+.system-card,
+.attention-card,
+.action-card,
+.edit-card { padding: 20px; }
+.section-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.section-title { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.025em; }
+.section-sub { color: var(--text-muted); font-size: 12px; font-weight: 700; margin-top: 2px; }
+.section-link { color: var(--brand-blue); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.score-chart { height: 280px; margin-bottom: 18px; }
+.analysis-timeline { display: grid; gap: 9px; }
+.timeline-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 13px; border-radius: 18px; color: inherit; text-decoration: none; background: rgba(255,255,255,0.68); border: 1px solid var(--border); }
+.timeline-row:hover { background: var(--teal-50); }
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
+.timeline-row.watch .timeline-dot { background: #f59e0b; }
+.timeline-row.critical .timeline-dot { background: #e85d4f; }
+.timeline-row strong { display: block; color: var(--text); font-size: 13px; font-weight: 800; }
+.timeline-row em { display: block; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
+.timeline-row b { color: var(--text); font-size: 14px; }
+.timeline-row small { color: var(--text-muted); font-weight: 800; }
+.timeline-empty { padding: 18px; border-radius: 18px; background: rgba(136,193,233,0.1); border: 1px dashed rgba(136,193,233,0.42); }
+.timeline-empty strong,
+.timeline-empty span { display: block; }
+.timeline-empty span { margin-top: 5px; color: var(--text-muted); font-size: 13px; }
+.target-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+.target-card { padding: 14px; border-radius: 18px; background: rgba(236,255,251,0.76); border: 1px solid var(--border); }
+.target-card span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.target-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 16px; font-weight: 800; }
+.target-card em { display: block; margin-top: 5px; color: var(--teal-700); font-size: 12px; font-style: normal; font-weight: 800; }
+.badge { display: inline-flex; padding: 6px 10px; border-radius: 999px; background: var(--teal-100); color: var(--teal-800); font-size: 11px; font-weight: 800; }
+.spec-list { display: grid; gap: 10px; margin-top: 14px; }
+.spec-list div { display: flex; justify-content: space-between; gap: 14px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.66); border: 1px solid var(--border); }
+.spec-list span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.spec-list strong { color: var(--text); font-size: 13px; text-align: right; }
+.issue-list { display: grid; gap: 9px; margin-top: 14px; }
+.issue-pill { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 16px; background: #fff7ed; border: 1px solid #fde68a; }
+.issue-pill.critical { background: #fdecea; border-color: #f8c9c4; }
+.issue-pill span { color: var(--text); font-size: 13px; font-weight: 800; }
+.issue-pill strong { color: var(--text-muted); font-size: 12px; }
+.clean-note { margin-top: 14px; padding: 14px; border-radius: 18px; background: #dcfce7; color: #065f46; }
+.clean-note strong,
+.clean-note span { display: block; }
+.clean-note span { margin-top: 4px; font-size: 12px; }
+.quick-actions { display: grid; gap: 9px; margin-top: 14px; }
+.quick-actions a { display: block; padding: 12px; border-radius: 15px; background: rgba(255,255,255,0.68); border: 1px solid var(--border); color: var(--teal-700); font-size: 13px; font-weight: 800; }
+.quick-actions a:hover { background: var(--teal-50); }
+.edit-card { max-width: 980px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 7px; }
+.form-group.wide { grid-column: 1 / -1; }
+.form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.form-group input,
+.form-group select,
+.form-group textarea { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid var(--border); border-radius: 13px; background: #fff; color: var(--text); font-size: 14px; outline: 0; }
+.form-group textarea { padding: 12px 13px; resize: vertical; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; }
+.check-grid.wide { grid-column: 1 / -1; }
+.check-grid label { display: flex; gap: 8px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.66); color: var(--text); font-size: 13px; font-weight: var(--fw-semibold); }
+.check-grid input { accent-color: var(--teal-500); }
+.photo-edit { display: flex; align-items: center; gap: 14px; }
+.photo-preview { width: 120px; height: 84px; overflow: hidden; border-radius: 16px; border: 1px solid var(--border); }
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-remove { display: block; margin-top: 8px; border: 0; background: none; color: #c5392c; font-weight: 800; cursor: pointer; }
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.confirm-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(10,27,67,0.52); }
+.confirm-card { max-width: 420px; padding: 22px; }
+.confirm-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.confirm-card p { color: var(--text-muted); line-height: 1.55; }
+@media (max-width: 1180px) {
+  .tank-hero,
+  .detail-layout { grid-template-columns: 1fr; }
+  .tank-hero::after { display: none; }
+  .tank-hero-visual { min-height: 220px; }
+  .tank-health-card { max-width: 460px; }
+  .side-column { position: static; }
+}
+@media (max-width: 760px) {
+  .tank-hero { padding: 20px; }
+  .hero-actions { flex-direction: column; }
+  .hero-actions .btn { width: 100%; }
+  .tank-health-card { grid-template-columns: 1fr; }
+  .timeline-row { grid-template-columns: 12px 1fr auto; }
+  .timeline-row small { grid-column: 2 / -1; }
 }
 </style>
