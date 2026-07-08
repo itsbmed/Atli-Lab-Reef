@@ -33,22 +33,51 @@
           </div>
         </div>
         <div class="scan-grid">
-          <div class="scan-frame">
-            <i></i><i></i><i></i><i></i>
-            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="2" width="16" height="16" />
-              <rect x="22" y="2" width="16" height="16" />
-              <rect x="2" y="22" width="16" height="16" />
-              <rect x="6" y="6" width="8" height="8" fill="currentColor" />
-              <rect x="26" y="6" width="8" height="8" fill="currentColor" />
-              <rect x="6" y="26" width="8" height="8" fill="currentColor" />
-            </svg>
+          <div :class="['scan-panel', { active: scannerActive }]">
+            <div v-if="scannerActive" class="scan-camera">
+              <video ref="scannerVideo" autoplay muted playsinline></video>
+              <div class="scan-reticle"><i></i><i></i><i></i><i></i></div>
+            </div>
+            <div v-else class="scan-frame">
+              <i></i><i></i><i></i><i></i>
+              <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="16" height="16" />
+                <rect x="22" y="2" width="16" height="16" />
+                <rect x="2" y="22" width="16" height="16" />
+                <rect x="6" y="6" width="8" height="8" fill="currentColor" />
+                <rect x="26" y="6" width="8" height="8" fill="currentColor" />
+                <rect x="6" y="26" width="8" height="8" fill="currentColor" />
+              </svg>
+            </div>
+
+            <div class="scan-controls">
+              <span :class="['scan-status', scannerStatusTone]">{{ scannerStatus }}</span>
+              <div class="scan-buttons">
+                <button v-if="!scannerActive" type="button" class="btn btn-primary" @click="startScanner">QR scannen</button>
+                <button v-else type="button" class="btn btn-ghost" @click="stopScanner">Scanner stoppen</button>
+                <label class="btn btn-ghost">
+                  QR-Bild wählen
+                  <input type="file" accept="image/*" hidden @change="scanImageFile" />
+                </label>
+              </div>
+            </div>
           </div>
-          <label class="field">
-            <span>Barcode / QR-Code</span>
-            <input v-model.trim="form.barcode" type="text" placeholder="ATI-2026-0001" autofocus />
-            <em>Erlaubt sind Buchstaben, Zahlen und Bindestriche.</em>
-          </label>
+
+          <div class="barcode-panel">
+            <label class="field">
+              <span>Barcode / QR-Code</span>
+              <input v-model.trim="form.barcode" type="text" placeholder="ATI-2026-0001" autofocus />
+              <em>Tippen Sie den Code ein oder scannen Sie den QR-Code auf dem Testkit.</em>
+            </label>
+            <div v-if="form.barcode" class="scan-result">
+              <span>Erkannt</span>
+              <strong>{{ form.barcode }}</strong>
+            </div>
+            <div class="scan-help">
+              <strong>So klappt der Scan schneller</strong>
+              <p>QR-Code mittig in den Rahmen halten, Lichtreflexe vermeiden und das Röhrchen kurz ruhig halten.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -185,7 +214,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
@@ -212,6 +241,13 @@ const maxReached = ref(0)
 const saving = ref(false)
 const error = ref('')
 const selectedAddons = ref(['sak254'])
+const scannerVideo = ref(null)
+const scannerActive = ref(false)
+const scannerStatus = ref('Kamera öffnen oder QR-Code manuell eingeben.')
+const scannerStatusTone = ref('idle')
+const scannerDetector = ref(null)
+let scannerStream = null
+let scannerFrame = 0
 const form = ref({
   barcode: '',
   aquariumId: '',
@@ -225,6 +261,12 @@ onMounted(() => {
   const requestedAquarium = route.query.aquarium_id?.toString()
   if (requestedAquarium && aquariums.byId(requestedAquarium)) form.value.aquariumId = requestedAquarium
   else if (aquariums.items.length) form.value.aquariumId = aquariums.items[0].id
+})
+
+onUnmounted(() => stopScanner())
+
+watch(stepIndex, (step) => {
+  if (step !== 0) stopScanner()
 })
 
 const selectedAquarium = computed(() => aquariums.byId(form.value.aquariumId))
@@ -258,6 +300,140 @@ function prev() {
 
 function goTo(i) {
   if (i <= maxReached.value) stepIndex.value = i
+}
+
+function canUseNativeScanner() {
+  return 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia
+}
+
+async function makeDetector() {
+  if (!('BarcodeDetector' in window)) return null
+  if (scannerDetector.value) return scannerDetector.value
+  const BarcodeDetectorCtor = window.BarcodeDetector
+  const supportedFormats = BarcodeDetectorCtor.getSupportedFormats
+    ? await BarcodeDetectorCtor.getSupportedFormats()
+    : ['qr_code']
+  const formats = ['qr_code', 'data_matrix', 'code_128', 'code_39', 'ean_13'].filter((format) => supportedFormats.includes(format))
+  scannerDetector.value = new BarcodeDetectorCtor({ formats: formats.length ? formats : ['qr_code'] })
+  return scannerDetector.value
+}
+
+async function startScanner() {
+  if (!canUseNativeScanner()) {
+    scannerStatus.value = 'Dieser Browser unterstützt keinen direkten QR-Scan. Bitte Code eingeben oder QR-Bild wählen.'
+    scannerStatusTone.value = 'error'
+    return
+  }
+
+  scannerStatus.value = 'Kamera wird geöffnet...'
+  scannerStatusTone.value = 'idle'
+  scannerActive.value = true
+  await nextTick()
+
+  try {
+    const detector = await makeDetector()
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    })
+    scannerVideo.value.srcObject = scannerStream
+    await scannerVideo.value.play()
+    scannerStatus.value = 'QR-Code in den Rahmen halten.'
+    scannerStatusTone.value = 'active'
+    scanCameraFrame(detector)
+  } catch (err) {
+    scannerActive.value = false
+    scannerStatus.value = cameraErrorMessage(err)
+    scannerStatusTone.value = 'error'
+    stopScanner()
+  }
+}
+
+function scanCameraFrame(detector) {
+  if (!scannerActive.value || !scannerVideo.value) return
+  detector.detect(scannerVideo.value)
+    .then((codes) => {
+      const rawValue = codes?.[0]?.rawValue
+      if (rawValue) applyScannedCode(rawValue)
+      else scannerFrame = requestAnimationFrame(() => scanCameraFrame(detector))
+    })
+    .catch(() => {
+      scannerFrame = requestAnimationFrame(() => scanCameraFrame(detector))
+    })
+}
+
+function stopScanner() {
+  if (scannerFrame) cancelAnimationFrame(scannerFrame)
+  scannerFrame = 0
+  if (scannerStream) {
+    scannerStream.getTracks().forEach((track) => track.stop())
+    scannerStream = null
+  }
+  if (scannerVideo.value) scannerVideo.value.srcObject = null
+  scannerActive.value = false
+}
+
+async function scanImageFile(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (!('BarcodeDetector' in window)) {
+    scannerStatus.value = 'QR-Bildscan wird von diesem Browser nicht unterstützt. Bitte Code manuell eingeben.'
+    scannerStatusTone.value = 'error'
+    return
+  }
+
+  scannerStatus.value = 'QR-Bild wird gelesen...'
+  scannerStatusTone.value = 'idle'
+  try {
+    const detector = await makeDetector()
+    const image = new Image()
+    image.src = URL.createObjectURL(file)
+    await image.decode()
+    const codes = await detector.detect(image)
+    URL.revokeObjectURL(image.src)
+    if (codes?.[0]?.rawValue) applyScannedCode(codes[0].rawValue)
+    else {
+      scannerStatus.value = 'Kein QR-Code im Bild gefunden.'
+      scannerStatusTone.value = 'error'
+    }
+  } catch {
+    scannerStatus.value = 'QR-Bild konnte nicht gelesen werden.'
+    scannerStatusTone.value = 'error'
+  }
+}
+
+function applyScannedCode(rawValue) {
+  const code = normalizeScannedCode(rawValue)
+  form.value.barcode = code
+  scannerStatus.value = 'Code erkannt. Sie können fortfahren.'
+  scannerStatusTone.value = 'success'
+  stopScanner()
+}
+
+function normalizeScannedCode(rawValue) {
+  const value = String(rawValue || '').trim()
+  try {
+    const url = new URL(value)
+    const fromParam = ['barcode', 'code', 'kit', 'id'].map((key) => url.searchParams.get(key)).find(Boolean)
+    if (fromParam) return sanitizeBarcode(fromParam)
+    const pathCode = url.pathname.split('/').filter(Boolean).pop()
+    if (pathCode) return sanitizeBarcode(pathCode)
+  } catch {
+    // Plain testkit codes are expected and do not need URL parsing.
+  }
+  const match = value.match(/[A-Z]{2,}[-\s]?\d{4,}[-\s]?[A-Z0-9-]+/i)
+  return sanitizeBarcode(match?.[0] || value)
+}
+
+function sanitizeBarcode(value) {
+  return String(value || '').trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9-]/g, '').toUpperCase()
+}
+
+function cameraErrorMessage(err) {
+  if (err?.name === 'NotAllowedError') return 'Kamera wurde blockiert. Bitte Berechtigung erlauben oder Code manuell eingeben.'
+  if (err?.name === 'NotFoundError') return 'Keine Kamera gefunden. Bitte Code manuell eingeben.'
+  return 'Scanner konnte nicht gestartet werden. Bitte Code manuell eingeben.'
 }
 
 function submit() {
@@ -351,23 +527,136 @@ function submit() {
 .act-step-head h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
 .act-step-head p { margin-top: 3px; color: var(--text-muted); font-size: 13px; }
 
-.scan-grid { display: grid; grid-template-columns: 210px 1fr; gap: 22px; align-items: stretch; }
+.scan-grid { display: grid; grid-template-columns: minmax(280px, 0.78fr) 1fr; gap: 22px; align-items: stretch; }
+.scan-panel {
+  overflow: hidden;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(136,193,233,0.12), rgba(0,190,208,0.06));
+  border: 1px solid rgba(0,114,206,0.18);
+}
+.scan-panel.active {
+  background: #081b35;
+  border-color: rgba(0,190,208,0.42);
+  box-shadow: 0 18px 54px rgba(10,27,67,0.18);
+}
 .scan-frame {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 190px;
-  border-radius: 22px;
+  min-height: 230px;
   color: var(--brand-blue);
-  background: linear-gradient(180deg, rgba(136,193,233,0.14), rgba(0,190,208,0.08));
-  border: 1px dashed rgba(0,114,206,0.34);
 }
 .scan-frame svg { width: 74px; height: 74px; }
-.scan-frame i { position: absolute; width: 26px; height: 26px; border-color: var(--brand-cyan); border-style: solid; }
-.scan-frame i:nth-child(1) { top: 18px; left: 18px; border-width: 3px 0 0 3px; }
-.scan-frame i:nth-child(2) { top: 18px; right: 18px; border-width: 3px 3px 0 0; }
-.scan-frame i:nth-child(3) { bottom: 18px; left: 18px; border-width: 0 0 3px 3px; }
-.scan-frame i:nth-child(4) { bottom: 18px; right: 18px; border-width: 0 3px 3px 0; }
+.scan-frame i,
+.scan-reticle i { position: absolute; width: 30px; height: 30px; border-color: var(--brand-cyan); border-style: solid; }
+.scan-frame i:nth-child(1),
+.scan-reticle i:nth-child(1) { top: 18px; left: 18px; border-width: 3px 0 0 3px; }
+.scan-frame i:nth-child(2),
+.scan-reticle i:nth-child(2) { top: 18px; right: 18px; border-width: 3px 3px 0 0; }
+.scan-frame i:nth-child(3),
+.scan-reticle i:nth-child(3) { bottom: 18px; left: 18px; border-width: 0 0 3px 3px; }
+.scan-frame i:nth-child(4),
+.scan-reticle i:nth-child(4) { bottom: 18px; right: 18px; border-width: 0 3px 3px 0; }
+.scan-camera {
+  position: relative;
+  min-height: 280px;
+  background: #061427;
+}
+.scan-camera video {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  display: block;
+  object-fit: cover;
+}
+.scan-camera::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(6,20,39,0.58), transparent 24%, transparent 76%, rgba(6,20,39,0.58)),
+    linear-gradient(180deg, rgba(6,20,39,0.58), transparent 28%, transparent 72%, rgba(6,20,39,0.58));
+  pointer-events: none;
+}
+.scan-reticle {
+  position: absolute;
+  inset: 48px;
+  z-index: 1;
+  border-radius: 22px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24), 0 0 0 999px rgba(6,20,39,0.16);
+}
+.scan-controls {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255,255,255,0.92);
+}
+.scan-panel.active .scan-controls { background: rgba(8,27,53,0.96); }
+.scan-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(136,193,233,0.16);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.scan-panel.active .scan-status { color: rgba(255,255,255,0.78); background: rgba(255,255,255,0.1); }
+.scan-status.active { color: var(--brand-blue); background: rgba(0,114,206,0.12); }
+.scan-status.success { color: #047857; background: #dcfce7; }
+.scan-status.error { color: #c5392c; background: #fdecea; }
+.scan-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.scan-buttons .btn { cursor: pointer; }
+.barcode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.scan-result {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #eefbf4;
+  border: 1px solid rgba(16,185,129,0.22);
+}
+.scan-result span {
+  display: block;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.scan-result strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.scan-help {
+  margin-top: auto;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(136,193,233,0.1);
+  border: 1px solid rgba(136,193,233,0.24);
+}
+.scan-help strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+.scan-help p {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
 
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field span,
@@ -501,6 +790,7 @@ function submit() {
   .act-progress { grid-template-columns: 1fr; }
   .scan-grid,
   .review-grid { grid-template-columns: 1fr; }
+  .scan-reticle { inset: 34px; }
   .review-list { grid-template-columns: 1fr; }
 }
 </style>
