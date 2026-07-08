@@ -39,6 +39,23 @@
               <input v-model.number="form.net_volume" type="number" min="1" placeholder="300" required />
             </div>
           </div>
+          <div class="form-group">
+            <label>Foto (optional)</label>
+            <div class="aqn-photo">
+              <div class="aqn-photo-thumb">
+                <img v-if="form.image" :src="form.image" alt="Aquarium-Foto" />
+                <div v-else :class="`aqn-thumb ${previewTheme}`"></div>
+              </div>
+              <div class="aqn-photo-side">
+                <label class="btn btn-ghost">
+                  {{ form.image ? 'Anderes Foto' : 'Foto hochladen' }}
+                  <input type="file" accept="image/*" @change="onPhoto" hidden />
+                </label>
+                <button v-if="form.image" type="button" class="aqn-photo-remove" @click="form.image = null">Entfernen</button>
+                <p v-if="photoError" class="aqn-photo-error">{{ photoError }}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="aqn-section">
@@ -122,7 +139,8 @@
       <aside class="aqn-preview">
         <div class="aqn-preview-card">
           <div class="aqn-preview-media">
-            <div :class="`aqn-thumb ${previewTheme}`"></div>
+            <img v-if="form.image" :src="form.image" class="aqn-thumb-img" alt="Aquarium-Foto" />
+            <div v-else :class="`aqn-thumb ${previewTheme}`"></div>
             <span :class="['aqn-preview-badge', waterClass(form.water_type)]">{{ form.water_type }}</span>
           </div>
           <div class="aqn-preview-body">
@@ -151,12 +169,26 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { emptyAquarium } from '@/services/aquariumStore'
+import { fileToResizedDataUrl } from '@/services/imageUtil'
 
 const router = useRouter()
 const aquariums = useAquariumsStore()
 const saving = ref(false)
 const error = ref('')
 const form = ref(emptyAquarium())
+
+const photoError = ref('')
+async function onPhoto(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  photoError.value = ''
+  try {
+    form.value.image = await fileToResizedDataUrl(file)
+  } catch (err) {
+    photoError.value = err.error || 'Foto konnte nicht geladen werden.'
+  }
+  e.target.value = ''
+}
 
 // Wassertyp → sichere CSS-Klasse für die Badge-Färbung (einheitlich mit der Liste).
 function waterClass(type) {
@@ -259,6 +291,17 @@ function submit() {
 .aqn-preview-card { border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
 .aqn-preview-media { position: relative; height: 120px; }
 .aqn-preview-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(10,27,67,0.28)); }
+.aqn-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Foto-Auswahl */
+.aqn-photo { display: flex; gap: 14px; align-items: center; }
+.aqn-photo-thumb { width: 92px; height: 68px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.aqn-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.aqn-photo-thumb .aqn-thumb { width: 100%; height: 100%; }
+.aqn-photo-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.aqn-photo-side .btn { cursor: pointer; }
+.aqn-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.aqn-photo-error { color: #c5392c; font-size: 12px; }
 .aqn-thumb { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
 .aqn-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
 .aqn-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
