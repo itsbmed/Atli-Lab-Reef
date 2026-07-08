@@ -103,29 +103,25 @@ function waterClass(type) {
 .aq-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 
 /* Leerzustand */
-.aq-empty { max-width: 780px; margin: 24px auto; }
+.aq-empty { max-width: 700px; margin: 20px auto; }
 .aq-empty-hero {
   position: relative; overflow: hidden; text-align: center;
-  padding: clamp(38px, 6vw, 58px) 32px;
-  border-radius: 30px;
-  background:
-    radial-gradient(120% 90% at 50% -10%, rgba(136,193,233,0.22), transparent 62%),
-    linear-gradient(180deg, #ffffff, #f5fafd);
-  border: 1px solid rgba(136,193,233,0.22);
-  box-shadow: 0 30px 80px rgba(10,27,67,0.1);
+  padding: clamp(32px, 4.5vw, 46px) 32px;
+  border-radius: 24px;
+  background: #fff;
+  border: 1px solid rgba(136,193,233,0.28);
+  box-shadow: 0 18px 50px rgba(10,27,67,0.07);
 }
 .aq-empty-glow {
-  position: absolute; top: -90px; left: 50%; transform: translateX(-50%);
-  width: 340px; height: 340px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(0,190,208,0.26), transparent 70%);
-  animation: aqPulse 5s ease-in-out infinite;
+  position: absolute; top: -70px; left: 50%; transform: translateX(-50%);
+  width: 300px; height: 220px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,190,208,0.16), transparent 70%);
 }
-@keyframes aqPulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
 .aq-empty-icon {
   position: relative; display: grid; place-items: center;
   width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 22px; color: #fff;
   background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
-  box-shadow: 0 18px 42px rgba(0,114,206,0.4);
+  box-shadow: 0 12px 28px rgba(0,114,206,0.28);
   animation: aqFloat 4s ease-in-out infinite;
 }
 @keyframes aqFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
