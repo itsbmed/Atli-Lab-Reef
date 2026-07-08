@@ -414,7 +414,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 .tank-card {
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(150px, 0.36fr) minmax(0, 1fr);
+  grid-template-columns: 190px minmax(0, 1fr);
   min-height: 190px;
   color: inherit;
   text-decoration: none;
@@ -428,7 +428,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 .tank-card.critical { border-color: rgba(232,93,79,0.32); }
 .tank-card.watch { border-color: rgba(245,158,11,0.3); }
 .tank-card.good { border-color: rgba(16,185,129,0.24); }
-.tank-visual { position: relative; height: 100%; min-height: 190px; aspect-ratio: 4 / 3; overflow: hidden; }
+.tank-visual { position: relative; width: 190px; height: 100%; min-height: 190px; overflow: hidden; }
 .tank-visual img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 .tank-visual .tank-thumb { display: block; width: 100%; height: 100%; border-radius: 0; }
 .tank-visual span {
@@ -544,7 +544,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
   .command-strip,
   .tank-grid { grid-template-columns: 1fr; }
   .tank-card { grid-template-columns: 1fr; min-height: 0; }
-  .tank-visual { height: 170px; min-height: 170px; }
+  .tank-visual { width: 100%; height: 170px; min-height: 170px; }
   .portfolio-score { left: 18px; bottom: 96px; width: 104px; height: 104px; }
   .portfolio-score strong { font-size: 34px; }
   .portfolio-meta { padding-left: 138px; }
