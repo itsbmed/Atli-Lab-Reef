@@ -84,21 +84,38 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY)
 }
 
-// ── Demo-Konten (zum Testen, wie im Prototyp) ──
-// Werden beim App-Start angelegt, falls noch nicht vorhanden.
+
+// Werden beim App-Start angelegt bzw. mit dieser Definition abgeglichen.
+//  · demo     → Neukunde  (leeres Einrichtungs-Dashboard)
+//  · kunde    → Bestandskunde (volles Dashboard mit Demo-Aquarien)
 const DEMO_USERS = [
-  { id: 'demo-full', username: 'demo',     email: 'demo@reefpilot.de', password: 'demo123', name: 'Mohamed',      kind: 'full' },
-  { id: 'demo-neu',  username: 'neukunde', email: 'neu@reefpilot.de',  password: 'demo123', name: 'Neuer Kunde', kind: 'new' },
+  { id: 'demo-full', username: 'kunde',    email: 'kunde@reefpilot.de', password: 'demo123', name: 'Mohamed',     kind: 'full' },
+  { id: 'demo-new',  username: 'demo',     email: 'demo@reefpilot.de',  password: 'demo123', name: 'Neuer Kunde', kind: 'new' },
+  { id: 'demo-neu',  username: 'neukunde', email: 'neu@reefpilot.de',   password: 'demo123', name: 'Neuer Kunde', kind: 'new' },
 ]
 
 export function ensureDemoUsers() {
   const users = getUsers()
   let changed = false
   for (const demo of DEMO_USERS) {
-    if (!users.some((u) => u.username === demo.username)) {
+    const existing = users.find((u) => u.username === demo.username)
+    if (!existing) {
       users.push({ ...demo, country: 'DE', createdAt: new Date().toISOString() })
+      changed = true
+    } else if (existing.kind !== demo.kind || existing.id !== demo.id) {
+      // Bestehendes Demo-Konto an die aktuelle Definition angleichen.
+      Object.assign(existing, { id: demo.id, kind: demo.kind, name: demo.name, email: demo.email })
       changed = true
     }
   }
   if (changed) write(USERS_KEY, users)
+
+  // Aktive Session eines angepassten Demo-Kontos aktualisieren (z. B. demo war „full").
+  const session = loadSession()
+  const def = session?.user?.username && DEMO_USERS.find((d) => d.username === session.user.username)
+  if (def && (session.user.kind !== def.kind || session.user.id !== def.id)) {
+    session.user = { ...session.user, id: def.id, kind: def.kind, name: def.name }
+    session.token = `local-${def.id}`
+    saveSession(session)
+  }
 }
