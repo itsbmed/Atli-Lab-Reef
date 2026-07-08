@@ -369,12 +369,12 @@ function submit() {
 .aqn-photo-copy strong { color: var(--text); font-size: 14px; font-weight: 800; }
 .aqn-photo-copy span { color: var(--text-muted); font-size: 12.5px; line-height: 1.4; }
 .aqn-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.aqn-upload-btn {
+.form-group .aqn-upload-btn {
   display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px;
   border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--brand-blue), var(--teal-500));
-  color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22);
+  color: #fff; font-size: 12px; font-weight: 800; line-height: 1; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22);
 }
-.aqn-upload-btn:hover { filter: brightness(1.03); }
+.form-group .aqn-upload-btn:hover { color: #fff; filter: brightness(1.03); }
 .aqn-gallery-trigger {
   min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px;
   background: #fff; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer;

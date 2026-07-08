@@ -622,8 +622,8 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .photo-edit-copy strong { color: var(--text); font-size: 14px; font-weight: 800; }
 .photo-edit-copy span { color: var(--text-muted); font-size: 12.5px; line-height: 1.4; }
 .photo-edit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.photo-upload-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--brand-blue), var(--teal-500)); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22); }
-.photo-upload-btn:hover { filter: brightness(1.03); }
+.form-group .photo-upload-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--brand-blue), var(--teal-500)); color: #fff; font-size: 12px; font-weight: 800; line-height: 1; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22); }
+.form-group .photo-upload-btn:hover { color: #fff; filter: brightness(1.03); }
 .photo-gallery-btn { min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer; }
 .photo-gallery-btn:hover { border-color: var(--teal-400); color: var(--teal-600); }
 .photo-remove { min-height: 38px; padding: 0 10px; border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 800; cursor: pointer; }
