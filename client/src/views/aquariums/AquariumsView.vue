@@ -91,6 +91,7 @@ function waterClass(type) {
 </script>
 
 <style scoped>
+.aq-list { flex: 1; display: flex; flex-direction: column; }
 .aq-list-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .aq-list-head h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); line-height: 1.05; }
 .aq-list-head h2 small { margin-left: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text-muted); }
@@ -103,7 +104,7 @@ function waterClass(type) {
 .aq-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 
 /* Leerzustand */
-.aq-empty { max-width: 700px; margin: 20px auto; }
+.aq-empty { max-width: 700px; margin: auto; width: 100%; }
 .aq-empty-hero {
   position: relative; overflow: hidden; text-align: center;
   padding: clamp(32px, 4.5vw, 46px) 32px;

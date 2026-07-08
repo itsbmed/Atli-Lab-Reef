@@ -355,7 +355,7 @@ const sheetNav = [...mainNav, ...adminNav]
 .dropdown-item.danger { color: #e85d4f; }
 
 /* ── Content + footer ── */
-.main-content { flex: 1; padding: 34px 36px; max-width: 1560px; width: 100%; }
+.main-content { flex: 1; display: flex; flex-direction: column; padding: 34px 36px; max-width: 1560px; width: 100%; }
 .main-footer { padding: 16px 32px; border-top: 1px solid rgba(93,132,145,0.14); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
 .footer-links { display: flex; gap: 20px; }
 .footer-links a { color: var(--text-muted); }
