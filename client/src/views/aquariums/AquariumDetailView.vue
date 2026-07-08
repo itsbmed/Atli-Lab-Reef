@@ -224,12 +224,19 @@
                   <img v-if="editForm.image" :src="editForm.image" alt="" />
                   <div v-else :class="`tank-thumb ${editForm.image_theme || 'reef-mixed'}`"></div>
                 </div>
-                <div>
-                  <label class="btn btn-ghost">
-                    {{ editForm.image ? 'Anderes Foto' : 'Foto hochladen' }}
-                    <input type="file" accept="image/*" hidden @change="onEditPhoto" />
-                  </label>
-                  <button v-if="editForm.image" type="button" class="photo-remove" @click="editForm.image = null">Entfernen</button>
+                <div class="photo-edit-side">
+                  <div class="photo-edit-copy">
+                    <strong>{{ editPhotoLabel }}</strong>
+                    <span>Eigenes Foto hochladen oder ein Motiv aus der Galerie wählen.</span>
+                  </div>
+                  <div class="photo-edit-actions">
+                    <label class="photo-upload-btn">
+                      {{ editForm.image ? 'Foto ändern' : 'Foto hochladen' }}
+                      <input type="file" accept="image/*" hidden @change="onEditPhoto" />
+                    </label>
+                    <button type="button" class="photo-gallery-btn" @click="showEditPresetPicker = true">Galerie</button>
+                    <button v-if="editForm.image" type="button" class="photo-remove" @click="clearEditPhoto">Entfernen</button>
+                  </div>
                   <p v-if="photoError" class="alert alert-error">{{ photoError }}</p>
                 </div>
               </div>
@@ -241,7 +248,7 @@
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Speichern...' : 'Änderungen speichern' }}</button>
-            <button type="button" class="btn btn-ghost" @click="editing = false">Abbrechen</button>
+            <button type="button" class="btn btn-ghost" @click="cancelEdit">Abbrechen</button>
             <button type="button" class="btn btn-danger" @click="confirmDelete = true">Profil löschen</button>
           </div>
         </form>
@@ -257,6 +264,31 @@
           </div>
         </div>
       </div>
+
+      <div v-if="showEditPresetPicker" class="preset-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-preset-title" @click.self="showEditPresetPicker = false">
+        <div class="preset-card">
+          <div class="preset-head">
+            <div>
+              <span>Galerie</span>
+              <h3 id="edit-preset-title">Aquarium-Bild wählen</h3>
+            </div>
+            <button type="button" class="preset-close" aria-label="Schließen" @click="showEditPresetPicker = false">×</button>
+          </div>
+          <div class="preset-grid">
+            <button
+              v-for="preset in AQUARIUM_PRESETS"
+              :key="preset.id"
+              type="button"
+              :class="['preset-option', { active: editForm.image === preset.dataUrl }]"
+              :aria-pressed="editForm.image === preset.dataUrl"
+              @click="selectEditPreset(preset)"
+            >
+              <img :src="preset.dataUrl" :alt="preset.name" />
+              <span>{{ preset.name }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -268,6 +300,7 @@ import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
+import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
@@ -282,6 +315,7 @@ const saveError = ref('')
 const photoError = ref('')
 const editForm = ref({})
 const confirmDelete = ref(false)
+const showEditPresetPicker = ref(false)
 
 onMounted(() => {
   aquariums.load()
@@ -303,6 +337,10 @@ const healthRingStyle = computed(() => {
   const score = latestScore.value ?? 0
   const color = score >= 96 ? '#10b981' : score >= 88 ? '#f59e0b' : '#e85d4f'
   return { background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.18) 0deg)` }
+})
+const editPhotoLabel = computed(() => {
+  if (!editForm.value.image) return 'Noch kein Foto ausgewählt'
+  return AQUARIUM_PRESETS.some((preset) => preset.dataUrl === editForm.value.image) ? 'Galerie-Motiv ausgewählt' : 'Eigenes Foto ausgewählt'
 })
 
 const profileMetrics = computed(() => [
@@ -402,7 +440,22 @@ function startEdit() {
   editForm.value = { ...profile.value }
   saveError.value = ''
   photoError.value = ''
+  showEditPresetPicker.value = false
   editing.value = true
+}
+function cancelEdit() {
+  editing.value = false
+  showEditPresetPicker.value = false
+  photoError.value = ''
+}
+function selectEditPreset(preset) {
+  editForm.value.image = preset.dataUrl
+  photoError.value = ''
+  showEditPresetPicker.value = false
+}
+function clearEditPhoto() {
+  editForm.value.image = null
+  photoError.value = ''
 }
 async function onEditPhoto(e) {
   const file = e.target.files?.[0]
@@ -425,6 +478,7 @@ function save() {
   try {
     aquariums.update(profile.value.id, { ...editForm.value, image_theme: themeFor(editForm.value) })
     editing.value = false
+    showEditPresetPicker.value = false
   } catch (e) {
     saveError.value = e.error || 'Speichern fehlgeschlagen'
   } finally {
@@ -560,15 +614,37 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .check-grid.wide { grid-column: 1 / -1; }
 .check-grid label { display: flex; gap: 8px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.66); color: var(--text); font-size: 13px; font-weight: var(--fw-semibold); }
 .check-grid input { accent-color: var(--teal-500); }
-.photo-edit { display: flex; align-items: center; gap: 14px; }
-.photo-preview { width: 120px; height: 84px; overflow: hidden; border-radius: 16px; border: 1px solid var(--border); }
+.photo-edit { display: flex; align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(136,193,233,0.28); border-radius: 18px; background: linear-gradient(180deg, #fff, rgba(136,193,233,0.07)); }
+.photo-preview { width: 132px; height: 94px; flex-shrink: 0; overflow: hidden; border-radius: 16px; border: 1px solid rgba(136,193,233,0.35); box-shadow: 0 12px 26px rgba(10,27,67,0.1); }
 .photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.photo-remove { display: block; margin-top: 8px; border: 0; background: none; color: #c5392c; font-weight: 800; cursor: pointer; }
+.photo-edit-side { min-width: 0; display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
+.photo-edit-copy { display: flex; flex-direction: column; gap: 3px; }
+.photo-edit-copy strong { color: var(--text); font-size: 14px; font-weight: 800; }
+.photo-edit-copy span { color: var(--text-muted); font-size: 12.5px; line-height: 1.4; }
+.photo-edit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.photo-upload-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--brand-blue), var(--teal-500)); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22); }
+.photo-upload-btn:hover { filter: brightness(1.03); }
+.photo-gallery-btn { min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer; }
+.photo-gallery-btn:hover { border-color: var(--teal-400); color: var(--teal-600); }
+.photo-remove { min-height: 38px; padding: 0 10px; border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 800; cursor: pointer; }
 .form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .confirm-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 20px; background: rgba(10,27,67,0.52); }
 .confirm-card { max-width: 420px; padding: 22px; }
 .confirm-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
 .confirm-card p { color: var(--text-muted); line-height: 1.55; }
+.preset-overlay { position: fixed; inset: 0; z-index: 320; display: grid; place-items: center; padding: 24px; background: rgba(10,27,67,0.42); backdrop-filter: blur(6px); }
+.preset-card { width: min(780px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto; border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.28); box-shadow: 0 28px 70px rgba(10,27,67,0.28); }
+.preset-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 22px 16px; background: rgba(255,255,255,0.96); border-bottom: 1px solid var(--border); }
+.preset-head span { display: block; margin-bottom: 4px; color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.preset-head h3 { color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.preset-close { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; }
+.preset-close:hover { border-color: var(--teal-400); color: var(--brand-blue); }
+.preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 22px 22px; }
+.preset-option { position: relative; min-width: 0; height: 130px; overflow: hidden; border: 2px solid transparent; border-radius: 14px; background: #fff; cursor: pointer; box-shadow: 0 10px 24px rgba(10,27,67,0.08); transition: border-color 0.16s, transform 0.16s, box-shadow 0.16s; }
+.preset-option:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(10,27,67,0.12); }
+.preset-option.active { border-color: var(--teal-400); box-shadow: 0 0 0 3px rgba(136,193,233,0.24), 0 14px 28px rgba(10,27,67,0.12); }
+.preset-option img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preset-option span { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 1; padding: 4px 7px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.92); color: var(--text); font-size: 10.5px; font-weight: 800; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1180px) {
   .tank-hero,
   .detail-layout { grid-template-columns: 1fr; }
@@ -584,5 +660,11 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
   .tank-health-card { grid-template-columns: 1fr; }
   .timeline-row { grid-template-columns: 12px 1fr auto; }
   .timeline-row small { grid-column: 2 / -1; }
+  .photo-edit { align-items: flex-start; }
+  .photo-preview { width: 108px; height: 86px; }
+  .preset-overlay { padding: 14px; align-items: end; }
+  .preset-card { max-height: min(720px, calc(100vh - 28px)); border-radius: 22px 22px 0 0; }
+  .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; gap: 10px; }
+  .preset-option { height: 112px; }
 }
 </style>
