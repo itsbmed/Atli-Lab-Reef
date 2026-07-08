@@ -47,14 +47,20 @@
                 <div v-else :class="`aqn-thumb ${previewTheme}`"></div>
               </div>
               <div class="aqn-photo-side">
-                <label class="btn btn-ghost">
-                  {{ form.image ? 'Anderes Foto' : 'Foto hochladen' }}
-                  <input type="file" accept="image/*" @change="onPhoto" hidden />
-                </label>
-                <button type="button" class="aqn-gallery-trigger" @click="showPresetPicker = true">
-                  Aus Galerie wählen
-                </button>
-                <button v-if="form.image" type="button" class="aqn-photo-remove" @click="clearPhoto">Entfernen</button>
+                <div class="aqn-photo-copy">
+                  <strong>{{ photoLabel }}</strong>
+                  <span>Eigenes Foto hochladen oder ein Motiv aus der Galerie wählen.</span>
+                </div>
+                <div class="aqn-photo-actions">
+                  <label class="aqn-upload-btn">
+                    {{ form.image ? 'Foto ändern' : 'Foto hochladen' }}
+                    <input type="file" accept="image/*" @change="onPhoto" hidden />
+                  </label>
+                  <button type="button" class="aqn-gallery-trigger" @click="showPresetPicker = true">
+                    Galerie
+                  </button>
+                  <button v-if="form.image" type="button" class="aqn-photo-remove" @click="clearPhoto">Entfernen</button>
+                </div>
                 <p v-if="photoError" class="aqn-photo-error">{{ photoError }}</p>
               </div>
             </div>
@@ -211,6 +217,12 @@ const photoError = ref('')
 const selectedPresetId = ref('')
 const showPresetPicker = ref(false)
 
+const photoLabel = computed(() => {
+  if (selectedPresetId.value && selectedPresetId.value !== 'custom') return 'Galerie-Motiv ausgewählt'
+  if (selectedPresetId.value === 'custom') return 'Eigenes Foto ausgewählt'
+  return 'Noch kein Foto ausgewählt'
+})
+
 function selectPreset(preset) {
   form.value.image = preset.dataUrl
   selectedPresetId.value = preset.id
@@ -341,18 +353,37 @@ function submit() {
 .aqn-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Foto-Auswahl */
-.aqn-photo { display: flex; gap: 14px; align-items: center; }
-.aqn-photo-thumb { width: 92px; height: 68px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.aqn-photo {
+  display: flex; gap: 16px; align-items: center;
+  padding: 14px; border: 1px solid rgba(136,193,233,0.28); border-radius: 18px;
+  background: linear-gradient(180deg, #fff, rgba(136,193,233,0.07));
+}
+.aqn-photo-thumb {
+  width: 126px; height: 92px; flex-shrink: 0; border-radius: 16px; overflow: hidden;
+  border: 1px solid rgba(136,193,233,0.35); box-shadow: 0 12px 26px rgba(10,27,67,0.1);
+}
 .aqn-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .aqn-photo-thumb .aqn-thumb { width: 100%; height: 100%; }
-.aqn-photo-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.aqn-photo-side .btn { cursor: pointer; }
-.aqn-gallery-trigger {
-  border: 0; background: none; color: var(--brand-blue);
-  font-size: 12px; font-weight: 800; cursor: pointer; padding: 0;
+.aqn-photo-side { min-width: 0; display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
+.aqn-photo-copy { display: flex; flex-direction: column; gap: 3px; }
+.aqn-photo-copy strong { color: var(--text); font-size: 14px; font-weight: 800; }
+.aqn-photo-copy span { color: var(--text-muted); font-size: 12.5px; line-height: 1.4; }
+.aqn-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.aqn-upload-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px;
+  border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--brand-blue), var(--teal-500));
+  color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(0,133,220,0.22);
 }
-.aqn-gallery-trigger:hover { color: var(--teal-500); }
-.aqn-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.aqn-upload-btn:hover { filter: brightness(1.03); }
+.aqn-gallery-trigger {
+  min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px;
+  background: #fff; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.aqn-gallery-trigger:hover { border-color: var(--teal-400); color: var(--teal-600); }
+.aqn-photo-remove {
+  min-height: 38px; padding: 0 10px; border: 0; background: none;
+  color: #c5392c; font-size: 12px; font-weight: 800; cursor: pointer;
+}
 .aqn-photo-error { color: #c5392c; font-size: 12px; }
 .preset-modal {
   position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
@@ -419,6 +450,7 @@ function submit() {
 
 @media (max-width: 640px) {
   .aqn-photo { align-items: flex-start; }
+  .aqn-photo-thumb { width: 108px; height: 86px; }
   .preset-modal { padding: 14px; align-items: end; }
   .preset-dialog { max-height: min(720px, calc(100vh - 28px)); border-radius: 22px 22px 0 0; }
   .aqn-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; gap: 10px; }
