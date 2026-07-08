@@ -79,6 +79,16 @@
         </div>
       </div>
     </section>
+
+    <section class="fd-actions">
+      <div class="fd-sec-head"><div><h2>Schnellaktionen</h2></div></div>
+      <div class="fd-action-grid">
+        <RouterLink v-for="n in nextActions" :key="n.title" :to="n.to" class="fd-action">
+          <span class="fd-action-ico" v-html="n.icon"></span>
+          <div><strong>{{ n.title }}</strong><em>{{ n.caption }}</em></div>
+        </RouterLink>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -127,6 +137,14 @@ function formatDateShort(iso) {
 
 // Analyse-Intelligence: Bericht mit den meisten Auffälligkeiten zuerst.
 const priorityAnalysis = computed(() => [...demoAnalyses].sort((a, b) => b.issue_count - a.issue_count)[0])
+
+// Schnellaktionen.
+const nextActions = [
+  { title: 'Neue Analyse', caption: 'Testkit-Barcode registrieren', to: '/dashboard', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9v6M10 9v6M14 9v6M17 9v6"/></svg>` },
+  { title: 'Aquarium anlegen', caption: 'Neues Becken hinzufügen', to: '/aquariums/new', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 12c2 0 2-1.5 4-1.5S9 12 11 12s2-1.5 4-1.5"/></svg>` },
+  { title: 'Aquarien verwalten', caption: 'Becken & Technik pflegen', to: '/aquariums', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" width="20" height="20"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>` },
+  { title: 'Berichte', caption: 'Alle Laboranalysen', to: '/dashboard', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>` },
+]
 </script>
 
 <style scoped>
@@ -213,11 +231,23 @@ const priorityAnalysis = computed(() => [...demoAnalyses].sort((a, b) => b.issue
 .fd-feed-score b { font-size: 17px; font-weight: 800; color: var(--brand-blue); }
 .fd-feed-score small { display: block; font-size: 11px; color: var(--text-muted); }
 
+/* Schnellaktionen */
+.fd-action-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.fd-action { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 18px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.15s, border-color 0.15s; }
+.fd-action:hover { transform: translateY(-3px); border-color: var(--teal-400); }
+.fd-action-ico { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; color: #fff; background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); }
+.fd-action strong { display: block; font-size: 14px; font-weight: 800; color: var(--text); }
+.fd-action em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
+
 @media (max-width: 860px) {
   .fd-hero { grid-template-columns: 1fr; }
   .fd-portfolio { min-height: 200px; }
   .fd-strip { grid-template-columns: repeat(2, 1fr); }
   .fd-intel-grid { grid-template-columns: 1fr; }
+  .fd-action-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .fd-action-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .fd-strip { grid-template-columns: 1fr; }
