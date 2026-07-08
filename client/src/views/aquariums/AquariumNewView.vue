@@ -51,22 +51,12 @@
                   {{ form.image ? 'Anderes Foto' : 'Foto hochladen' }}
                   <input type="file" accept="image/*" @change="onPhoto" hidden />
                 </label>
+                <button type="button" class="aqn-gallery-trigger" @click="showPresetPicker = true">
+                  Aus Galerie wählen
+                </button>
                 <button v-if="form.image" type="button" class="aqn-photo-remove" @click="clearPhoto">Entfernen</button>
                 <p v-if="photoError" class="aqn-photo-error">{{ photoError }}</p>
               </div>
-            </div>
-            <div class="aqn-presets" aria-label="Aquarium-Bildvorlagen">
-              <button
-                v-for="preset in AQUARIUM_PRESETS"
-                :key="preset.id"
-                type="button"
-                :class="['aqn-preset', { active: selectedPresetId === preset.id }]"
-                :aria-pressed="selectedPresetId === preset.id"
-                @click="selectPreset(preset)"
-              >
-                <img :src="preset.dataUrl" :alt="preset.name" />
-                <span>{{ preset.name }}</span>
-              </button>
             </div>
           </div>
         </div>
@@ -174,6 +164,32 @@
         </div>
       </aside>
     </div>
+
+    <div v-if="showPresetPicker" class="preset-modal" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title" @click.self="showPresetPicker = false">
+      <div class="preset-dialog">
+        <div class="preset-head">
+          <div>
+            <span>Galerie</span>
+            <h2 id="preset-modal-title">Aquarium-Bild wählen</h2>
+          </div>
+          <button type="button" class="preset-close" aria-label="Schließen" @click="showPresetPicker = false">×</button>
+        </div>
+
+        <div class="aqn-presets" aria-label="Aquarium-Bildvorlagen">
+          <button
+            v-for="preset in AQUARIUM_PRESETS"
+            :key="preset.id"
+            type="button"
+            :class="['aqn-preset', { active: selectedPresetId === preset.id }]"
+            :aria-pressed="selectedPresetId === preset.id"
+            @click="selectPreset(preset)"
+          >
+            <img :src="preset.dataUrl" :alt="preset.name" />
+            <span>{{ preset.name }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -193,11 +209,13 @@ const form = ref(emptyAquarium())
 
 const photoError = ref('')
 const selectedPresetId = ref('')
+const showPresetPicker = ref(false)
 
 function selectPreset(preset) {
   form.value.image = preset.dataUrl
   selectedPresetId.value = preset.id
   photoError.value = ''
+  showPresetPicker.value = false
 }
 
 function clearPhoto() {
@@ -329,11 +347,37 @@ function submit() {
 .aqn-photo-thumb .aqn-thumb { width: 100%; height: 100%; }
 .aqn-photo-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .aqn-photo-side .btn { cursor: pointer; }
+.aqn-gallery-trigger {
+  border: 0; background: none; color: var(--brand-blue);
+  font-size: 12px; font-weight: 800; cursor: pointer; padding: 0;
+}
+.aqn-gallery-trigger:hover { color: var(--teal-500); }
 .aqn-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
 .aqn-photo-error { color: #c5392c; font-size: 12px; }
-.aqn-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.preset-modal {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+  padding: 24px; background: rgba(10,27,67,0.42); backdrop-filter: blur(6px);
+}
+.preset-dialog {
+  width: min(780px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto;
+  border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.28);
+  box-shadow: 0 28px 70px rgba(10,27,67,0.28);
+}
+.preset-head {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 20px 22px 16px; background: rgba(255,255,255,0.96); border-bottom: 1px solid var(--border);
+}
+.preset-head span { display: block; margin-bottom: 4px; color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.preset-head h2 { color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.preset-close {
+  display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 12px; background: #fff;
+  color: var(--text); font-size: 24px; line-height: 1; cursor: pointer;
+}
+.preset-close:hover { border-color: var(--teal-400); color: var(--brand-blue); }
+.aqn-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px 22px 22px; }
 .aqn-preset {
-  position: relative; min-width: 0; height: 86px; overflow: hidden;
+  position: relative; min-width: 0; height: 130px; overflow: hidden;
   border: 2px solid transparent; border-radius: 14px; background: #fff;
   cursor: pointer; box-shadow: 0 10px 24px rgba(10,27,67,0.08);
   transition: border-color 0.16s, transform 0.16s, box-shadow 0.16s;
@@ -375,6 +419,9 @@ function submit() {
 
 @media (max-width: 640px) {
   .aqn-photo { align-items: flex-start; }
-  .aqn-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .preset-modal { padding: 14px; align-items: end; }
+  .preset-dialog { max-height: min(720px, calc(100vh - 28px)); border-radius: 22px 22px 0 0; }
+  .aqn-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; gap: 10px; }
+  .aqn-preset { height: 112px; }
 }
 </style>
