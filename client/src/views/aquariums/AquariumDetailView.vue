@@ -105,6 +105,23 @@
             </div>
             <div class="form-group"><label>Nettovolumen (L)</label><input v-model.number="editForm.net_volume" type="number" min="1" /></div>
           </div>
+          <div class="form-group">
+            <label>Foto</label>
+            <div class="aqd-photo">
+              <div class="aqd-photo-thumb">
+                <img v-if="editForm.image" :src="editForm.image" alt="Aquarium-Foto" />
+                <div v-else class="aqd-photo-fallback"></div>
+              </div>
+              <div class="aqd-photo-side">
+                <label class="btn btn-ghost">
+                  {{ editForm.image ? 'Anderes Foto' : 'Foto hochladen' }}
+                  <input type="file" accept="image/*" @change="onEditPhoto" hidden />
+                </label>
+                <button v-if="editForm.image" type="button" class="aqd-photo-remove" @click="editForm.image = null">Entfernen</button>
+                <p v-if="photoError" class="aqd-photo-error">{{ photoError }}</p>
+              </div>
+            </div>
+          </div>
           <p class="aqd-edit-section">Becken &amp; Technik</p>
           <div class="form-row">
             <div class="form-group"><label>Beckentyp</label>
@@ -159,6 +176,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
+import { fileToResizedDataUrl } from '@/services/imageUtil'
 
 const route = useRoute()
 const router = useRouter()
@@ -172,6 +190,19 @@ const editing = ref(false)
 const editForm = ref({})
 const saving = ref(false)
 const error = ref('')
+const photoError = ref('')
+
+async function onEditPhoto(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  photoError.value = ''
+  try {
+    editForm.value.image = await fileToResizedDataUrl(file)
+  } catch (err) {
+    photoError.value = err.error || 'Foto konnte nicht geladen werden.'
+  }
+  e.target.value = ''
+}
 
 function themeFor(f) {
   if (f.aquarium_type === 'SPS') return 'reef-sps'
@@ -314,6 +345,14 @@ function waterClass(type) {
 .aqd-edit .check-grid label.on { border-color: var(--teal-400); background: rgba(136,193,233,0.12); color: var(--brand-blue); }
 .aqd-edit .check-grid input { width: auto; height: auto; accent-color: var(--teal-500); }
 .aqd-edit-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.aqd-photo { display: flex; gap: 14px; align-items: center; }
+.aqd-photo-thumb { width: 92px; height: 68px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.aqd-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.aqd-photo-fallback { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
+.aqd-photo-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.aqd-photo-side .btn { cursor: pointer; }
+.aqd-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.aqd-photo-error { color: #c5392c; font-size: 12px; }
 @media (max-width: 560px) { .aqd-edit .form-row, .aqd-edit .check-grid { grid-template-columns: 1fr; } }
 
 /* Löschen */
