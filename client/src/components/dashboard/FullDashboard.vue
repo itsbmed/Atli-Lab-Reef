@@ -329,7 +329,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
   position: relative;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: minmax(230px, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: end;
   padding: 0;
   border-radius: 26px;
@@ -339,9 +339,9 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
   overflow: hidden;
   box-shadow: 0 30px 80px rgba(0,0,0,0.3);
 }
-.portfolio-image { position: relative; min-height: 250px; overflow: hidden; }
+.portfolio-image { position: relative; height: clamp(250px, 27vw, 360px); min-height: 0; overflow: hidden; }
 .portfolio-image img,
-.portfolio-image .tank-thumb { width: 100%; height: 100%; min-height: 250px; border-radius: 0; transform: scale(1.03); object-fit: cover; }
+.portfolio-image .tank-thumb { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 0; object-fit: cover; object-position: center; }
 .portfolio-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(10,27,67,0.58)); }
 .portfolio-score {
   position: absolute;
@@ -428,9 +428,9 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 .tank-card.critical { border-color: rgba(232,93,79,0.32); }
 .tank-card.watch { border-color: rgba(245,158,11,0.3); }
 .tank-card.good { border-color: rgba(16,185,129,0.24); }
-.tank-visual { position: relative; height: 100%; min-height: 190px; overflow: hidden; }
-.tank-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.tank-visual .tank-thumb { width: 100%; height: 100%; border-radius: 0; }
+.tank-visual { position: relative; height: 100%; min-height: 190px; aspect-ratio: 4 / 3; overflow: hidden; }
+.tank-visual img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.tank-visual .tank-thumb { display: block; width: 100%; height: 100%; border-radius: 0; }
 .tank-visual span {
   position: absolute;
   left: 14px;
@@ -540,6 +540,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 @media (max-width: 760px) {
   .overview-hero { padding: 26px; }
   .portfolio-card { grid-template-columns: 1fr; }
+  .portfolio-image { height: 230px; }
   .command-strip,
   .tank-grid { grid-template-columns: 1fr; }
   .tank-card { grid-template-columns: 1fr; min-height: 0; }
