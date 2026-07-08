@@ -51,9 +51,22 @@
                   {{ form.image ? 'Anderes Foto' : 'Foto hochladen' }}
                   <input type="file" accept="image/*" @change="onPhoto" hidden />
                 </label>
-                <button v-if="form.image" type="button" class="aqn-photo-remove" @click="form.image = null">Entfernen</button>
+                <button v-if="form.image" type="button" class="aqn-photo-remove" @click="clearPhoto">Entfernen</button>
                 <p v-if="photoError" class="aqn-photo-error">{{ photoError }}</p>
               </div>
+            </div>
+            <div class="aqn-presets" aria-label="Aquarium-Bildvorlagen">
+              <button
+                v-for="preset in AQUARIUM_PRESETS"
+                :key="preset.id"
+                type="button"
+                :class="['aqn-preset', { active: selectedPresetId === preset.id }]"
+                :aria-pressed="selectedPresetId === preset.id"
+                @click="selectPreset(preset)"
+              >
+                <img :src="preset.dataUrl" :alt="preset.name" />
+                <span>{{ preset.name }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -169,6 +182,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { emptyAquarium } from '@/services/aquariumStore'
+import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
 
 const router = useRouter()
@@ -178,12 +192,27 @@ const error = ref('')
 const form = ref(emptyAquarium())
 
 const photoError = ref('')
+const selectedPresetId = ref('')
+
+function selectPreset(preset) {
+  form.value.image = preset.dataUrl
+  selectedPresetId.value = preset.id
+  photoError.value = ''
+}
+
+function clearPhoto() {
+  form.value.image = null
+  selectedPresetId.value = ''
+  photoError.value = ''
+}
+
 async function onPhoto(e) {
   const file = e.target.files?.[0]
   if (!file) return
   photoError.value = ''
   try {
     form.value.image = await fileToResizedDataUrl(file)
+    selectedPresetId.value = 'custom'
   } catch (err) {
     photoError.value = err.error || 'Foto konnte nicht geladen werden.'
   }
@@ -302,6 +331,22 @@ function submit() {
 .aqn-photo-side .btn { cursor: pointer; }
 .aqn-photo-remove { border: 0; background: none; color: #c5392c; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
 .aqn-photo-error { color: #c5392c; font-size: 12px; }
+.aqn-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.aqn-preset {
+  position: relative; min-width: 0; height: 86px; overflow: hidden;
+  border: 2px solid transparent; border-radius: 14px; background: #fff;
+  cursor: pointer; box-shadow: 0 10px 24px rgba(10,27,67,0.08);
+  transition: border-color 0.16s, transform 0.16s, box-shadow 0.16s;
+}
+.aqn-preset:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(10,27,67,0.12); }
+.aqn-preset.active { border-color: var(--teal-400); box-shadow: 0 0 0 3px rgba(136,193,233,0.24), 0 14px 28px rgba(10,27,67,0.12); }
+.aqn-preset img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.aqn-preset span {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 1;
+  padding: 4px 7px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,0.92); color: var(--text);
+  font-size: 10.5px; font-weight: 800; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap;
+}
 .aqn-thumb { width: 100%; height: 100%; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
 .aqn-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
 .aqn-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
@@ -326,5 +371,10 @@ function submit() {
   .aqn-preview { position: static; }
   .aqn-layout { grid-template-columns: 1fr; }
   .aqn-hero { flex-direction: column; align-items: flex-start; gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .aqn-photo { align-items: flex-start; }
+  .aqn-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
