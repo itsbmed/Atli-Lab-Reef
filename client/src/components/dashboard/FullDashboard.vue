@@ -31,6 +31,29 @@
         <em class="fd-stat-caption">{{ c.caption }}</em>
       </div>
     </section>
+
+    <section class="fd-tanks">
+      <div class="fd-sec-head">
+        <div>
+          <h2>Aquarium Health</h2>
+          <p>Letzte Laborwerte je Becken, nach Aufmerksamkeit sortiert.</p>
+        </div>
+        <RouterLink to="/aquariums" class="fd-sec-link">Alle anzeigen</RouterLink>
+      </div>
+      <div class="fd-tank-grid">
+        <RouterLink v-for="t in sortedTanks" :key="t.id" :to="`/aquariums/${t.id}`" :class="['fd-tank', t.tone]">
+          <div class="fd-tank-visual"><div :class="`fd-thumb ${t.image_theme}`"></div><span>{{ t.water_type }}</span></div>
+          <div class="fd-tank-body">
+            <div class="fd-tank-top">
+              <div><h3>{{ t.name }}</h3><p>{{ t.net_volume }} L · {{ t.aquarium_type || 'Profil' }}</p></div>
+              <div class="fd-tank-score">{{ t.score }}<small>%</small></div>
+            </div>
+            <div class="fd-health-track"><span :style="{ width: `${t.score}%` }"></span></div>
+            <div class="fd-tank-foot"><span>{{ t.issueCount }} Hinweise</span><em>{{ formatDateShort(t.lastDate) }}</em></div>
+          </div>
+        </RouterLink>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -70,6 +93,12 @@ const commandCards = computed(() => [
   { label: 'Ø Portfolio-Score', value: `${overallScore.value}%`, caption: portfolioLabel.value, tone: overallScore.value >= 85 ? 'good' : overallScore.value >= 70 ? 'warn' : 'crit' },
   { label: 'Offene Hinweise', value: totalIssues.value, caption: `${criticalAnalyses.value.length} kritisch`, tone: totalIssues.value > 8 ? 'warn' : 'good' },
 ])
+
+// Aquarium-Health: nach Score aufsteigend (dringendste zuerst).
+const sortedTanks = computed(() => [...tanks.value].sort((a, b) => a.score - b.score))
+function formatDateShort(iso) {
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
+}
 </script>
 
 <style scoped>
@@ -111,6 +140,29 @@ const commandCards = computed(() => [
 .fd-stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
 .fd-stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--text); }
 .fd-stat-caption { font-size: 12px; font-style: normal; color: var(--text-muted); }
+
+/* Abschnitts-Kopf + Aquarium-Health */
+.fd-sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.fd-sec-head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.fd-sec-head p { margin-top: 4px; font-size: 13px; color: var(--text-muted); }
+.fd-sec-link { color: var(--brand-blue); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.fd-tank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.fd-tank { display: flex; gap: 14px; padding: 14px; border-radius: 20px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
+.fd-tank:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(10,27,67,0.12); }
+.fd-tank-visual { position: relative; width: 76px; flex-shrink: 0; border-radius: 14px; overflow: hidden; }
+.fd-tank-visual .fd-thumb { width: 100%; height: 100%; }
+.fd-tank-visual span { position: absolute; bottom: 6px; left: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.9); color: var(--brand-blue); font-size: 9px; font-weight: 800; }
+.fd-tank-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.fd-tank-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.fd-tank-top h3 { font-size: 15px; font-weight: 800; color: var(--text); }
+.fd-tank-top p { font-size: 12px; color: var(--text-muted); }
+.fd-tank-score { font-size: 22px; font-weight: 800; line-height: 1; color: var(--brand-blue); }
+.fd-tank-score small { font-size: 12px; }
+.fd-health-track { height: 7px; border-radius: 999px; background: rgba(100,130,165,0.16); overflow: hidden; }
+.fd-health-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan)); }
+.fd-tank.warn .fd-health-track span { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.fd-tank.crit .fd-health-track span { background: linear-gradient(90deg, #e85d4f, #f87171); }
+.fd-tank-foot { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); }
 
 @media (max-width: 860px) {
   .fd-hero { grid-template-columns: 1fr; }
