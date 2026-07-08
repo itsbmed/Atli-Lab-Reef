@@ -54,6 +54,31 @@
         </RouterLink>
       </div>
     </section>
+
+    <section class="fd-intel">
+      <div class="fd-sec-head">
+        <div>
+          <h2>Analyse Intelligence</h2>
+          <p>Neueste Laborberichte und Prioritäten.</p>
+        </div>
+        <a class="fd-sec-link">Alle Berichte</a>
+      </div>
+      <div class="fd-intel-grid">
+        <div class="fd-focus" v-if="priorityAnalysis">
+          <span class="fd-focus-tag">Höchste Priorität</span>
+          <strong>{{ priorityAnalysis.profile_name }}</strong>
+          <p>{{ priorityAnalysis.issue_count }} auffällige Werte · Score {{ priorityAnalysis.score }}%</p>
+          <a class="btn btn-primary">Bericht öffnen</a>
+        </div>
+        <div class="fd-feed">
+          <a v-for="a in demoAnalyses" :key="a.id" :class="['fd-feed-row', a.tone]">
+            <span class="fd-feed-dot"></span>
+            <div class="fd-feed-main"><strong>{{ a.profile_name }}</strong><em>{{ a.barcode }} · {{ a.package }}</em></div>
+            <div class="fd-feed-score"><b>{{ a.score }}%</b><small>{{ a.issue_count }} Hinweise · {{ formatDateShort(a.created_at) }}</small></div>
+          </a>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -99,6 +124,9 @@ const sortedTanks = computed(() => [...tanks.value].sort((a, b) => a.score - b.s
 function formatDateShort(iso) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
 }
+
+// Analyse-Intelligence: Bericht mit den meisten Auffälligkeiten zuerst.
+const priorityAnalysis = computed(() => [...demoAnalyses].sort((a, b) => b.issue_count - a.issue_count)[0])
 </script>
 
 <style scoped>
@@ -164,10 +192,32 @@ function formatDateShort(iso) {
 .fd-tank.crit .fd-health-track span { background: linear-gradient(90deg, #e85d4f, #f87171); }
 .fd-tank-foot { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); }
 
+/* Analyse-Intelligence */
+.fd-intel-grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+.fd-focus { padding: 20px; border-radius: 20px; color: #fff; background: linear-gradient(140deg, var(--brand-blue), #0a1b43); box-shadow: var(--shadow); }
+.fd-focus-tag { display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.fd-focus > strong { display: block; margin: 12px 0 6px; font-size: 18px; font-weight: 800; }
+.fd-focus > p { margin-bottom: 16px; font-size: 13px; color: rgba(255,255,255,0.8); }
+.fd-focus .btn-primary { background: #fff; color: var(--brand-blue); }
+.fd-feed { display: flex; flex-direction: column; border-radius: 20px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); overflow: hidden; }
+.fd-feed-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); text-decoration: none; cursor: pointer; transition: background 0.12s; }
+.fd-feed-row:last-child { border-bottom: 0; }
+.fd-feed-row:hover { background: rgba(136,193,233,0.08); }
+.fd-feed-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #10b981; }
+.fd-feed-row.warn .fd-feed-dot { background: #f59e0b; }
+.fd-feed-row.crit .fd-feed-dot { background: #e85d4f; }
+.fd-feed-main { flex: 1; min-width: 0; }
+.fd-feed-main strong { display: block; font-size: 14px; font-weight: 700; color: var(--text); }
+.fd-feed-main em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
+.fd-feed-score { text-align: right; flex-shrink: 0; }
+.fd-feed-score b { font-size: 17px; font-weight: 800; color: var(--brand-blue); }
+.fd-feed-score small { display: block; font-size: 11px; color: var(--text-muted); }
+
 @media (max-width: 860px) {
   .fd-hero { grid-template-columns: 1fr; }
   .fd-portfolio { min-height: 200px; }
   .fd-strip { grid-template-columns: repeat(2, 1fr); }
+  .fd-intel-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .fd-strip { grid-template-columns: 1fr; }
