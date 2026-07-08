@@ -10,7 +10,9 @@
 
     <template v-else>
       <section class="aqd-hero">
-        <div :class="`aqd-hero-thumb ${aquarium.image_theme}`"></div>
+        <div class="aqd-hero-thumb" :class="!aquarium.image && aquarium.image_theme">
+          <img v-if="aquarium.image" :src="aquarium.image" alt="Aquarium-Foto" />
+        </div>
         <div class="aqd-hero-copy">
           <span :class="['aqd-hero-badge', waterClass(aquarium.water_type)]">{{ aquarium.water_type }}</span>
           <h1>{{ aquarium.name }}</h1>
@@ -239,6 +241,7 @@ function waterClass(type) {
 .aqd-hero { display: flex; gap: 22px; align-items: stretch; margin-bottom: 22px; padding: 20px; border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.2); box-shadow: var(--shadow); }
 .aqd-hero-thumb { position: relative; overflow: hidden; width: 180px; flex-shrink: 0; border-radius: 18px; background: linear-gradient(150deg, var(--brand-blue), #0a1b43); }
 .aqd-hero-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(10,27,67,0.25)); }
+.aqd-hero-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .aqd-hero-thumb.reef-mixed { background: linear-gradient(150deg, var(--brand-blue), var(--brand-cyan)); }
 .aqd-hero-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
 .aqd-hero-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }

@@ -47,7 +47,8 @@
     <div v-else class="aq-grid">
       <RouterLink v-for="a in aquariums.items" :key="a.id" :to="`/aquariums/${a.id}`" class="aq-card">
         <div class="aq-card-media">
-          <div :class="`aq-thumb ${a.image_theme}`"></div>
+          <img v-if="a.image" :src="a.image" class="aq-thumb-img" alt="" />
+          <div v-else :class="`aq-thumb ${a.image_theme}`"></div>
           <span :class="['aq-card-badge', waterClass(a.water_type)]">{{ a.water_type }}</span>
         </div>
         <div class="aq-card-body">
@@ -102,6 +103,7 @@ function waterClass(type) {
 .aq-thumb.reef-sps { background: linear-gradient(150deg, #0a1b43, var(--brand-cyan)); }
 .aq-thumb.freshwater { background: linear-gradient(150deg, #0f766e, #34d399); }
 .aq-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
+.aq-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Leerzustand */
 .aq-empty { max-width: 700px; margin: auto; width: 100%; }
