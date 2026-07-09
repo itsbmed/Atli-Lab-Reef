@@ -39,5 +39,17 @@ export const useAuthStore = defineStore('auth', () => {
     localStore.clearSession()
   }
 
-  return { user, token, isLoggedIn, setSession, register, login, logout }
+  async function updateProfile(data) {
+    const updated = localStore.updateUserProfile(user.value.id, data)
+    setSession(updated)
+    return updated
+  }
+
+  async function changePassword(data) {
+    const updated = localStore.updateUserPassword(user.value.id, data)
+    setSession(updated)
+    return updated
+  }
+
+  return { user, token, isLoggedIn, setSession, register, login, logout, updateProfile, changePassword }
 })

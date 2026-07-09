@@ -30,6 +30,14 @@ function publicUser(u) {
     email: u.email,
     name: u.name || u.username,
     kind: u.kind || 'new', // 'new' = leeres Dashboard, 'full' = mit Daten
+    country: u.country || 'DE',
+    language: u.language || 'de',
+    newsletter: !!u.newsletter,
+    analysis_reminder: u.analysis_reminder !== false,
+    reminder_interval_days: u.reminder_interval_days || 90,
+    advisor_id: u.advisor_id || null,
+    password_updated_at: u.password_updated_at || null,
+    createdAt: u.createdAt || null,
   }
 }
 
@@ -70,6 +78,51 @@ export function loginUser({ login, password }) {
   if (!user || user.password !== password) {
     throw { error: 'Benutzername/E-Mail oder Passwort ist falsch.' }
   }
+  return publicUser(user)
+}
+
+export function updateUserProfile(userId, data) {
+  const users = getUsers()
+  const user = users.find((u) => u.id === userId)
+  if (!user) throw { error: 'Konto wurde nicht gefunden.' }
+
+  const username = (data.username || '').trim()
+  const email = (data.email || '').trim().toLowerCase()
+  if (!username) throw { error: 'Bitte geben Sie einen Nutzernamen an.' }
+  if (!email) throw { error: 'Bitte geben Sie eine E-Mail-Adresse an.' }
+
+  const taken = users.some((u) =>
+    u.id !== userId &&
+    (u.username?.toLowerCase() === username.toLowerCase() || u.email?.toLowerCase() === email)
+  )
+  if (taken) throw { error: 'Benutzername oder E-Mail ist bereits vergeben.' }
+
+  Object.assign(user, {
+    username,
+    email,
+    name: (data.name || username).trim(),
+    country: data.country || 'DE',
+    language: data.language || 'de',
+    newsletter: !!data.newsletter,
+    analysis_reminder: !!data.analysis_reminder,
+    reminder_interval_days: data.reminder_interval_days || 90,
+    advisor_id: data.advisor_id || null,
+  })
+  write(USERS_KEY, users)
+  return publicUser(user)
+}
+
+export function updateUserPassword(userId, data) {
+  const users = getUsers()
+  const user = users.find((u) => u.id === userId)
+  if (!user) throw { error: 'Konto wurde nicht gefunden.' }
+  if (user.password !== data.current_password) throw { error: 'Aktuelles Passwort ist falsch.' }
+  if ((data.new_password || '').length < 8) throw { error: 'Das neue Passwort muss mindestens 8 Zeichen lang sein.' }
+  if (data.new_password !== data.confirm_password) throw { error: 'Die neuen Passwörter stimmen nicht überein.' }
+
+  user.password = data.new_password
+  user.password_updated_at = new Date().toISOString()
+  write(USERS_KEY, users)
   return publicUser(user)
 }
 
