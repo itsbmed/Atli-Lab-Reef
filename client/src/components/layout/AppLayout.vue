@@ -86,8 +86,8 @@
             <span>{{ displayName }}</span>
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M5 7l5 5 5-5"/></svg>
             <div class="user-dropdown">
-              <a href="#" class="dropdown-item">Profil</a>
-              <a href="#" class="dropdown-item">Einstellungen</a>
+              <RouterLink to="/account" class="dropdown-item">Profil</RouterLink>
+              <RouterLink to="/account" class="dropdown-item">Einstellungen</RouterLink>
               <hr style="margin:4px 0;border:none;border-top:1px solid var(--border)" />
               <button class="dropdown-item danger" type="button" @click="logout">Abmelden</button>
             </div>
@@ -194,6 +194,7 @@ const routeMeta = {
   '/aquariums': { title: 'Aquarien', sub: () => 'Ihre Becken im Überblick' },
   '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
+  '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
 }
 const pageTitle = computed(() => routeMeta[route.path]?.title || 'ATI Reef Lab')
 const pageSubtitle = computed(() => routeMeta[route.path]?.sub?.(displayName.value) || '')
@@ -224,8 +225,8 @@ const mainNav = [
 ]
 const adminNav = [
   { label: 'Tools', icon: iconTools, to: null },
-  { label: 'Profil', icon: iconUser, to: null },
-  { label: 'Einstellungen', icon: iconSettings, to: null },
+  { label: 'Profil', icon: iconUser, to: '/account' },
+  { label: 'Einstellungen', icon: iconSettings, to: '/account' },
 ]
 function isActive(item) {
   return !!item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`))
