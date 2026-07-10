@@ -16,9 +16,10 @@
           <h1>{{ analysis.aquariumName }}</h1>
           <p>{{ analysis.reasonLabel }} · {{ formatDate(analysis.createdAt) }} · {{ analysis.barcode }}</p>
           <div class="hero-actions">
-            <button class="btn btn-primary" type="button">Bericht teilen</button>
-            <button class="btn btn-ghost" type="button">PDF vormerken</button>
+            <button class="btn btn-primary" type="button" @click="copyReportLink">Bericht teilen</button>
+            <button class="btn btn-ghost" type="button" @click="markPdf">PDF vormerken</button>
           </div>
+          <p v-if="actionMsg" class="action-msg">{{ actionMsg }}</p>
         </div>
 
         <div class="score-card">
@@ -106,13 +107,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 
 const route = useRoute()
 const analyses = useAnalysesStore()
+const actionMsg = ref('')
 onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
@@ -137,6 +139,20 @@ const scoreRingStyle = computed(() => {
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+async function copyReportLink() {
+  actionMsg.value = ''
+  try {
+    await navigator.clipboard?.writeText(window.location.href)
+    actionMsg.value = 'Link zum Bericht kopiert.'
+  } catch {
+    actionMsg.value = 'Bericht ist bereit zum Teilen.'
+  }
+  setTimeout(() => { actionMsg.value = '' }, 2200)
+}
+function markPdf() {
+  actionMsg.value = 'PDF-Export wird später mit dem Backend verbunden.'
+  setTimeout(() => { actionMsg.value = '' }, 2600)
+}
 </script>
 
 <style scoped>
@@ -160,6 +176,7 @@ function formatDate(iso) {
 .report-hero h1 { margin: 8px 0; font-size: clamp(34px, 5vw, 58px); line-height: 0.96; font-weight: 800; letter-spacing: -0.05em; }
 .report-hero p { color: rgba(255,255,255,0.72); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.action-msg { margin-top: 12px; color: var(--teal-100); font-size: 13px; font-weight: 800; }
 .score-card { min-width: 310px; display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: 22px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); }
 .score-ring { width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; position: relative; }
 .score-ring::after { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: rgba(10,27,67,0.94); }
