@@ -25,6 +25,22 @@ export const ANALYSIS_ADDONS = [
   { key: 'advisor', label: 'Fachberater teilen', desc: 'Bericht automatisch an Händler freigeben' },
 ]
 
+export const WORKFLOW_STEPS = [
+  { key: 'registered', label: 'Registriert', rank: 1 },
+  { key: 'received', label: 'Eingegangen', rank: 2 },
+  { key: 'in_analysis', label: 'In Analyse', rank: 3 },
+  { key: 'completed', label: 'Fertig', rank: 4 },
+]
+
+export const PARAMETER_GROUPS = [
+  { key: 'salinity', label: 'Salinität', unit: 'PSU', target: '34.8 - 35.2' },
+  { key: 'kh', label: 'KH', unit: 'dKH', target: '7.5 - 8.5' },
+  { key: 'calcium', label: 'Calcium', unit: 'mg/l', target: '410 - 440' },
+  { key: 'magnesium', label: 'Magnesium', unit: 'mg/l', target: '1280 - 1350' },
+  { key: 'nitrate', label: 'Nitrat', unit: 'mg/l', target: '2 - 10' },
+  { key: 'phosphate', label: 'Phosphat', unit: 'mg/l', target: '0.03 - 0.08' },
+]
+
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
@@ -48,6 +64,17 @@ export function packageLabel(key) {
 
 export function reasonLabel(key) {
   return ANALYSIS_REASONS.find((r) => r.key === key)?.label || key
+}
+
+export function statusLabel(status) {
+  return WORKFLOW_STEPS.find((step) => step.key === status)?.label || 'Offen'
+}
+
+export function severity(analysis) {
+  if (analysis.status !== 'completed') return 'open'
+  if ((analysis.score ?? 100) < 75 || (analysis.issueCount ?? 0) >= 6) return 'critical'
+  if ((analysis.score ?? 100) < 90 || (analysis.issueCount ?? 0) > 0) return 'watch'
+  return 'good'
 }
 
 export function getAnalyses(ownerId) {
@@ -86,16 +113,71 @@ export function activateAnalysis(ownerId, data) {
 }
 
 function enrichAnalysis(analysis) {
+  const aquarium = analysis.aquariumId ? getAquarium(analysis.aquariumId) : null
   return {
     ...analysis,
+    aquariumName: analysis.aquariumName || aquarium?.name || 'Aquarium',
+    waterType: analysis.waterType || aquarium?.water_type || 'Meerwasser',
     packageLabel: packageLabel(analysis.package),
     reasonLabel: reasonLabel(analysis.reason),
+    statusLabel: statusLabel(analysis.status),
+    severity: severity(analysis),
+    reportNumber: analysis.reportNumber || analysis.barcode?.replaceAll('-', ''),
+    issueCount: analysis.issueCount ?? analysis.issues?.length ?? 0,
+    parameters: analysis.parameters || [],
+    recommendations: analysis.recommendations || [],
   }
 }
 
 const DEMO_ANALYSES = [
-  { id: 'demo-analysis-1', barcode: 'ATI-2402-7781', aquariumName: 'Nano SPS Cube', package: 'pro', reason: 'routine', status: 'completed', score: 71, issueCount: 5, createdAt: daysAgoDate(4) },
-  { id: 'demo-analysis-2', barcode: 'ATI-2402-6650', aquariumName: 'Wohnzimmer Reef', package: 'standard', reason: 'routine', status: 'completed', score: 88, issueCount: 2, createdAt: daysAgoDate(11) },
+  {
+    id: 'demo-analysis-1',
+    barcode: 'ATI-2402-7781',
+    reportNumber: 'ICP-7781',
+    aquariumName: 'Nano SPS Cube',
+    waterType: 'Meerwasser',
+    package: 'pro',
+    reason: 'routine',
+    status: 'completed',
+    score: 71,
+    createdAt: daysAgoDate(4),
+    completedAt: daysAgoDate(3),
+    issues: ['Phosphat erhöht', 'Jod niedrig', 'Kalium beobachten', 'Zink erhöht', 'Nitrat niedrig'],
+    parameters: [
+      { key: 'salinity', label: 'Salinität', value: 35.1, unit: 'PSU', target: '34.8 - 35.2', tone: 'good' },
+      { key: 'kh', label: 'KH', value: 6.8, unit: 'dKH', target: '7.5 - 8.5', tone: 'watch' },
+      { key: 'calcium', label: 'Calcium', value: 418, unit: 'mg/l', target: '410 - 440', tone: 'good' },
+      { key: 'magnesium', label: 'Magnesium', value: 1260, unit: 'mg/l', target: '1280 - 1350', tone: 'watch' },
+      { key: 'nitrate', label: 'Nitrat', value: 1.2, unit: 'mg/l', target: '2 - 10', tone: 'watch' },
+      { key: 'phosphate', label: 'Phosphat', value: 0.14, unit: 'mg/l', target: '0.03 - 0.08', tone: 'critical' },
+    ],
+    recommendations: ['Fütterung und Adsorber-Einsatz prüfen.', 'Jod vorsichtig nachdosieren und in 14 Tagen kontrollieren.', 'KH über mehrere Tage langsam stabilisieren.'],
+  },
+  {
+    id: 'demo-analysis-2',
+    barcode: 'ATI-2402-6650',
+    reportNumber: 'ICP-6650',
+    aquariumName: 'Wohnzimmer Reef',
+    waterType: 'Meerwasser',
+    package: 'standard',
+    reason: 'routine',
+    status: 'completed',
+    score: 88,
+    createdAt: daysAgoDate(11),
+    completedAt: daysAgoDate(10),
+    issues: ['Strontium leicht niedrig', 'Phosphat beobachten'],
+    parameters: [
+      { key: 'salinity', label: 'Salinität', value: 35, unit: 'PSU', target: '34.8 - 35.2', tone: 'good' },
+      { key: 'kh', label: 'KH', value: 8.1, unit: 'dKH', target: '7.5 - 8.5', tone: 'good' },
+      { key: 'calcium', label: 'Calcium', value: 432, unit: 'mg/l', target: '410 - 440', tone: 'good' },
+      { key: 'magnesium', label: 'Magnesium', value: 1315, unit: 'mg/l', target: '1280 - 1350', tone: 'good' },
+      { key: 'nitrate', label: 'Nitrat', value: 6.4, unit: 'mg/l', target: '2 - 10', tone: 'good' },
+      { key: 'phosphate', label: 'Phosphat', value: 0.09, unit: 'mg/l', target: '0.03 - 0.08', tone: 'watch' },
+    ],
+    recommendations: ['Strontium über Versorgungssystem kontrollieren.', 'Phosphat über Fütterung und Filtermedien stabil halten.'],
+  },
+  { id: 'demo-analysis-3', barcode: 'ATI-2407-1044', reportNumber: 'ICP-1044', aquariumName: 'Wohnzimmer Reef', waterType: 'Meerwasser', package: 'standard', reason: 'routine', status: 'in_analysis', score: null, issueCount: 0, createdAt: daysAgoDate(1), issues: [], recommendations: [] },
+  { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
 export function ensureDemoAnalyses() {
