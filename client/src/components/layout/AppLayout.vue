@@ -197,7 +197,10 @@ const routeMeta = {
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
 }
 const pageTitle = computed(() => routeMeta[route.path]?.title || 'ATI Reef Lab')
-const pageSubtitle = computed(() => routeMeta[route.path]?.sub?.(displayName.value) || '')
+const pageSubtitle = computed(() => {
+  if (route.path.startsWith('/analyses/') && route.path !== '/analyses/activate') return 'Laborbericht, Parameter und Empfehlungen'
+  return routeMeta[route.path]?.sub?.(displayName.value) || ''
+})
 
 function logout() {
   auth.logout()

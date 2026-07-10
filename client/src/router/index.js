@@ -12,6 +12,7 @@ const routes = [
   { path: '/aquariums/:id', name: 'AquariumDetail', component: () => import('@/views/aquariums/AquariumDetailView.vue'), meta: { public: true, shell: true } },
   { path: '/analyses', name: 'Analyses', component: () => import('@/views/analyses/AnalysesView.vue'), meta: { public: true, shell: true } },
   { path: '/analyses/activate', name: 'ActivateAnalysis', component: () => import('@/views/analyses/ActivateView.vue'), meta: { public: true, shell: true } },
+  { path: '/analyses/:id', name: 'AnalysisReport', component: () => import('@/views/analyses/ReportView.vue'), meta: { public: true, shell: true } },
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { public: true, shell: true } },
 
   // 404 → Startseite

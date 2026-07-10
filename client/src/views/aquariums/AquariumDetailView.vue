@@ -61,7 +61,7 @@
             </div>
 
             <div v-if="profileAnalyses.length" class="analysis-timeline">
-              <RouterLink v-for="a in profileAnalyses" :key="a.id" to="/analyses" :class="['timeline-row', analysisTone(a)]">
+              <RouterLink v-for="a in profileAnalyses" :key="a.id" :to="`/analyses/${a.id}`" :class="['timeline-row', analysisTone(a)]">
                 <span class="timeline-dot"></span>
                 <div>
                   <strong>{{ formatDate(a.createdAt) }}</strong>

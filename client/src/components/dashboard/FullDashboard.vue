@@ -83,11 +83,11 @@
           <span>Höchste Priorität</span>
           <strong>{{ priorityAnalysis.aquariumName }}</strong>
           <p>{{ priorityCopy(priorityAnalysis) }}</p>
-          <RouterLink to="/analyses" class="btn btn-outline btn-sm">Bericht prüfen</RouterLink>
+          <RouterLink :to="`/analyses/${priorityAnalysis.id}`" class="btn btn-outline btn-sm">Bericht prüfen</RouterLink>
         </div>
 
         <div class="analysis-feed">
-          <RouterLink v-for="a in recentAnalyses" :key="a.id" to="/analyses" class="feed-row">
+          <RouterLink v-for="a in recentAnalyses" :key="a.id" :to="`/analyses/${a.id}`" class="feed-row">
             <span :class="['feed-dot', analysisTone(a)]"></span>
             <div>
               <strong>{{ a.aquariumName }}</strong>
