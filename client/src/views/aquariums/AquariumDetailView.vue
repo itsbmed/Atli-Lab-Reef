@@ -94,6 +94,28 @@
               </div>
             </div>
           </section>
+
+          <section class="card water-detail-panel">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Wassertyp-Angaben</div>
+                <p class="section-sub">Erfasste Angaben aus dem kundenspezifischen Fragebogen.</p>
+              </div>
+              <button class="section-link as-button" type="button" @click="startEdit">Bearbeiten</button>
+            </div>
+
+            <div v-if="waterDetailSummary.length" class="water-summary-grid">
+              <div v-for="item in waterDetailSummary" :key="item.key" class="water-summary-card">
+                <span>{{ item.group }}</span>
+                <strong>{{ item.label }}</strong>
+                <em>{{ item.value }}</em>
+              </div>
+            </div>
+            <div v-else class="timeline-empty">
+              <strong>Noch keine wassertyp-spezifischen Angaben</strong>
+              <span>Öffnen Sie die Profilbearbeitung, um den Fragebogen für {{ profile.water_type }} auszufüllen.</span>
+            </div>
+          </section>
         </main>
 
         <aside class="side-column">
@@ -252,6 +274,7 @@ import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
+import { waterTypeSummary } from '@/services/waterTypeFields'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -299,6 +322,7 @@ const profileMetrics = computed(() => [
   { label: 'Letzter Score', value: latestScore.value === null ? '—' : `${latestScore.value}%`, caption: healthLabel.value },
   { label: 'Intervall', value: analysisInterval.value, caption: 'zwischen Checks' },
 ])
+const waterDetailSummary = computed(() => profile.value ? waterTypeSummary(profile.value) : [])
 const analysisInterval = computed(() => {
   if (profileAnalyses.value.length < 2) return '—'
   const [latest, previous] = profileAnalyses.value
@@ -514,6 +538,7 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .section-title { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.025em; }
 .section-sub { color: var(--text-muted); font-size: 12px; font-weight: 700; margin-top: 2px; }
 .section-link { color: var(--brand-blue); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.section-link.as-button { border: 0; background: none; cursor: pointer; padding: 0; }
 .score-chart { height: 280px; margin-bottom: 18px; }
 .analysis-timeline { display: grid; gap: 9px; }
 .timeline-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 13px; border-radius: 18px; color: inherit; text-decoration: none; background: rgba(255,255,255,0.68); border: 1px solid var(--border); }
@@ -534,6 +559,14 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .target-card span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 .target-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 16px; font-weight: 800; }
 .target-card em { display: block; margin-top: 5px; color: var(--teal-700); font-size: 12px; font-style: normal; font-weight: 800; }
+.water-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.water-summary-card { padding: 14px; border-radius: 18px; background: rgba(238,245,251,0.72); border: 1px solid var(--border); }
+.water-summary-card span,
+.water-summary-card strong,
+.water-summary-card em { display: block; }
+.water-summary-card span { color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.water-summary-card strong { margin-top: 5px; color: var(--text); font-size: 13px; font-weight: 800; }
+.water-summary-card em { margin-top: 4px; color: var(--text-muted); font-size: 12px; font-style: normal; font-weight: 700; overflow-wrap: anywhere; }
 .badge { display: inline-flex; padding: 6px 10px; border-radius: 999px; background: var(--teal-100); color: var(--teal-800); font-size: 11px; font-weight: 800; }
 .spec-list { display: grid; gap: 10px; margin-top: 14px; }
 .spec-list div { display: flex; justify-content: space-between; gap: 14px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.66); border: 1px solid var(--border); }

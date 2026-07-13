@@ -153,3 +153,47 @@ export function ensureWaterTypeDetails(form) {
   if (!form.water_details || typeof form.water_details !== 'object') form.water_details = {}
   return form
 }
+
+export function waterTypeGroups(type) {
+  return WATER_TYPE_FIELDSETS[type] || []
+}
+
+export function readWaterFieldValue(form, path) {
+  if (path.startsWith('water_details.')) {
+    return form.water_details?.[path.replace('water_details.', '')]
+  }
+  return form[path]
+}
+
+export function normalizeFieldOptions(options = []) {
+  return options.map((option) => typeof option === 'string' ? { value: option, label: option } : option)
+}
+
+export function isWaterFieldVisible(form, field) {
+  if (!field.showWhen) return true
+  return readWaterFieldValue(form, field.showWhen.model) === field.showWhen.equals
+}
+
+export function formatWaterFieldValue(form, field) {
+  const value = readWaterFieldValue(form, field.model)
+  if (field.type === 'checkbox') return value ? 'Ja' : ''
+  if (value === null || value === undefined || value === '') return ''
+  if (field.type === 'select') {
+    return normalizeFieldOptions(field.options).find((option) => option.value === value)?.label || value
+  }
+  return String(value)
+}
+
+export function waterTypeSummary(form) {
+  return waterTypeGroups(form.water_type).flatMap((group) =>
+    group.fields
+      .filter((field) => isWaterFieldVisible(form, field))
+      .map((field) => ({
+        key: `${group.title}-${field.key}`,
+        group: group.title,
+        label: field.label,
+        value: formatWaterFieldValue(form, field),
+      }))
+      .filter((item) => item.value)
+  )
+}
