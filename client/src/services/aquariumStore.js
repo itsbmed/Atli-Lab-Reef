@@ -28,7 +28,7 @@ export function emptyAquarium() {
     aquarium_type: '', dimensions: '', target_mode: 'ati',
     stocking_density: '', lighting_type: '', supply_system: '',
     sump: false, refugium: false, skimmer: false, skimmer_model: '',
-    notes: '', image_theme: 'reef-mixed', image: null,
+    notes: '', image_theme: 'reef-mixed', image: null, water_details: {},
   }
 }
 

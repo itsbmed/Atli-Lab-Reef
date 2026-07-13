@@ -87,7 +87,7 @@ function formatDate(iso) {
 
 // Wassertyp → sichere CSS-Klasse für die Badge-Färbung.
 function waterClass(type) {
-  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt', 'Aquakultur': 'wt-aqua' }[type] || 'wt-sea'
 }
 </script>
 
@@ -151,6 +151,7 @@ function waterClass(type) {
 .aq-card-badge.wt-fresh { color: #0f766e; }
 .aq-card-badge.wt-osmo { color: #0e7490; }
 .aq-card-badge.wt-salt { color: #7c3aed; }
+.aq-card-badge.wt-aqua { color: #047857; }
 .aq-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .aq-card-body h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 12.5px; }

@@ -156,66 +156,15 @@
                 <option>Süßwasser</option>
                 <option>Osmosewasser</option>
                 <option>Meersalz</option>
+                <option>Aquakultur</option>
               </select>
             </div>
             <div class="form-group">
               <label>Nettovolumen (L)</label>
               <input v-model.number="editForm.net_volume" type="number" min="1" required />
             </div>
-            <div class="form-group">
-              <label>Beckentyp</label>
-              <select v-model="editForm.aquarium_type">
-                <option value="">Keine Angabe</option>
-                <option>SPS</option>
-                <option>LPS</option>
-                <option>Mischbecken</option>
-                <option>Weichkorallen</option>
-                <option>Fisch</option>
-                <option>Versorgung</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Abmessungen</label>
-              <input v-model="editForm.dimensions" type="text" />
-            </div>
-            <div class="form-group">
-              <label>Zielwerte</label>
-              <select v-model="editForm.target_mode">
-                <option value="ati">ATI Zielwerte nutzen</option>
-                <option value="custom">Eigene Zielwerte</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Besatzdichte</label>
-              <select v-model="editForm.stocking_density">
-                <option value="">Keine Angabe</option>
-                <option>niedrig</option>
-                <option>mittel</option>
-                <option>hoch</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Beleuchtung</label>
-              <select v-model="editForm.lighting_type">
-                <option value="">Keine Angabe</option>
-                <option>HQI</option>
-                <option>T5</option>
-                <option>LED</option>
-                <option>Hybrid</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Versorgungssystem</label>
-              <input v-model="editForm.supply_system" type="text" />
-            </div>
-            <div class="check-grid wide">
-              <label><input v-model="editForm.sump" type="checkbox" /> Technikbecken</label>
-              <label><input v-model="editForm.refugium" type="checkbox" /> Algenrefugium</label>
-              <label><input v-model="editForm.skimmer" type="checkbox" /> Eiweißabschäumer</label>
-            </div>
-            <div v-if="editForm.skimmer" class="form-group wide">
-              <label>Abschäumer Modell</label>
-              <input v-model="editForm.skimmer_model" type="text" />
+            <div class="form-group wide">
+              <WaterTypeFields :form="editForm" />
             </div>
             <div class="form-group wide">
               <label>Foto</label>
@@ -298,6 +247,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
+import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
@@ -470,7 +420,7 @@ async function onEditPhoto(e) {
 }
 function themeFor(f) {
   if (f.aquarium_type === 'SPS') return 'reef-sps'
-  return { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps' }[f.water_type] || 'reef-mixed'
+  return { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps', 'Aquakultur': 'freshwater' }[f.water_type] || 'reef-mixed'
 }
 function save() {
   saving.value = true

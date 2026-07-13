@@ -32,6 +32,7 @@
                 <option>Süßwasser</option>
                 <option>Osmosewasser</option>
                 <option>Meersalz</option>
+                <option>Aquakultur</option>
               </select>
             </div>
             <div class="form-group">
@@ -68,69 +69,8 @@
         </div>
 
         <div class="aqn-section">
-          <div class="aqn-section-head"><span>02</span><h2>Becken &amp; Technik <em>optional</em></h2></div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Beckentyp</label>
-              <select v-model="form.aquarium_type">
-                <option value="">Bitte wählen</option>
-                <option>Mischbecken</option>
-                <option>SPS</option>
-                <option>LPS</option>
-                <option>Weichkorallen</option>
-                <option>Fischbecken</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Maße</label>
-              <input v-model="form.dimensions" type="text" placeholder="120×50×50 cm" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Zielwerte</label>
-              <select v-model="form.target_mode">
-                <option value="ati">ATI Empfehlung</option>
-                <option value="natural">Natürliches Meerwasser</option>
-                <option value="custom">Eigene Zielwerte</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Besatzdichte</label>
-              <select v-model="form.stocking_density">
-                <option value="">Bitte wählen</option>
-                <option>Gering</option>
-                <option>Mittel</option>
-                <option>Hoch</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Beleuchtung</label>
-              <select v-model="form.lighting_type">
-                <option value="">Bitte wählen</option>
-                <option>LED</option>
-                <option>T5</option>
-                <option>Hybrid</option>
-                <option>Halogen</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Versorgungssystem</label>
-              <input v-model="form.supply_system" type="text" placeholder="ATI Essentials, ION B…" />
-            </div>
-          </div>
-
-          <div class="check-grid">
-            <label :class="{ on: form.sump }"><input v-model="form.sump" type="checkbox" /> Technikbecken</label>
-            <label :class="{ on: form.refugium }"><input v-model="form.refugium" type="checkbox" /> Algenrefugium</label>
-            <label :class="{ on: form.skimmer }"><input v-model="form.skimmer" type="checkbox" /> Eiweißabschäumer</label>
-          </div>
-          <div v-if="form.skimmer" class="form-group">
-            <label>Abschäumer Modell</label>
-            <input v-model="form.skimmer_model" type="text" placeholder="z. B. ATI PowerCone" />
-          </div>
+          <div class="aqn-section-head"><span>02</span><h2>Wassertyp &amp; Technik <em>optional</em></h2></div>
+          <WaterTypeFields :form="form" />
           <div class="form-group">
             <label>Notizen</label>
             <textarea v-model="form.notes" rows="2" placeholder="Kurze Beschreibung…"></textarea>
@@ -203,6 +143,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
+import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { emptyAquarium } from '@/services/aquariumStore'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
@@ -251,13 +192,13 @@ async function onPhoto(e) {
 
 // Wassertyp → sichere CSS-Klasse für die Badge-Färbung (einheitlich mit der Liste).
 function waterClass(type) {
-  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt' }[type] || 'wt-sea'
+  return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt', 'Aquakultur': 'wt-aqua' }[type] || 'wt-sea'
 }
 
 // Vorschau-Thema aus Beckentyp bzw. Wassertyp ableiten.
 const previewTheme = computed(() => {
   if (form.value.aquarium_type === 'SPS') return 'reef-sps'
-  const map = { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps' }
+  const map = { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps', 'Aquakultur': 'freshwater' }
   return map[form.value.water_type] || 'reef-mixed'
 })
 
@@ -432,6 +373,7 @@ function submit() {
 .aqn-preview-badge.wt-fresh { color: #0f766e; }
 .aqn-preview-badge.wt-osmo { color: #0e7490; }
 .aqn-preview-badge.wt-salt { color: #7c3aed; }
+.aqn-preview-badge.wt-aqua { color: #047857; }
 .aqn-preview-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
 .aqn-preview-kicker { color: var(--brand-blue); font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .aqn-preview-body strong { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
