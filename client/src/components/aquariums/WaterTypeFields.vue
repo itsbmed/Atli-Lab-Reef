@@ -1,9 +1,13 @@
 <template>
   <div class="water-fields">
     <div class="water-fields-head">
-      <span>{{ form.water_type }}</span>
-      <strong>Wassertyp-spezifische Angaben</strong>
+      <div>
+        <span>{{ form.water_type }}</span>
+        <strong>Wassertyp-spezifische Angaben</strong>
+      </div>
+      <em>{{ completion.answered }} / {{ completion.total }} ausgefüllt</em>
     </div>
+    <div class="water-progress"><span :style="{ width: `${completion.percent}%` }"></span></div>
 
     <section v-for="group in visibleGroups" :key="group.title" class="water-group">
       <h3>{{ group.title }}</h3>
@@ -36,13 +40,14 @@
 
 <script setup>
 import { computed, watch } from 'vue'
-import { WATER_TYPE_FIELDSETS, ensureWaterTypeDetails } from '@/services/waterTypeFields'
+import { WATER_TYPE_FIELDSETS, ensureWaterTypeDetails, waterTypeCompletion } from '@/services/waterTypeFields'
 
 const props = defineProps({
   form: { type: Object, required: true },
 })
 
 const visibleGroups = computed(() => WATER_TYPE_FIELDSETS[props.form.water_type] || [])
+const completion = computed(() => waterTypeCompletion(props.form))
 
 watch(() => props.form.water_type, () => ensureWaterTypeDetails(props.form), { immediate: true })
 
@@ -87,8 +92,14 @@ function isVisible(field) {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 14px; border-radius: 16px; background: rgba(136,193,233,0.12); border: 1px solid rgba(136,193,233,0.24);
 }
+.water-fields-head span,
+.water-fields-head strong,
+.water-fields-head em { display: block; }
 .water-fields-head span { color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.water-fields-head strong { color: var(--text); font-size: 13px; font-weight: 800; text-align: right; }
+.water-fields-head strong { margin-top: 3px; color: var(--text); font-size: 13px; font-weight: 800; }
+.water-fields-head em { color: var(--text-muted); font-size: 12px; font-style: normal; font-weight: 800; text-align: right; white-space: nowrap; }
+.water-progress { height: 8px; border-radius: 999px; background: rgba(100,130,165,0.14); overflow: hidden; }
+.water-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan)); transition: width 0.18s ease; }
 .water-group { display: grid; gap: 10px; }
 .water-group h3 { color: var(--text); font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
 .water-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }

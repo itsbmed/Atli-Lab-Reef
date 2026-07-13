@@ -28,11 +28,7 @@
             <div class="form-group">
               <label>Wassertyp</label>
               <select v-model="form.water_type" required>
-                <option>Meerwasser</option>
-                <option>Süßwasser</option>
-                <option>Osmosewasser</option>
-                <option>Meersalz</option>
-                <option>Aquakultur</option>
+                <option v-for="type in WATER_TYPES" :key="type">{{ type }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -147,6 +143,7 @@ import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { emptyAquarium } from '@/services/aquariumStore'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
+import { WATER_TYPES } from '@/services/waterTypeFields'
 
 const router = useRouter()
 const aquariums = useAquariumsStore()

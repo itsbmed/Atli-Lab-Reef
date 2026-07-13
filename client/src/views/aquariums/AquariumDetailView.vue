@@ -174,11 +174,7 @@
             <div class="form-group">
               <label>Wassertyp</label>
               <select v-model="editForm.water_type">
-                <option>Meerwasser</option>
-                <option>Süßwasser</option>
-                <option>Osmosewasser</option>
-                <option>Meersalz</option>
-                <option>Aquakultur</option>
+                <option v-for="type in WATER_TYPES" :key="type">{{ type }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -274,7 +270,7 @@ import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
-import { waterTypeSummary } from '@/services/waterTypeFields'
+import { WATER_TYPES, waterTypeSummary } from '@/services/waterTypeFields'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 

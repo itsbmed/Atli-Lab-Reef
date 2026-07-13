@@ -197,3 +197,16 @@ export function waterTypeSummary(form) {
       .filter((item) => item.value)
   )
 }
+
+export function waterTypeCompletion(form) {
+  const fields = waterTypeGroups(form.water_type).flatMap((group) => group.fields.filter((field) => isWaterFieldVisible(form, field)))
+  const optionalBooleanFields = fields.filter((field) => field.type === 'checkbox')
+  const answerableFields = fields.filter((field) => field.type !== 'checkbox')
+  const answered = answerableFields.filter((field) => formatWaterFieldValue(form, field)).length + optionalBooleanFields.filter((field) => readWaterFieldValue(form, field.model)).length
+  const total = answerableFields.length + optionalBooleanFields.length
+  return {
+    answered,
+    total,
+    percent: total ? Math.round((answered / total) * 100) : 0,
+  }
+}
