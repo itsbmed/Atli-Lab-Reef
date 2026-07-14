@@ -43,6 +43,9 @@
       </section>
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
+        <button type="button" :class="{ active: activeTab === 'recommendations' }" @click="activeTab = 'recommendations'">
+          Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
+        </button>
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
           Übersicht
         </button>
@@ -110,6 +113,69 @@
             <div><span>Abgeschlossen</span><strong>{{ analysis.completedAt ? formatDate(analysis.completedAt) : 'Offen' }}</strong></div>
           </section>
         </aside>
+      </section>
+
+      <section v-if="analysis.status === 'completed'" v-show="activeTab === 'recommendations'" class="panel care-plan">
+        <div class="care-head">
+          <div>
+            <span>Empfehlungen</span>
+            <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : 'Kein Eingriff notwendig' }}</h2>
+            <p v-if="carePlan.length">{{ careProgress }} von {{ carePlan.length }} Aufgaben erledigt · nach Priorität sortiert</p>
+            <p v-else>Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
+          </div>
+          <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
+            <button type="button" :class="{ active: careMode === 'quick' }" @click="careMode = 'quick'">Schnell</button>
+            <button type="button" :class="{ active: careMode === 'detail' }" @click="careMode = 'detail'">Ausführlich</button>
+          </div>
+        </div>
+
+        <div v-if="carePlan.length" class="care-progress" aria-label="Fortschritt des Pflegeplans">
+          <span :style="{ width: `${careProgressPercent}%` }"></span>
+        </div>
+
+        <div v-if="!carePlan.length" class="care-clean">
+          <span aria-hidden="true">✓</span>
+          <div><strong>System stabil</strong><p>Nutzen Sie diesen Bericht als Referenz für die nächste Messung.</p></div>
+        </div>
+
+        <ol v-else-if="careMode === 'quick'" class="quick-actions">
+          <li v-for="(item, index) in carePlan" :key="item.key" :class="[item.tone, { done: completedActions[item.key] }]">
+            <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
+              {{ completedActions[item.key] ? '✓' : index + 1 }}
+            </button>
+            <div><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></div>
+            <em>{{ item.recheck }}</em>
+            <button type="button" class="care-open" @click="openCareDetail(item.key)">Plan ansehen</button>
+          </li>
+        </ol>
+
+        <div v-else class="care-details">
+          <article v-for="(item, index) in carePlan" :key="item.key" :data-care-key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key] }]">
+            <header>
+              <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
+                {{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}
+              </button>
+              <div>
+                <span>Priorität {{ item.priority }}</span>
+                <h3>{{ item.title }}</h3>
+                <p>{{ item.summary }}</p>
+              </div>
+              <em>{{ item.recheck }}</em>
+            </header>
+            <div class="care-card-grid">
+              <div>
+                <span class="care-label">Warum</span>
+                <p>{{ item.why }}</p>
+              </div>
+              <div>
+                <span class="care-label">So gehen Sie vor</span>
+                <ol>
+                  <li v-for="step in item.steps" :key="step">{{ step }}</li>
+                </ol>
+              </div>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section v-if="analysis.status === 'completed'" v-show="activeTab === 'values'" class="panel element-explorer">
@@ -203,7 +269,9 @@ const activeTab = ref('overview')
 const selectedGroup = ref('')
 const parameterSearch = ref('')
 const parameterStatus = ref('all')
+const careMode = ref('quick')
 const expandedParameters = reactive({})
+const completedActions = reactive({})
 onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
@@ -255,6 +323,12 @@ const explorerSummary = computed(() => {
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
   return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
 })
+const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
+const carePlan = computed(() => issueParameters.value
+  .map((parameter, index) => buildCareAction(parameter, index))
+  .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
+const careProgress = computed(() => carePlan.value.filter((item) => completedActions[item.key]).length)
+const careProgressPercent = computed(() => carePlan.value.length ? Math.round((careProgress.value / carePlan.value.length) * 100) : 100)
 
 const GROUP_MAP = {
   salinity: { key: 'basis', label: 'Basiswerte' },
@@ -302,6 +376,39 @@ function parameterAction(parameter) {
   if (parameter.tone === 'good') return 'Dosierung und Pflege beibehalten. Den Wert beim nächsten Laborbericht als Referenz vergleichen.'
   return analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
     || `${parameter.label} langsam korrigieren, keine starken Einzeländerungen vornehmen und zeitnah kontrollieren.`
+}
+function buildCareAction(parameter, index) {
+  const recommendation = analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+    || analysis.value?.recommendations?.[index]
+    || `${parameter.label} kontrolliert in den Zielbereich zurückführen.`
+  const [minimum, maximum] = targetBounds(parameter.target)
+  const isHigh = Number(parameter.value) > maximum
+  const direction = isHigh ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'am Rand von'
+  const priority = parameter.tone === 'critical' ? 'Hoch' : 'Mittel'
+  const days = parameter.tone === 'critical' ? 7 : 14
+  return {
+    key: parameter.key,
+    tone: parameter.tone,
+    priority,
+    title: `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
+    summary: recommendation,
+    why: `${parameter.label} liegt mit ${parameter.value} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
+    steps: careSteps(parameter, isHigh),
+    recheck: `Kontrolle in ${days} Tagen`,
+  }
+}
+function careSteps(parameter, isHigh) {
+  const steps = isHigh
+    ? [`Aktive ${parameter.label}-Zufuhr und mögliche Eintragsquellen prüfen.`, 'Nur eine Korrektur gleichzeitig beginnen und den Zeitpunkt dokumentieren.']
+    : [`Versorgung von ${parameter.label} prüfen und mit niedriger Dosierung starten.`, 'Tagesmenge in kleinen Schritten anpassen und starke Sprünge vermeiden.']
+  return [...steps, `Nach der Anpassung ${parameter.label} erneut messen und mit diesem Bericht vergleichen.`]
+}
+function toggleCareAction(key) {
+  completedActions[key] = !completedActions[key]
+}
+function openCareDetail(key) {
+  careMode.value = 'detail'
+  requestAnimationFrame(() => document.querySelector(`.care-card[data-care-key="${key}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
 }
 
 function formatDate(iso) {
@@ -398,6 +505,51 @@ function markPdf() {
 .meta-panel div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border); }
 .meta-panel div:last-child { border-bottom: 0; }
 .meta-panel strong { color: var(--text); font-size: 13px; text-align: right; }
+.care-plan { display: grid; gap: 18px; }
+.care-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.care-head > div:first-child > span,
+.care-card header span,
+.care-label { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.care-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 800; }
+.care-head p { margin-top: 6px; color: var(--text-muted); font-size: 13px; }
+.care-mode { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #eef5fb; }
+.care-mode button { min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+.care-mode button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 2px 8px rgba(10,27,67,0.08); }
+.care-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e7eef6; }
+.care-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-blue), var(--teal-500)); transition: width 0.25s ease; }
+.care-clean { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 16px; border-radius: 16px; background: #ecfdf5; color: #047857; text-align: left; }
+.care-clean > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 24px; font-weight: 900; }
+.care-clean strong { display: block; color: #065f46; font-size: 18px; }
+.care-clean p { margin-top: 3px; color: #047857; font-size: 13px; }
+.quick-actions,
+.care-details { display: grid; gap: 10px; }
+.quick-actions { list-style: none; }
+.quick-actions li { min-height: 76px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-left: 4px solid #f59e0b; border-radius: 15px; background: #fff; transition: opacity 0.2s ease; }
+.quick-actions li.critical { border-left-color: #e85d4f; }
+.quick-actions li.done,
+.care-card.done { opacity: 0.6; }
+.quick-actions li.done strong,
+.care-card.done h3 { text-decoration: line-through; }
+.care-check { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; cursor: pointer; }
+.done .care-check { border-color: #10b981; background: #10b981; color: #fff; }
+.quick-actions strong,
+.quick-actions span { display: block; }
+.quick-actions strong { color: var(--text); font-size: 14px; }
+.quick-actions span { margin-top: 4px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.quick-actions em,
+.care-card header > em { color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.care-open { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 800; cursor: pointer; }
+.care-open:hover { border-color: var(--brand-blue); }
+.care-card { overflow: hidden; border: 1px solid var(--border); border-top: 4px solid #f59e0b; border-radius: 16px; background: #fff; }
+.care-card.critical { border-top-color: #e85d4f; }
+.care-card header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px; }
+.care-card h3 { margin-top: 4px; color: var(--text); font-size: 20px; font-weight: 800; }
+.care-card header p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.care-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 18px 20px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
+.care-card-grid p,
+.care-card-grid ol { margin-top: 7px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.care-card-grid ol { padding-left: 18px; }
+.care-card-grid li + li { margin-top: 5px; }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
@@ -452,7 +604,15 @@ function markPdf() {
   .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
   .explorer-head,
-  .explorer-controls { align-items: stretch; flex-direction: column; }
+  .explorer-controls,
+  .care-head { align-items: stretch; flex-direction: column; }
+  .care-mode { align-self: flex-start; }
+  .quick-actions li { grid-template-columns: 42px minmax(0, 1fr); }
+  .quick-actions em,
+  .quick-actions .care-open { grid-column: 2; justify-self: start; }
+  .care-card header { grid-template-columns: 42px minmax(0, 1fr); }
+  .care-card header > em { grid-column: 2; }
+  .care-card-grid { grid-template-columns: 1fr; padding-left: 18px; }
   .explorer-controls input { width: 100%; }
   .element-head { grid-template-columns: 42px minmax(0, 1fr) auto; }
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
