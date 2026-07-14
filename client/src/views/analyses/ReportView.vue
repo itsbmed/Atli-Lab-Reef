@@ -42,7 +42,16 @@
         </div>
       </section>
 
-      <section class="report-layout">
+      <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
+        <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+          Übersicht
+        </button>
+        <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
+          Alle Werte <b>{{ analysis.parameters.length }}</b>
+        </button>
+      </nav>
+
+      <section v-show="activeTab === 'overview'" class="report-layout">
         <main class="report-main">
           <section class="panel">
             <div class="section-head">
@@ -102,12 +111,87 @@
           </section>
         </aside>
       </section>
+
+      <section v-if="analysis.status === 'completed'" v-show="activeTab === 'values'" class="panel element-explorer">
+        <div class="explorer-head">
+          <div>
+            <span>Element Explorer</span>
+            <h2>Messwerte und Zielbereiche</h2>
+            <p>{{ explorerSummary }}</p>
+          </div>
+          <div class="explorer-controls">
+            <input v-model="parameterSearch" type="search" placeholder="Parameter suchen..." aria-label="Parameter suchen" />
+            <select v-model="parameterStatus" aria-label="Messwerte nach Status filtern">
+              <option value="all">Alle Status</option>
+              <option value="issues">Nur auffällig</option>
+              <option value="critical">Kritisch</option>
+              <option value="watch">Beobachten</option>
+              <option value="good">Im Zielbereich</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="parameter-groups" aria-label="Parametergruppen">
+          <button type="button" :class="{ active: !selectedGroup }" @click="selectedGroup = ''">
+            <span>Alle Gruppen</span><b>{{ analysis.parameters.length }}</b>
+          </button>
+          <button
+            v-for="group in parameterGroups"
+            :key="group.key"
+            type="button"
+            :class="[group.tone, { active: selectedGroup === group.key }]"
+            @click="selectedGroup = selectedGroup === group.key ? '' : group.key"
+          >
+            <span>{{ group.label }}</span>
+            <b>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Stabil' }}</b>
+          </button>
+        </div>
+
+        <div class="element-list">
+          <article
+            v-for="parameter in visibleParameters"
+            :key="parameter.key"
+            :class="['element-row', parameter.tone, { expanded: expandedParameters[parameter.key] }]"
+          >
+            <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
+              <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+              <span class="element-name">
+                <strong>{{ parameter.label }}</strong>
+                <em>{{ parameterGroup(parameter).label }} · {{ parameterStatusLabel(parameter.tone) }}</em>
+              </span>
+              <span class="target-gauge">
+                <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+              </span>
+              <span class="element-reading">
+                <strong>{{ parameter.value }}</strong>
+                <small>{{ parameter.unit }}</small>
+              </span>
+              <span class="element-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div v-if="expandedParameters[parameter.key]" class="element-detail">
+              <div>
+                <span>Einordnung</span>
+                <p>{{ parameterInsight(parameter) }}</p>
+              </div>
+              <div>
+                <span>Nächster Schritt</span>
+                <p>{{ parameterAction(parameter) }}</p>
+              </div>
+            </div>
+          </article>
+          <div v-if="!visibleParameters.length" class="no-results">
+            <strong>Keine Messwerte gefunden</strong>
+            <span>Suche oder Filter anpassen, um wieder Parameter zu sehen.</span>
+          </div>
+        </div>
+      </section>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
@@ -115,6 +199,11 @@ import { WORKFLOW_STEPS } from '@/services/analysisStore'
 const route = useRoute()
 const analyses = useAnalysesStore()
 const actionMsg = ref('')
+const activeTab = ref('overview')
+const selectedGroup = ref('')
+const parameterSearch = ref('')
+const parameterStatus = ref('all')
+const expandedParameters = reactive({})
 onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
@@ -135,6 +224,85 @@ const scoreRingStyle = computed(() => {
   const color = analysis.value?.severity === 'critical' ? '#e85d4f' : analysis.value?.severity === 'watch' ? '#f59e0b' : '#10b981'
   return { background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.16) 0deg)` }
 })
+const parameterGroups = computed(() => {
+  const groups = new Map()
+  for (const parameter of analysis.value?.parameters || []) {
+    const meta = parameterGroup(parameter)
+    if (!groups.has(meta.key)) groups.set(meta.key, { ...meta, parameters: [], issueCount: 0 })
+    const group = groups.get(meta.key)
+    group.parameters.push(parameter)
+    if (parameter.tone !== 'good') group.issueCount += 1
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    tone: group.parameters.some((item) => item.tone === 'critical') ? 'critical' : group.issueCount ? 'watch' : 'good',
+  }))
+})
+const visibleParameters = computed(() => {
+  const query = parameterSearch.value.trim().toLowerCase()
+  return (analysis.value?.parameters || [])
+    .filter((parameter) => !selectedGroup.value || parameterGroup(parameter).key === selectedGroup.value)
+    .filter((parameter) => {
+      if (parameterStatus.value === 'all') return true
+      if (parameterStatus.value === 'issues') return parameter.tone !== 'good'
+      return parameter.tone === parameterStatus.value
+    })
+    .filter((parameter) => !query || `${parameter.label} ${parameter.key}`.toLowerCase().includes(query))
+    .sort((a, b) => toneRank(a.tone) - toneRank(b.tone) || a.label.localeCompare(b.label, 'de'))
+})
+const explorerSummary = computed(() => {
+  const scope = parameterGroups.value.find((group) => group.key === selectedGroup.value)?.label || 'allen Gruppen'
+  const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
+  return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
+})
+
+const GROUP_MAP = {
+  salinity: { key: 'basis', label: 'Basiswerte' },
+  kh: { key: 'basis', label: 'Basiswerte' },
+  calcium: { key: 'quantity', label: 'Mengenelemente' },
+  magnesium: { key: 'quantity', label: 'Mengenelemente' },
+  nitrate: { key: 'nutrients', label: 'Nährstoffe' },
+  phosphate: { key: 'nutrients', label: 'Nährstoffe' },
+}
+const SYMBOL_MAP = { salinity: 'PSU', kh: 'KH', calcium: 'Ca', magnesium: 'Mg', nitrate: 'NO₃', phosphate: 'PO₄' }
+
+function parameterGroup(parameter) {
+  return GROUP_MAP[parameter.key] || { key: 'trace', label: 'Spurenelemente' }
+}
+function parameterSymbol(parameter) {
+  return SYMBOL_MAP[parameter.key] || parameter.label.slice(0, 2)
+}
+function parameterStatusLabel(tone) {
+  return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
+}
+function toneRank(tone) {
+  return { critical: 0, watch: 1, good: 2 }[tone] ?? 3
+}
+function targetBounds(target) {
+  const values = String(target || '').match(/-?\d+(?:[.,]\d+)?/g)?.map((value) => Number(value.replace(',', '.'))) || []
+  return values.length >= 2 ? [values[0], values[1]] : [0, Math.max(values[0] || 1, 1)]
+}
+function gaugePosition(parameter) {
+  const [minimum, maximum] = targetBounds(parameter.target)
+  const span = Math.max(maximum - minimum, Math.abs(maximum) * 0.15, 0.01)
+  const scaleMinimum = minimum - span
+  const scaleMaximum = maximum + span
+  return Math.min(96, Math.max(4, ((Number(parameter.value) - scaleMinimum) / (scaleMaximum - scaleMinimum)) * 100))
+}
+function toggleParameter(key) {
+  expandedParameters[key] = !expandedParameters[key]
+}
+function parameterInsight(parameter) {
+  if (parameter.tone === 'good') return `${parameter.label} liegt im vorgesehenen Zielbereich und unterstützt die aktuelle Systemstabilität.`
+  const [minimum, maximum] = targetBounds(parameter.target)
+  const direction = Number(parameter.value) > maximum ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'nahe an'
+  return `${parameter.label} liegt ${direction} dem Zielbereich. Verlauf und mögliche gemeinsame Ursachen mit weiteren auffälligen Werten berücksichtigen.`
+}
+function parameterAction(parameter) {
+  if (parameter.tone === 'good') return 'Dosierung und Pflege beibehalten. Den Wert beim nächsten Laborbericht als Referenz vergleichen.'
+  return analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+    || `${parameter.label} langsam korrigieren, keine starken Einzeländerungen vornehmen und zeitnah kontrollieren.`
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -195,6 +363,11 @@ function markPdf() {
 .workflow-step i { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
 .workflow-step.done i { background: var(--teal-500); }
 .workflow-step.active { color: var(--brand-blue); background: var(--teal-50); }
+.report-tabs { display: flex; gap: 6px; padding: 5px; width: fit-content; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.report-tabs button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font-weight: 800; cursor: pointer; }
+.report-tabs button.active { color: #fff; background: var(--brand-blue); }
+.report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
+.report-tabs button.active b { background: rgba(255,255,255,0.2); }
 .report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
 .report-main,
 .report-side { display: grid; gap: 18px; }
@@ -225,11 +398,66 @@ function markPdf() {
 .meta-panel div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border); }
 .meta-panel div:last-child { border-bottom: 0; }
 .meta-panel strong { color: var(--text); font-size: 13px; text-align: right; }
+.element-explorer { display: grid; gap: 18px; }
+.explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.explorer-head > div:first-child > span,
+.element-detail span { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.explorer-head h2 { margin-top: 4px; color: var(--text); font-size: 24px; font-weight: 800; }
+.explorer-head p { margin-top: 5px; color: var(--text-muted); font-size: 13px; }
+.explorer-controls { display: flex; gap: 8px; }
+.explorer-controls input,
+.explorer-controls select { min-height: 42px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); outline: 0; }
+.explorer-controls input { width: 220px; padding: 0 13px; }
+.explorer-controls select { padding: 0 34px 0 12px; }
+.explorer-controls input:focus,
+.explorer-controls select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
+.parameter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.parameter-groups button { min-height: 72px; display: grid; align-content: center; gap: 5px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
+.parameter-groups button:hover { border-color: var(--teal-400); }
+.parameter-groups button.active { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); background: var(--teal-50); }
+.parameter-groups button.critical { border-left: 4px solid #e85d4f; }
+.parameter-groups button.watch { border-left: 4px solid #f59e0b; }
+.parameter-groups button.good { border-left: 4px solid #10b981; }
+.parameter-groups span { font-size: 13px; font-weight: 800; }
+.parameter-groups b { color: var(--text-muted); font-size: 11px; }
+.element-list { display: grid; gap: 9px; }
+.element-row { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
+.element-row.watch { border-left-color: #f59e0b; }
+.element-row.critical { border-left-color: #e85d4f; }
+.element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 20px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.element-head:hover { background: #f8fbfe; }
+.element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
+.element-name strong,
+.element-name em,
+.element-reading strong,
+.element-reading small { display: block; }
+.element-name strong { color: var(--text); font-size: 14px; }
+.element-name em { margin-top: 4px; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
+.target-gauge i { position: relative; display: block; height: 8px; overflow: visible; border-radius: 999px; background: linear-gradient(90deg, #f8c9c4 0 25%, #bbf7d0 25% 75%, #f8c9c4 75%); }
+.target-gauge i b { position: absolute; top: 50%; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 1px 4px rgba(10,27,67,0.3); transform: translate(-50%, -50%); }
+.target-gauge small { display: block; margin-top: 7px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.element-reading { text-align: right; }
+.element-reading strong { color: var(--text); font-size: 21px; }
+.element-reading small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.element-chevron { color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
+.element-row.expanded .element-chevron { transform: rotate(180deg); }
+.element-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
+.element-detail p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.no-results { display: grid; place-items: center; gap: 5px; min-height: 150px; border: 1px dashed var(--border); border-radius: 15px; color: var(--text-muted); text-align: center; }
+.no-results strong { color: var(--text); }
 @media (max-width: 900px) {
   .report-hero,
   .score-card { align-items: flex-start; flex-direction: column; }
   .score-card { min-width: 0; width: 100%; }
   .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
+  .explorer-head,
+  .explorer-controls { align-items: stretch; flex-direction: column; }
+  .explorer-controls input { width: 100%; }
+  .element-head { grid-template-columns: 42px minmax(0, 1fr) auto; }
+  .target-gauge { grid-column: 1 / -1; grid-row: 2; }
+  .element-reading { grid-column: 3; grid-row: 1; }
+  .element-chevron { display: none; }
+  .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
 </style>
