@@ -57,6 +57,7 @@
             <span>🐠 {{ a.net_volume ? `${a.net_volume} L` : 'Volumen offen' }}</span>
             <span v-if="a.aquarium_type">· {{ a.aquarium_type }}</span>
             <span v-if="a.dimensions">· {{ a.dimensions }}</span>
+            <span v-if="osmosisSourceName(a)" class="aq-source-chip">· Osmose: {{ osmosisSourceName(a) }}</span>
           </div>
           <div class="aq-card-foot">
             <span>📅 Erstellt: {{ formatDate(a.createdAt) }}</span>
@@ -88,6 +89,11 @@ function formatDate(iso) {
 // Wassertyp → sichere CSS-Klasse für die Badge-Färbung.
 function waterClass(type) {
   return { 'Meerwasser': 'wt-sea', 'Süßwasser': 'wt-fresh', 'Osmosewasser': 'wt-osmo', 'Meersalz': 'wt-salt', 'Aquakultur': 'wt-aqua' }[type] || 'wt-sea'
+}
+
+function osmosisSourceName(aquarium) {
+  if (!aquarium?.osmosis_source_id) return ''
+  return aquariums.byId(aquarium.osmosis_source_id)?.name || 'Osmosequelle'
 }
 </script>
 
@@ -155,6 +161,7 @@ function waterClass(type) {
 .aq-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .aq-card-body h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 12.5px; }
+.aq-source-chip { color: #0e7490; font-weight: 800; }
 .aq-card-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .aq-card-link { color: var(--brand-blue); font-weight: 700; }
 

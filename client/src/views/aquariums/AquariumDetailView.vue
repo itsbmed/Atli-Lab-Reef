@@ -129,6 +129,20 @@
             </div>
           </section>
 
+          <section v-if="profile.water_type !== 'Osmosewasser'" class="card source-card">
+            <div class="section-title">Osmosequelle</div>
+            <div v-if="linkedOsmosisSource" class="source-box">
+              <span>{{ linkedOsmosisSource.water_type }}</span>
+              <strong>{{ linkedOsmosisSource.name }}</strong>
+              <em>{{ osmosisSourceMeta(linkedOsmosisSource) }}</em>
+              <RouterLink :to="`/aquariums/${linkedOsmosisSource.id}`">Quelle öffnen</RouterLink>
+            </div>
+            <div v-else class="source-empty">
+              <strong>Keine Quelle verknüpft</strong>
+              <span>In der Bearbeitung kann eine Osmoseanlage zugeordnet werden.</span>
+            </div>
+          </section>
+
           <section class="card attention-card">
             <div class="section-title">Aufmerksamkeit</div>
             <div v-if="topIssues.length" class="issue-list">
@@ -324,6 +338,10 @@ const profileMetrics = computed(() => [
 ])
 const waterDetailSummary = computed(() => profile.value ? waterTypeSummary(profile.value) : [])
 const availableOsmosisSources = computed(() => aquariums.osmosisSources.filter((source) => source.id !== profile.value?.id))
+const linkedOsmosisSource = computed(() => {
+  if (!profile.value?.osmosis_source_id) return null
+  return aquariums.byId(profile.value.osmosis_source_id)
+})
 const analysisInterval = computed(() => {
   if (profileAnalyses.value.length < 2) return '—'
   const [latest, previous] = profileAnalyses.value
@@ -340,9 +358,14 @@ const systemSpecs = computed(() => [
   { label: 'Algenrefugium', value: profile.value.refugium ? 'Ja' : 'Nein' },
   { label: 'Abschäumer', value: profile.value.skimmer ? (profile.value.skimmer_model || 'Ja') : 'Nein' },
   { label: 'Erstellt', value: formatDate(profile.value.createdAt) },
+  { label: 'Osmosequelle', value: osmosisSpecValue.value },
   { label: 'Versorgung', value: profile.value.water_type === 'Osmosewasser' ? 'RO/DI Kontrolle' : (profile.value.supply_system || 'ATI Essentials Pro') },
   { label: 'Licht', value: profile.value.lighting_type || (profile.value.aquarium_type === 'SPS' ? 'High PAR' : 'Standard Profil') },
 ])
+const osmosisSpecValue = computed(() => {
+  if (profile.value.water_type === 'Osmosewasser') return 'Ist Quelle'
+  return linkedOsmosisSource.value?.name || 'Nicht verknüpft'
+})
 const topIssues = computed(() => {
   const latest = latestAnalysis.value
   if (!latest?.issueCount) return []
@@ -470,6 +493,14 @@ function analysisTone(a) {
   return 'good'
 }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }
+function osmosisSourceMeta(source) {
+  const details = source?.water_details || {}
+  return [
+    details.ro_product,
+    details.ro_capacity_lpd ? `${details.ro_capacity_lpd} l/Tag` : '',
+    details.resin_filter ? 'Harzfilter' : '',
+  ].filter(Boolean).join(' · ') || `${source?.net_volume || '—'} L`
+}
 </script>
 
 <style scoped>
@@ -532,6 +563,7 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .lab-panel,
 .target-panel,
 .system-card,
+.source-card,
 .attention-card,
 .action-card,
 .edit-card { padding: 20px; }
@@ -573,6 +605,16 @@ function formatDate(d) { return d ? new Date(d).toLocaleDateString('de-DE', { da
 .spec-list div { display: flex; justify-content: space-between; gap: 14px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.66); border: 1px solid var(--border); }
 .spec-list span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
 .spec-list strong { color: var(--text); font-size: 13px; text-align: right; }
+.source-box { display: grid; gap: 6px; margin-top: 14px; padding: 15px; border-radius: 18px; background: linear-gradient(135deg, rgba(236,255,251,0.9), rgba(238,245,251,0.86)); border: 1px solid rgba(136,193,233,0.35); }
+.source-box span { color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.source-box strong { color: var(--text); font-size: 15px; font-weight: 800; }
+.source-box em { color: var(--text-muted); font-size: 12px; font-style: normal; font-weight: 700; }
+.source-box a { margin-top: 4px; color: var(--brand-blue); font-size: 12px; font-weight: 800; }
+.source-empty { margin-top: 14px; padding: 14px; border-radius: 18px; background: rgba(136,193,233,0.1); border: 1px dashed rgba(136,193,233,0.42); }
+.source-empty strong,
+.source-empty span { display: block; }
+.source-empty strong { color: var(--text); font-size: 13px; font-weight: 800; }
+.source-empty span { margin-top: 4px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .issue-list { display: grid; gap: 9px; margin-top: 14px; }
 .issue-pill { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 16px; background: #fff7ed; border: 1px solid #fde68a; }
 .issue-pill.critical { background: #fdecea; border-color: #f8c9c4; }
