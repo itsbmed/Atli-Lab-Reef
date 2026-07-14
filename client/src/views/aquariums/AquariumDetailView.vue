@@ -182,6 +182,9 @@
               <input v-model.number="editForm.net_volume" type="number" min="1" required />
             </div>
             <div class="form-group wide">
+              <OsmosisSourcePicker :form="editForm" :sources="availableOsmosisSources" />
+            </div>
+            <div class="form-group wide">
               <WaterTypeFields :form="editForm" />
             </div>
             <div class="form-group wide">
@@ -265,6 +268,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
+import OsmosisSourcePicker from '@/components/aquariums/OsmosisSourcePicker.vue'
 import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
@@ -319,6 +323,7 @@ const profileMetrics = computed(() => [
   { label: 'Intervall', value: analysisInterval.value, caption: 'zwischen Checks' },
 ])
 const waterDetailSummary = computed(() => profile.value ? waterTypeSummary(profile.value) : [])
+const availableOsmosisSources = computed(() => aquariums.osmosisSources.filter((source) => source.id !== profile.value?.id))
 const analysisInterval = computed(() => {
   if (profileAnalyses.value.length < 2) return '—'
   const [latest, previous] = profileAnalyses.value

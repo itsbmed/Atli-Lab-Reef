@@ -66,6 +66,7 @@
 
         <div class="aqn-section">
           <div class="aqn-section-head"><span>02</span><h2>Wassertyp &amp; Technik <em>optional</em></h2></div>
+          <OsmosisSourcePicker :form="form" :sources="aquariums.osmosisSources" />
           <WaterTypeFields :form="form" />
           <div class="form-group">
             <label>Notizen</label>
@@ -136,9 +137,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
+import OsmosisSourcePicker from '@/components/aquariums/OsmosisSourcePicker.vue'
 import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { emptyAquarium } from '@/services/aquariumStore'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
@@ -150,6 +152,8 @@ const aquariums = useAquariumsStore()
 const saving = ref(false)
 const error = ref('')
 const form = ref(emptyAquarium())
+
+onMounted(() => aquariums.load())
 
 const photoError = ref('')
 const selectedPresetId = ref('')
