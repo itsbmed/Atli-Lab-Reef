@@ -29,7 +29,21 @@ export function emptyAquarium() {
     stocking_density: '', lighting_type: '', supply_system: '',
     sump: false, refugium: false, skimmer: false, skimmer_model: '',
     notes: '', image_theme: 'reef-mixed', image: null, water_details: {},
+    osmosis_source_id: '',
   }
+}
+
+export function supportsOsmosisSource(waterType) {
+  return ['Meerwasser', 'Süßwasser', 'Meersalz', 'Aquakultur'].includes(waterType)
+}
+
+export function osmosisSources(ownerId) {
+  return getAquariums(ownerId).filter((a) => a.water_type === 'Osmosewasser')
+}
+
+export function linkedOsmosisSource(aquarium) {
+  if (!aquarium?.osmosis_source_id) return null
+  return getAquarium(aquarium.osmosis_source_id)
 }
 
 // Alle Aquarien lesen – optional nach Besitzer gefiltert.
@@ -72,16 +86,18 @@ export function removeAquarium(id) {
 
 // Demo-Aquarien für das Vollkonto (demo-full), damit die Liste befüllt ist.
 const DEMO_OWNER = 'demo-full'
+const DEMO_OSMOSIS_ID = 'demo-osmosis-source'
 const DEMO_AQUARIUMS = [
-  { name: 'Wohnzimmer Reef', water_type: 'Meerwasser', net_volume: 350, aquarium_type: 'Mischbecken', dimensions: '120×55×55 cm', target_mode: 'ati', stocking_density: 'Mittel', lighting_type: 'LED', supply_system: 'ATI Essentials', sump: true, refugium: true, skimmer: true, skimmer_model: 'ATI PowerCone 250', notes: 'Hauptbecken im Wohnzimmer.', image_theme: 'reef-mixed' },
-  { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps' },
+  { id: DEMO_OSMOSIS_ID, name: 'Osmoseanlage Keller', water_type: 'Osmosewasser', net_volume: 60, notes: 'RO/DI Quelle für Wasserwechsel und Nachfüllwasser.', image_theme: 'osmosis', water_details: { ro_product: 'ATI Umkehrosmose', ro_capacity_lpd: 380, resin_filter: true, resin_product: 'ATI Harzfilter', resin_volume_l: 2, storage_tank: true, storage_volume_l: 60 } },
+  { name: 'Wohnzimmer Reef', water_type: 'Meerwasser', net_volume: 350, aquarium_type: 'Mischbecken', dimensions: '120×55×55 cm', target_mode: 'ati', stocking_density: 'Mittel', lighting_type: 'LED', supply_system: 'ATI Essentials', sump: true, refugium: true, skimmer: true, skimmer_model: 'ATI PowerCone 250', notes: 'Hauptbecken im Wohnzimmer.', image_theme: 'reef-mixed', osmosis_source_id: DEMO_OSMOSIS_ID },
+  { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps', osmosis_source_id: DEMO_OSMOSIS_ID },
 ]
 
 export function ensureDemoAquariums() {
   const all = read(AQUARIUMS_KEY, [])
   if (all.some((a) => a.ownerId === DEMO_OWNER)) return
   for (const a of DEMO_AQUARIUMS) {
-    all.push({ ...emptyAquarium(), ...a, id: makeId(), ownerId: DEMO_OWNER, createdAt: new Date().toISOString() })
+    all.push({ ...emptyAquarium(), ...a, id: a.id || makeId(), ownerId: DEMO_OWNER, createdAt: new Date().toISOString() })
   }
   write(AQUARIUMS_KEY, all)
 }

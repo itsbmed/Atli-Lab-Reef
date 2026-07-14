@@ -11,6 +11,7 @@ export const useAquariumsStore = defineStore('aquariums', () => {
   const auth = useAuthStore()
   const ownerId = computed(() => auth.user?.id || null)
   const count = computed(() => items.value.length)
+  const osmosisSources = computed(() => items.value.filter((a) => a.water_type === 'Osmosewasser'))
 
   // Aquarien des angemeldeten Nutzers laden.
   function load() {
@@ -39,5 +40,5 @@ export const useAquariumsStore = defineStore('aquariums', () => {
     items.value = items.value.filter((a) => a.id !== id)
   }
 
-  return { items, count, load, byId, create, update, remove }
+  return { items, count, osmosisSources, load, byId, create, update, remove }
 })
