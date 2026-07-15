@@ -564,6 +564,7 @@ function osmosisSourceMeta(source) {
 .side-column { position: sticky; top: 98px; }
 .lab-panel,
 .target-panel,
+.water-detail-panel,
 .system-card,
 .source-card,
 .attention-card,
@@ -695,6 +696,7 @@ function osmosisSourceMeta(source) {
   .metric-card strong { font-size: 24px; }
   .lab-panel,
   .target-panel,
+  .water-detail-panel,
   .system-card,
   .source-card,
   .attention-card,
