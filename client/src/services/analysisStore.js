@@ -6,9 +6,8 @@ const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
 
 export const ANALYSIS_PACKAGES = [
-  { key: 'standard', label: 'Standardanalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
+  { key: 'standard', label: 'Standard Laboranalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
   { key: 'pro', label: 'Pro', badge: 'PRO', desc: 'Plus Osmosewasser & erweiterte Kontrolle', params: '36 Parameter' },
-  { key: 'ultimate', label: 'Ultimate', badge: 'ULT', desc: 'Maximaler ICP-Umfang für kritische Systeme', params: '40+ Parameter' },
   { key: 'ultimate-ms', label: 'Ultimate-MS', badge: 'MS', desc: 'Meersalz & Osmose inkl. Ultra-Spurenelemente', params: '40+ Parameter' },
 ]
 
@@ -72,6 +71,7 @@ export function saveFavoriteParameters(ownerId, parameters) {
 }
 
 export function packageLabel(key) {
+  if (key === 'ultimate') return 'Ultimate-MS'
   return ANALYSIS_PACKAGES.find((p) => p.key === key)?.label || key
 }
 
@@ -203,7 +203,7 @@ const DEMO_ANALYSES = [
     recommendations: ['Strontium über Versorgungssystem kontrollieren.', 'Phosphat über Fütterung und Filtermedien stabil halten.'],
   },
   { id: 'demo-analysis-3', barcode: 'ATI-2407-1044', reportNumber: 'ICP-1044', aquariumName: 'Wohnzimmer Reef', waterType: 'Meerwasser', package: 'standard', reason: 'routine', status: 'in_analysis', score: null, issueCount: 0, createdAt: daysAgoDate(1), issues: [], recommendations: [] },
-  { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
+  { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
 export function ensureDemoAnalyses() {

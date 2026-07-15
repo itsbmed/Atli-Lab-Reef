@@ -6,7 +6,7 @@
       <div>
         <span class="act-kicker">Analyse registrieren</span>
         <h1>Testkit aktivieren</h1>
-        <p>Barcode erfassen, Aquarium zuordnen und den passenden Analyseumfang wählen.</p>
+        <p>Analysepaket wählen, Aquarium zuordnen und das Testkit erfassen.</p>
       </div>
       <div class="act-meter">
         <strong>{{ stepIndex + 1 }} / {{ steps.length }}</strong>
@@ -27,6 +27,115 @@
       <div v-if="stepIndex === 0" class="act-step">
         <div class="act-step-head">
           <span>01</span>
+          <div>
+            <h2>Paket und Aquarium</h2>
+            <p>Wählen Sie zuerst den Analyseumfang und danach das passende Aquarium.</p>
+          </div>
+        </div>
+
+        <div class="choice-section">
+          <div class="choice-heading">
+            <b>1</b>
+            <div>
+              <strong>Analysepaket</strong>
+              <span>Drei Pakete stehen zur Auswahl.</span>
+            </div>
+          </div>
+          <div class="package-grid">
+            <button
+              v-for="pkg in packages"
+              :key="pkg.key"
+              type="button"
+              :class="['package-option', { active: form.package === pkg.key }]"
+              @click="form.package = pkg.key"
+            >
+              <span>{{ pkg.badge }}</span>
+              <strong>{{ pkg.label }}</strong>
+              <em>{{ pkg.desc }}</em>
+              <small>{{ pkg.params }}</small>
+            </button>
+          </div>
+        </div>
+
+        <div :class="['choice-section', 'aquarium-choice', { disabled: !form.package }]">
+          <div class="choice-heading">
+            <b>2</b>
+            <div>
+              <strong>Aquarium</strong>
+              <span>{{ form.package ? 'Wählen Sie das Becken, aus dem die Probe entnommen wurde.' : 'Bitte zuerst ein Paket auswählen.' }}</span>
+            </div>
+          </div>
+
+          <div v-if="!eligibleAquariums.length" class="empty-inline">
+          <strong>Noch kein Aquarium vorhanden</strong>
+          <p>Legen Sie zuerst ein Aquarium an, damit die Analyse korrekt zugeordnet werden kann.</p>
+          <RouterLink to="/aquariums/new" class="btn btn-primary">Aquarium anlegen</RouterLink>
+          </div>
+          <div v-else class="tank-grid">
+          <button
+            v-for="a in eligibleAquariums"
+            :key="a.id"
+            type="button"
+            :class="['tank-option', { active: form.aquariumId === a.id }]"
+            :disabled="!form.package"
+            @click="form.aquariumId = a.id"
+          >
+            <span :class="`tank-thumb ${a.image_theme}`">
+              <img v-if="a.image" :src="a.image" alt="" />
+            </span>
+            <span class="tank-option-copy">
+              <strong>{{ a.name }}</strong>
+              <em>{{ a.water_type }} · {{ a.net_volume || '—' }} L</em>
+              <small v-if="needsOsmoseAquarium">{{ hasLinkedOsmosis(a) ? 'Osmosequelle verknüpft' : 'Osmosequelle noch offen' }}</small>
+            </span>
+          </button>
+          </div>
+        </div>
+
+        <div v-if="selectedAquarium && needsOsmoseAquarium" class="osmosis-panel">
+          <div class="osmosis-panel-head">
+            <span>Osmosewasser</span>
+            <strong>{{ linkedOsmoseAquarium ? 'Automatisch verknüpft' : 'Quelle auswählen' }}</strong>
+          </div>
+          <div v-if="linkedOsmoseAquarium" class="osmosis-source-summary">
+            <span :class="`tank-thumb ${linkedOsmoseAquarium.image_theme}`">
+              <img v-if="linkedOsmoseAquarium.image" :src="linkedOsmoseAquarium.image" alt="" />
+            </span>
+            <div>
+              <strong>{{ linkedOsmoseAquarium.name }}</strong>
+              <em>{{ linkedOsmoseAquarium.water_type }} · {{ linkedOsmoseAquarium.net_volume || '—' }} L</em>
+            </div>
+            <b>Verknüpft</b>
+          </div>
+          <label v-else-if="osmoseAquariums.length" class="field">
+            <span>Osmosewasserprofil</span>
+            <select v-model="form.osmoseAquariumId">
+              <option value="">Osmoseprofil auswählen</option>
+              <option v-for="a in osmoseAquariums" :key="a.id" :value="a.id">{{ a.name }} · {{ a.net_volume || '—' }} L</option>
+            </select>
+            <em>{{ packageName }} enthält eine separate Osmosewasseranalyse.</em>
+          </label>
+          <div v-else class="osmosis-missing">
+            <strong>Kein Osmosewasserprofil vorhanden</strong>
+            <span>Für {{ packageName }} wird zusätzlich eine Osmosewasserquelle benötigt.</span>
+            <RouterLink to="/aquariums/new">Osmoseprofil anlegen</RouterLink>
+          </div>
+        </div>
+
+        <template v-if="selectedAquarium">
+          <p class="field-label">Analysegrund</p>
+          <div class="reason-grid">
+            <button v-for="reason in reasons" :key="reason.key" type="button" :class="{ active: form.reason === reason.key }" @click="form.reason = reason.key">
+              {{ reason.label }}
+            </button>
+          </div>
+        </template>
+
+      </div>
+
+      <div v-else-if="stepIndex === 1" class="act-step">
+        <div class="act-step-head">
+          <span>02</span>
           <div>
             <h2>Testkit erfassen</h2>
             <p>Den Barcode finden Sie auf dem ATI Testkit-Röhrchen.</p>
@@ -81,80 +190,9 @@
         </div>
       </div>
 
-      <div v-else-if="stepIndex === 1" class="act-step">
-        <div class="act-step-head">
-          <span>02</span>
-          <div>
-            <h2>Aquarium zuordnen</h2>
-            <p>Wählen Sie das Becken, aus dem die Probe entnommen wurde.</p>
-          </div>
-        </div>
-
-        <div v-if="!aquariums.count" class="empty-inline">
-          <strong>Noch kein Aquarium vorhanden</strong>
-          <p>Legen Sie zuerst ein Aquarium an, damit die Analyse korrekt zugeordnet werden kann.</p>
-          <RouterLink to="/aquariums/new" class="btn btn-primary">Aquarium anlegen</RouterLink>
-        </div>
-        <div v-else class="tank-grid">
-          <button
-            v-for="a in aquariums.items"
-            :key="a.id"
-            type="button"
-            :class="['tank-option', { active: form.aquariumId === a.id }]"
-            @click="form.aquariumId = a.id"
-          >
-            <span :class="`tank-thumb ${a.image_theme}`">
-              <img v-if="a.image" :src="a.image" alt="" />
-            </span>
-            <strong>{{ a.name }}</strong>
-            <em>{{ a.water_type }} · {{ a.net_volume || '—' }} L</em>
-          </button>
-        </div>
-      </div>
-
       <div v-else-if="stepIndex === 2" class="act-step">
         <div class="act-step-head">
           <span>03</span>
-          <div>
-            <h2>Paket und Analysegrund</h2>
-            <p>Der Umfang hilft später bei Bewertung und Empfehlungen.</p>
-          </div>
-        </div>
-        <div class="package-grid">
-          <button
-            v-for="pkg in packages"
-            :key="pkg.key"
-            type="button"
-            :class="['package-option', { active: form.package === pkg.key }]"
-            @click="form.package = pkg.key"
-          >
-            <span>{{ pkg.badge }}</span>
-            <strong>{{ pkg.label }}</strong>
-            <em>{{ pkg.desc }}</em>
-            <small>{{ pkg.params }}</small>
-          </button>
-        </div>
-
-        <p class="field-label">Analysegrund</p>
-        <div class="reason-grid">
-          <button v-for="reason in reasons" :key="reason.key" type="button" :class="{ active: form.reason === reason.key }" @click="form.reason = reason.key">
-            {{ reason.label }}
-          </button>
-        </div>
-
-        <label v-if="needsOsmoseAquarium" class="field osmose-field">
-          <span>Osmosewasserprofil</span>
-          <select v-model="form.osmoseAquariumId">
-            <option value="">Osmoseprofil auswählen</option>
-            <option v-for="a in osmoseAquariums" :key="a.id" :value="a.id">{{ a.name }} · {{ a.net_volume || '—' }} L</option>
-          </select>
-          <em>Pro und Ultimate-MS benötigen ein zugeordnetes Osmosewasserprofil.</em>
-        </label>
-      </div>
-
-      <div v-else-if="stepIndex === 3" class="act-step">
-        <div class="act-step-head">
-          <span>04</span>
           <div>
             <h2>Add-ons und Hinweise</h2>
             <p>Optionale Verarbeitung für Bericht, Priorität oder Fachberaterfreigabe.</p>
@@ -174,7 +212,7 @@
 
       <div v-else class="act-step">
         <div class="act-step-head">
-          <span>05</span>
+          <span>04</span>
           <div>
             <h2>Bestätigen und aktivieren</h2>
             <p>Prüfen Sie die Angaben. Danach erscheint die Analyse in der Übersicht.</p>
@@ -226,9 +264,8 @@ const aquariums = useAquariumsStore()
 const analyses = useAnalysesStore()
 
 const steps = [
+  { key: 'package-aquarium', label: 'Paket & Aquarium' },
   { key: 'barcode', label: 'Testkit' },
-  { key: 'aquarium', label: 'Aquarium' },
-  { key: 'package', label: 'Paket' },
   { key: 'addons', label: 'Add-ons' },
   { key: 'review', label: 'Bestätigen' },
 ]
@@ -251,7 +288,7 @@ let scannerFrame = 0
 const form = ref({
   barcode: '',
   aquariumId: '',
-  package: 'standard',
+  package: '',
   reason: 'routine',
   osmoseAquariumId: '',
 })
@@ -259,32 +296,55 @@ const form = ref({
 onMounted(() => {
   aquariums.load()
   const requestedAquarium = route.query.aquarium_id?.toString()
-  if (requestedAquarium && aquariums.byId(requestedAquarium)) form.value.aquariumId = requestedAquarium
-  else if (aquariums.items.length) form.value.aquariumId = aquariums.items[0].id
+  const requested = requestedAquarium ? aquariums.byId(requestedAquarium) : null
+  if (requested && requested.water_type !== 'Osmosewasser') form.value.aquariumId = requestedAquarium
 })
 
 onUnmounted(() => stopScanner())
 
 watch(stepIndex, (step) => {
-  if (step !== 0) stopScanner()
+  if (step !== 1) stopScanner()
 })
 
 const selectedAquarium = computed(() => aquariums.byId(form.value.aquariumId))
 const osmoseAquariums = computed(() => aquariums.items.filter((a) => a.water_type === 'Osmosewasser'))
+const eligibleAquariums = computed(() => aquariums.items.filter((a) => a.water_type !== 'Osmosewasser'))
 const needsOsmoseAquarium = computed(() => ['pro', 'ultimate-ms'].includes(form.value.package))
+const linkedOsmoseAquarium = computed(() => {
+  const sourceId = selectedAquarium.value?.osmosis_source_id
+  return sourceId ? osmoseAquariums.value.find((a) => a.id === sourceId) || null : null
+})
 const packageName = computed(() => packages.find((p) => p.key === form.value.package)?.label || form.value.package)
 const reasonName = computed(() => reasons.find((r) => r.key === form.value.reason)?.label || form.value.reason)
 const osmoseName = computed(() => {
   if (!needsOsmoseAquarium.value) return 'Nicht erforderlich'
   return osmoseAquariums.value.find((a) => a.id === form.value.osmoseAquariumId)?.name || 'Offen'
 })
+
+watch(
+  [() => form.value.package, () => form.value.aquariumId, linkedOsmoseAquarium],
+  () => {
+    if (!needsOsmoseAquarium.value) {
+      form.value.osmoseAquariumId = ''
+      return
+    }
+    if (linkedOsmoseAquarium.value) {
+      form.value.osmoseAquariumId = linkedOsmoseAquarium.value.id
+      return
+    }
+    if (!osmoseAquariums.value.some((a) => a.id === form.value.osmoseAquariumId)) {
+      form.value.osmoseAquariumId = ''
+    }
+  },
+  { immediate: true },
+)
+
 const canSubmit = computed(() => {
-  return !!form.value.barcode && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
+  return !!form.value.package && !!form.value.barcode && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
 })
 const canAdvance = computed(() => {
-  if (stepIndex.value === 0) return /^[A-Za-z0-9-]{6,}$/.test(form.value.barcode)
-  if (stepIndex.value === 1) return !!form.value.aquariumId
-  if (stepIndex.value === 2) return !needsOsmoseAquarium.value || !!form.value.osmoseAquariumId
+  if (stepIndex.value === 0) return !!form.value.package && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
+  if (stepIndex.value === 1) return /^[A-Za-z0-9-]{6,}$/.test(form.value.barcode)
   return true
 })
 
@@ -300,6 +360,10 @@ function prev() {
 
 function goTo(i) {
   if (i <= maxReached.value) stepIndex.value = i
+}
+
+function hasLinkedOsmosis(aquarium) {
+  return osmoseAquariums.value.some((source) => source.id === aquarium.osmosis_source_id)
 }
 
 function canUseNativeScanner() {
@@ -475,7 +539,7 @@ function submit() {
 .act-meter strong { display: block; font-size: 30px; font-weight: 800; }
 .act-meter span { color: var(--brand-sky); font-size: 12px; font-weight: 800; }
 
-.act-progress { list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.act-progress { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .act-progress button {
   width: 100%;
   display: flex;
@@ -689,6 +753,25 @@ function submit() {
 .empty-inline strong { font-size: 18px; font-weight: 800; }
 .empty-inline p { color: var(--text-muted); }
 
+.choice-section + .choice-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+.choice-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+.choice-heading > b {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 9px;
+  background: rgba(0,114,206,0.1);
+  color: var(--brand-blue);
+  font-size: 12px;
+}
+.choice-heading strong { display: block; color: var(--text); font-size: 15px; font-weight: 800; }
+.choice-heading span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; }
+.aquarium-choice.disabled .choice-heading,
+.aquarium-choice.disabled .tank-grid { opacity: 0.56; }
+.tank-option:disabled { cursor: not-allowed; transform: none; }
+
 .tank-grid,
 .package-grid,
 .addon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
@@ -724,6 +807,8 @@ function submit() {
 .tank-thumb.osmosis { background: linear-gradient(150deg, #164e63, #67e8f9); }
 .tank-option strong { display: block; font-size: 14px; font-weight: 800; }
 .tank-option em { display: block; margin-top: 4px; color: var(--text-muted); font-size: 12px; font-style: normal; }
+.tank-option-copy { min-width: 0; }
+.tank-option-copy small { display: block; margin-top: 5px; color: var(--brand-blue); font-size: 10.5px; font-weight: 800; }
 
 .package-option { display: flex; flex-direction: column; gap: 6px; padding: 16px; min-height: 150px; }
 .package-option > span { align-self: flex-start; padding: 4px 9px; border-radius: 999px; background: rgba(136,193,233,0.18); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
@@ -733,7 +818,27 @@ function submit() {
 .field-label { margin: 20px 0 10px; }
 .reason-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .reason-grid button { padding: 10px 14px; font-weight: 700; }
-.osmose-field { margin-top: 18px; }
+
+.osmosis-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(0,190,208,0.28);
+  border-radius: 18px;
+  background: rgba(0,190,208,0.06);
+}
+.osmosis-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.osmosis-panel-head span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.osmosis-panel-head strong { color: var(--teal-700); font-size: 12px; font-weight: 800; }
+.osmosis-source-summary { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.osmosis-source-summary strong { display: block; color: var(--text); font-size: 14px; font-weight: 800; }
+.osmosis-source-summary em { display: block; margin-top: 3px; color: var(--text-muted); font-size: 12px; font-style: normal; }
+.osmosis-source-summary > b { padding: 6px 9px; border-radius: 9px; background: #dcfce7; color: #047857; font-size: 11px; }
+.osmosis-missing { display: grid; gap: 5px; }
+.osmosis-missing strong { color: var(--text); font-size: 14px; font-weight: 800; }
+.osmosis-missing span { color: var(--text-muted); font-size: 12px; }
+.osmosis-missing a { width: fit-content; margin-top: 4px; color: var(--brand-blue); font-size: 12px; font-weight: 800; }
 
 .addon-option {
   display: grid;
@@ -787,10 +892,14 @@ function submit() {
 @media (max-width: 760px) {
   .act-hero { align-items: flex-start; flex-direction: column; }
   .act-meter { text-align: left; }
-  .act-progress { grid-template-columns: 1fr; }
+  .act-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .package-option { min-height: 122px; }
   .scan-grid,
   .review-grid { grid-template-columns: 1fr; }
   .scan-reticle { inset: 34px; }
   .review-list { grid-template-columns: 1fr; }
+  .osmosis-source-summary { grid-template-columns: 52px minmax(0, 1fr); }
+  .osmosis-source-summary .tank-thumb { width: 52px; height: 52px; }
+  .osmosis-source-summary > b { grid-column: 2; width: fit-content; }
 }
 </style>
