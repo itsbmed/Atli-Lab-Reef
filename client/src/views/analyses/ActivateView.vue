@@ -6,7 +6,7 @@
       <div>
         <span class="act-kicker">Analyse registrieren</span>
         <h1>Testkit aktivieren</h1>
-        <p>Analysepaket wählen, Aquarium zuordnen und das Testkit erfassen.</p>
+        <p>Testkit erfassen, Analysepaket automatisch erkennen und Aquarium zuordnen.</p>
       </div>
       <div class="act-meter">
         <strong>{{ stepIndex + 1 }} / {{ steps.length }}</strong>
@@ -28,56 +28,89 @@
         <div class="act-step-head">
           <span>01</span>
           <div>
-            <h2>Paket und Aquarium</h2>
-            <p>Wählen Sie zuerst den Analyseumfang und danach das passende Aquarium.</p>
+            <h2>Testkit erfassen</h2>
+            <p>Der Testkit-Code bestimmt automatisch das gebuchte Analysepaket.</p>
           </div>
         </div>
-
-        <div class="choice-section">
-          <div class="choice-heading">
-            <b>1</b>
-            <div>
-              <strong>Analysepaket</strong>
-              <span>Drei Pakete stehen zur Auswahl.</span>
+        <div class="scan-grid">
+          <div :class="['scan-panel', { active: scannerActive }]">
+            <div v-if="scannerActive" class="scan-camera">
+              <video ref="scannerVideo" autoplay muted playsinline></video>
+              <div class="scan-reticle"><i></i><i></i><i></i><i></i></div>
             </div>
-          </div>
-          <div class="package-grid">
-            <button
-              v-for="pkg in packages"
-              :key="pkg.key"
-              type="button"
-              :class="['package-option', { active: form.package === pkg.key }]"
-              @click="form.package = pkg.key"
-            >
-              <span>{{ pkg.badge }}</span>
-              <strong>{{ pkg.label }}</strong>
-              <em>{{ pkg.desc }}</em>
-              <small>{{ pkg.params }}</small>
-            </button>
-          </div>
-        </div>
+            <div v-else class="scan-frame">
+              <i></i><i></i><i></i><i></i>
+              <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="16" height="16" />
+                <rect x="22" y="2" width="16" height="16" />
+                <rect x="2" y="22" width="16" height="16" />
+                <rect x="6" y="6" width="8" height="8" fill="currentColor" />
+                <rect x="26" y="6" width="8" height="8" fill="currentColor" />
+                <rect x="6" y="26" width="8" height="8" fill="currentColor" />
+              </svg>
+            </div>
 
-        <div :class="['choice-section', 'aquarium-choice', { disabled: !form.package }]">
-          <div class="choice-heading">
-            <b>2</b>
-            <div>
-              <strong>Aquarium</strong>
-              <span>{{ form.package ? 'Wählen Sie das Becken, aus dem die Probe entnommen wurde.' : 'Bitte zuerst ein Paket auswählen.' }}</span>
+            <div class="scan-controls">
+              <span :class="['scan-status', scannerStatusTone]">{{ scannerStatus }}</span>
+              <div class="scan-buttons">
+                <button v-if="!scannerActive" type="button" class="btn btn-primary" @click="startScanner">QR scannen</button>
+                <button v-else type="button" class="btn btn-ghost" @click="stopScanner">Scanner stoppen</button>
+                <label class="btn btn-ghost">
+                  QR-Bild wählen
+                  <input type="file" accept="image/*" hidden @change="scanImageFile" />
+                </label>
+              </div>
             </div>
           </div>
 
-          <div v-if="!eligibleAquariums.length" class="empty-inline">
+          <div class="barcode-panel">
+            <label class="field">
+              <span>Barcode / QR-Code</span>
+              <input v-model.trim="form.barcode" type="text" placeholder="ATI-S-2026-0001" autofocus @blur="normalizeBarcodeInput" />
+              <em>Tippen Sie den Code ein oder scannen Sie den QR-Code auf dem Testkit.</em>
+            </label>
+            <div v-if="form.barcode" :class="['scan-result', { invalid: !detectedPackage }]">
+              <span>{{ detectedPackage ? 'Paket erkannt' : 'Code nicht erkannt' }}</span>
+              <strong>{{ form.barcode }}</strong>
+              <em v-if="detectedPackage">{{ detectedPackage.label }} · {{ detectedPackage.params }}</em>
+              <em v-else>Testcodes beginnen mit ATI-S, ATI-P oder ATI-U.</em>
+            </div>
+            <div class="scan-help">
+              <strong>Testcodes für die lokale Prüfung</strong>
+              <p>ATI-S erkennt Standard, ATI-P erkennt Pro und ATI-U erkennt Ultimate-MS.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="stepIndex === 1" class="act-step">
+        <div class="act-step-head">
+          <span>02</span>
+          <div>
+            <h2>Aquarium zuordnen</h2>
+            <p>Wählen Sie das Becken, aus dem die Probe entnommen wurde.</p>
+          </div>
+        </div>
+
+        <div v-if="detectedPackage" class="detected-package">
+          <span>{{ detectedPackage.badge }}</span>
+          <div>
+            <strong>{{ detectedPackage.label }}</strong>
+            <em>Automatisch aus {{ form.barcode }} erkannt</em>
+          </div>
+        </div>
+
+        <div v-if="!eligibleAquariums.length" class="empty-inline">
           <strong>Noch kein Aquarium vorhanden</strong>
           <p>Legen Sie zuerst ein Aquarium an, damit die Analyse korrekt zugeordnet werden kann.</p>
           <RouterLink to="/aquariums/new" class="btn btn-primary">Aquarium anlegen</RouterLink>
-          </div>
-          <div v-else class="tank-grid">
+        </div>
+        <div v-else class="tank-grid">
           <button
             v-for="a in eligibleAquariums"
             :key="a.id"
             type="button"
             :class="['tank-option', { active: form.aquariumId === a.id }]"
-            :disabled="!form.package"
             @click="form.aquariumId = a.id"
           >
             <span :class="`tank-thumb ${a.image_theme}`">
@@ -89,7 +122,6 @@
               <small v-if="needsOsmoseAquarium">{{ hasLinkedOsmosis(a) ? 'Osmosequelle verknüpft' : 'Osmosequelle noch offen' }}</small>
             </span>
           </button>
-          </div>
         </div>
 
         <div v-if="selectedAquarium && needsOsmoseAquarium" class="osmosis-panel">
@@ -130,64 +162,6 @@
             </button>
           </div>
         </template>
-
-      </div>
-
-      <div v-else-if="stepIndex === 1" class="act-step">
-        <div class="act-step-head">
-          <span>02</span>
-          <div>
-            <h2>Testkit erfassen</h2>
-            <p>Den Barcode finden Sie auf dem ATI Testkit-Röhrchen.</p>
-          </div>
-        </div>
-        <div class="scan-grid">
-          <div :class="['scan-panel', { active: scannerActive }]">
-            <div v-if="scannerActive" class="scan-camera">
-              <video ref="scannerVideo" autoplay muted playsinline></video>
-              <div class="scan-reticle"><i></i><i></i><i></i><i></i></div>
-            </div>
-            <div v-else class="scan-frame">
-              <i></i><i></i><i></i><i></i>
-              <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="2" width="16" height="16" />
-                <rect x="22" y="2" width="16" height="16" />
-                <rect x="2" y="22" width="16" height="16" />
-                <rect x="6" y="6" width="8" height="8" fill="currentColor" />
-                <rect x="26" y="6" width="8" height="8" fill="currentColor" />
-                <rect x="6" y="26" width="8" height="8" fill="currentColor" />
-              </svg>
-            </div>
-
-            <div class="scan-controls">
-              <span :class="['scan-status', scannerStatusTone]">{{ scannerStatus }}</span>
-              <div class="scan-buttons">
-                <button v-if="!scannerActive" type="button" class="btn btn-primary" @click="startScanner">QR scannen</button>
-                <button v-else type="button" class="btn btn-ghost" @click="stopScanner">Scanner stoppen</button>
-                <label class="btn btn-ghost">
-                  QR-Bild wählen
-                  <input type="file" accept="image/*" hidden @change="scanImageFile" />
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="barcode-panel">
-            <label class="field">
-              <span>Barcode / QR-Code</span>
-              <input v-model.trim="form.barcode" type="text" placeholder="ATI-2026-0001" autofocus />
-              <em>Tippen Sie den Code ein oder scannen Sie den QR-Code auf dem Testkit.</em>
-            </label>
-            <div v-if="form.barcode" class="scan-result">
-              <span>Erkannt</span>
-              <strong>{{ form.barcode }}</strong>
-            </div>
-            <div class="scan-help">
-              <strong>So klappt der Scan schneller</strong>
-              <p>QR-Code mittig in den Rahmen halten, Lichtreflexe vermeiden und das Röhrchen kurz ruhig halten.</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div v-else-if="stepIndex === 2" class="act-step">
@@ -264,8 +238,8 @@ const aquariums = useAquariumsStore()
 const analyses = useAnalysesStore()
 
 const steps = [
-  { key: 'package-aquarium', label: 'Paket & Aquarium' },
   { key: 'barcode', label: 'Testkit' },
+  { key: 'aquarium', label: 'Aquarium' },
   { key: 'addons', label: 'Add-ons' },
   { key: 'review', label: 'Bestätigen' },
 ]
@@ -303,12 +277,13 @@ onMounted(() => {
 onUnmounted(() => stopScanner())
 
 watch(stepIndex, (step) => {
-  if (step !== 1) stopScanner()
+  if (step !== 0) stopScanner()
 })
 
 const selectedAquarium = computed(() => aquariums.byId(form.value.aquariumId))
 const osmoseAquariums = computed(() => aquariums.items.filter((a) => a.water_type === 'Osmosewasser'))
 const eligibleAquariums = computed(() => aquariums.items.filter((a) => a.water_type !== 'Osmosewasser'))
+const detectedPackage = computed(() => packageForBarcode(form.value.barcode))
 const needsOsmoseAquarium = computed(() => ['pro', 'ultimate-ms'].includes(form.value.package))
 const linkedOsmoseAquarium = computed(() => {
   const sourceId = selectedAquarium.value?.osmosis_source_id
@@ -320,6 +295,10 @@ const osmoseName = computed(() => {
   if (!needsOsmoseAquarium.value) return 'Nicht erforderlich'
   return osmoseAquariums.value.find((a) => a.id === form.value.osmoseAquariumId)?.name || 'Offen'
 })
+
+watch(detectedPackage, (pkg) => {
+  form.value.package = pkg?.key || ''
+}, { immediate: true })
 
 watch(
   [() => form.value.package, () => form.value.aquariumId, linkedOsmoseAquarium],
@@ -343,8 +322,8 @@ const canSubmit = computed(() => {
   return !!form.value.package && !!form.value.barcode && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
 })
 const canAdvance = computed(() => {
-  if (stepIndex.value === 0) return !!form.value.package && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
-  if (stepIndex.value === 1) return /^[A-Za-z0-9-]{6,}$/.test(form.value.barcode)
+  if (stepIndex.value === 0) return !!detectedPackage.value && sanitizeBarcode(form.value.barcode).length >= 6
+  if (stepIndex.value === 1) return !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
   return true
 })
 
@@ -364,6 +343,22 @@ function goTo(i) {
 
 function hasLinkedOsmosis(aquarium) {
   return osmoseAquariums.value.some((source) => source.id === aquarium.osmosis_source_id)
+}
+
+function packageForBarcode(value) {
+  const barcode = sanitizeBarcode(value)
+  const packageKey = barcode.startsWith('ATI-S')
+    ? 'standard'
+    : barcode.startsWith('ATI-P')
+      ? 'pro'
+      : barcode.startsWith('ATI-U')
+        ? 'ultimate-ms'
+        : ''
+  return packages.find((pkg) => pkg.key === packageKey) || null
+}
+
+function normalizeBarcodeInput() {
+  form.value.barcode = sanitizeBarcode(form.value.barcode)
 }
 
 function canUseNativeScanner() {
@@ -470,8 +465,9 @@ async function scanImageFile(e) {
 function applyScannedCode(rawValue) {
   const code = normalizeScannedCode(rawValue)
   form.value.barcode = code
-  scannerStatus.value = 'Code erkannt. Sie können fortfahren.'
-  scannerStatusTone.value = 'success'
+  const pkg = packageForBarcode(code)
+  scannerStatus.value = pkg ? `${pkg.label} erkannt. Sie können fortfahren.` : 'Code erkannt, aber keinem Paket zugeordnet.'
+  scannerStatusTone.value = pkg ? 'success' : 'error'
   stopScanner()
 }
 
@@ -505,7 +501,7 @@ function submit() {
   saving.value = true
   error.value = ''
   try {
-    analyses.activate({ ...form.value, addons: selectedAddons.value })
+    analyses.activate({ ...form.value, barcode: sanitizeBarcode(form.value.barcode), addons: selectedAddons.value })
     router.push('/analyses')
   } catch (e) {
     error.value = e.error || 'Analyse konnte nicht registriert werden.'
@@ -702,6 +698,10 @@ function submit() {
   font-weight: 800;
   overflow-wrap: anywhere;
 }
+.scan-result em { display: block; margin-top: 5px; color: #047857; font-size: 12px; font-style: normal; font-weight: 700; }
+.scan-result.invalid { background: #fff7ed; border-color: #fed7aa; }
+.scan-result.invalid span,
+.scan-result.invalid em { color: #9a3412; }
 .scan-help {
   margin-top: auto;
   padding: 16px;
@@ -753,30 +753,23 @@ function submit() {
 .empty-inline strong { font-size: 18px; font-weight: 800; }
 .empty-inline p { color: var(--text-muted); }
 
-.choice-section + .choice-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
-.choice-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
-.choice-heading > b {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  border-radius: 9px;
-  background: rgba(0,114,206,0.1);
-  color: var(--brand-blue);
-  font-size: 12px;
+.detected-package {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border: 1px solid rgba(16,185,129,0.24);
+  border-radius: 16px;
+  background: #eefbf4;
 }
-.choice-heading strong { display: block; color: var(--text); font-size: 15px; font-weight: 800; }
-.choice-heading span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; }
-.aquarium-choice.disabled .choice-heading,
-.aquarium-choice.disabled .tank-grid { opacity: 0.56; }
-.tank-option:disabled { cursor: not-allowed; transform: none; }
+.detected-package > span { padding: 6px 9px; border-radius: 9px; background: #dcfce7; color: #047857; font-size: 11px; font-weight: 800; }
+.detected-package strong { display: block; color: var(--text); font-size: 14px; font-weight: 800; }
+.detected-package em { display: block; margin-top: 3px; color: var(--text-muted); font-size: 12px; font-style: normal; overflow-wrap: anywhere; }
 
 .tank-grid,
-.package-grid,
 .addon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
 .tank-option,
-.package-option,
 .reason-grid button {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -787,10 +780,8 @@ function submit() {
   transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .tank-option:hover,
-.package-option:hover,
 .reason-grid button:hover { transform: translateY(-2px); border-color: rgba(0,114,206,0.34); }
 .tank-option.active,
-.package-option.active,
 .reason-grid button.active { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.12); }
 .tank-option { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 12px; }
 .tank-thumb {
@@ -810,11 +801,6 @@ function submit() {
 .tank-option-copy { min-width: 0; }
 .tank-option-copy small { display: block; margin-top: 5px; color: var(--brand-blue); font-size: 10.5px; font-weight: 800; }
 
-.package-option { display: flex; flex-direction: column; gap: 6px; padding: 16px; min-height: 150px; }
-.package-option > span { align-self: flex-start; padding: 4px 9px; border-radius: 999px; background: rgba(136,193,233,0.18); color: var(--brand-blue); font-size: 11px; font-weight: 800; }
-.package-option strong { font-size: 15px; font-weight: 800; }
-.package-option em { color: var(--text-muted); font-size: 12px; line-height: 1.45; font-style: normal; }
-.package-option small { margin-top: auto; color: var(--brand-blue); font-size: 11px; font-weight: 800; }
 .field-label { margin: 20px 0 10px; }
 .reason-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .reason-grid button { padding: 10px 14px; font-weight: 700; }
@@ -893,7 +879,6 @@ function submit() {
   .act-hero { align-items: flex-start; flex-direction: column; }
   .act-meter { text-align: left; }
   .act-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .package-option { min-height: 122px; }
   .scan-grid,
   .review-grid { grid-template-columns: 1fr; }
   .scan-reticle { inset: 34px; }
