@@ -52,6 +52,9 @@
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
         </button>
+        <button type="button" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
+          Favoriten <b v-if="favoriteParameters.length">{{ favoriteParameters.length }}</b>
+        </button>
       </nav>
 
       <section v-show="activeTab === 'overview'" class="report-layout">
@@ -235,6 +238,13 @@
               </span>
               <span class="element-chevron" aria-hidden="true">⌄</span>
             </button>
+            <button
+              type="button"
+              :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
+              :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
+              :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+              @click="analyses.toggleFavorite(parameter.key)"
+            >★</button>
             <div v-if="expandedParameters[parameter.key]" class="element-detail">
               <div>
                 <span>Einordnung</span>
@@ -257,6 +267,66 @@
             <strong>Keine Messwerte gefunden</strong>
             <span>Suche oder Filter anpassen, um wieder Parameter zu sehen.</span>
           </div>
+        </div>
+      </section>
+
+      <section v-if="analysis.status === 'completed'" v-show="activeTab === 'favorites'" class="panel favorites-panel">
+        <div class="explorer-head">
+          <div>
+            <span>Favoriten</span>
+            <h2>Gemerkte Parameter</h2>
+            <p>Wichtige Werte dieses Berichts unabhängig vom aktuellen Status im Blick behalten.</p>
+          </div>
+        </div>
+
+        <div v-if="favoriteParameters.length" class="element-list favorite-list">
+          <article
+            v-for="parameter in favoriteParameters"
+            :key="parameter.key"
+            :class="['element-row', parameter.tone, { expanded: expandedParameters[`favorite-${parameter.key}`] }]"
+          >
+            <button class="element-head" type="button" @click="toggleParameter(`favorite-${parameter.key}`)">
+              <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+              <span class="element-name">
+                <strong>{{ parameter.label }}</strong>
+                <em>{{ parameterGroup(parameter).label }} · {{ parameterStatusLabel(parameter.tone) }}</em>
+              </span>
+              <span class="target-gauge">
+                <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+              </span>
+              <span class="element-reading">
+                <strong>{{ parameter.value }}</strong>
+                <small>{{ parameter.unit }}</small>
+              </span>
+              <span class="element-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <button
+              type="button"
+              class="favorite-button active"
+              :aria-label="`${parameter.label} aus Favoriten entfernen`"
+              title="Aus Favoriten entfernen"
+              @click="analyses.toggleFavorite(parameter.key)"
+            >★</button>
+            <div v-if="expandedParameters[`favorite-${parameter.key}`]" class="element-detail">
+              <div><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
+              <div><span>Nächster Schritt</span><p>{{ parameterAction(parameter) }}</p></div>
+              <div class="parameter-trend">
+                <div class="trend-heading">
+                  <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                  <strong>{{ historyChange(parameter) }}</strong>
+                </div>
+                <ParameterTrendChart :parameter="parameter" />
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div v-else class="favorites-empty">
+          <span aria-hidden="true">☆</span>
+          <strong>Noch keine Favoriten</strong>
+          <p>Markieren Sie wichtige Werte im Element Explorer mit dem Stern.</p>
+          <button type="button" class="btn btn-primary" @click="activeTab = 'values'">Alle Werte öffnen</button>
         </div>
       </section>
     </template>
@@ -337,6 +407,7 @@ const carePlan = computed(() => issueParameters.value
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
 const careProgress = computed(() => carePlan.value.filter((item) => completedActions[item.key]).length)
 const careProgressPercent = computed(() => carePlan.value.length ? Math.round((careProgress.value / carePlan.value.length) * 100) : 100)
+const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
 
 const GROUP_MAP = {
   salinity: { key: 'basis', label: 'Basiswerte' },
@@ -495,8 +566,8 @@ function markPdf() {
 .workflow-step i { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
 .workflow-step.done i { background: var(--teal-500); }
 .workflow-step.active { color: var(--brand-blue); background: var(--teal-50); }
-.report-tabs { display: flex; gap: 6px; padding: 5px; width: fit-content; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.report-tabs button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font-weight: 800; cursor: pointer; }
+.report-tabs { display: flex; gap: 6px; max-width: 100%; width: fit-content; overflow-x: auto; padding: 5px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.report-tabs button { flex: 0 0 auto; min-height: 40px; padding: 0 16px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font-weight: 800; white-space: nowrap; cursor: pointer; }
 .report-tabs button.active { color: #fff; background: var(--brand-blue); }
 .report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
 .report-tabs button.active b { background: rgba(255,255,255,0.2); }
@@ -598,10 +669,10 @@ function markPdf() {
 .parameter-groups span { font-size: 13px; font-weight: 800; }
 .parameter-groups b { color: var(--text-muted); font-size: 11px; }
 .element-list { display: grid; gap: 9px; }
-.element-row { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
+.element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
-.element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 20px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 72px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
 .element-name strong,
@@ -618,12 +689,21 @@ function markPdf() {
 .element-reading small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .element-chevron { color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
+.favorite-button { position: absolute; z-index: 2; top: 22px; right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
+.favorite-button:hover { border-color: #f59e0b; color: #f59e0b; }
+.favorite-button.active { border-color: #fcd34d; background: #fffbeb; color: #f59e0b; }
 .element-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
 .element-detail p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
 .parameter-trend { grid-column: 1 / -1; min-width: 0; margin-top: 2px; padding-top: 16px; border-top: 1px solid var(--border); }
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
+.favorites-panel { display: grid; gap: 18px; }
+.favorite-list { margin-top: 2px; }
+.favorites-empty { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); text-align: center; }
+.favorites-empty > span { color: #f59e0b; font-size: 42px; line-height: 1; }
+.favorites-empty strong { color: var(--text); font-size: 18px; }
+.favorites-empty p { margin-bottom: 8px; font-size: 13px; }
 .no-results { display: grid; place-items: center; gap: 5px; min-height: 150px; border: 1px dashed var(--border); border-radius: 15px; color: var(--text-muted); text-align: center; }
 .no-results strong { color: var(--text); }
 @media (max-width: 900px) {
@@ -646,7 +726,9 @@ function markPdf() {
   .element-head { grid-template-columns: 42px minmax(0, 1fr) auto; }
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
   .element-reading { grid-column: 3; grid-row: 1; }
+  .element-reading { margin-right: 36px; }
   .element-chevron { display: none; }
+  .favorite-button { top: 22px; right: 12px; }
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
 </style>

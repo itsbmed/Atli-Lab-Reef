@@ -2,6 +2,7 @@ import { getAquarium } from '@/services/aquariumStore'
 import { daysAgoDate } from '@/services/dashboardDemo'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
+const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
 
 export const ANALYSIS_PACKAGES = [
@@ -56,6 +57,18 @@ function write(key, value) {
 
 function makeId() {
   return `an-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export function getFavoriteParameters(ownerId) {
+  const favorites = read(FAVORITES_KEY, {})
+  return favorites[ownerId || 'guest'] || []
+}
+
+export function saveFavoriteParameters(ownerId, parameters) {
+  const favorites = read(FAVORITES_KEY, {})
+  favorites[ownerId || 'guest'] = [...new Set(parameters)]
+  write(FAVORITES_KEY, favorites)
+  return favorites[ownerId || 'guest']
 }
 
 export function packageLabel(key) {
@@ -126,7 +139,7 @@ function enrichAnalysis(analysis) {
     issueCount: analysis.issueCount ?? analysis.issues?.length ?? 0,
     parameters: (analysis.parameters || []).map((parameter) => ({
       ...parameter,
-      history: parameter.history || analysis.parameterHistory?.[parameter.key] || [],
+      history: parameter.history || analysis.parameterHistory?.[parameter.key] || demoParameterHistory(analysis.id, parameter.key),
     })),
     recommendations: analysis.recommendations || [],
   }
@@ -135,6 +148,11 @@ function enrichAnalysis(analysis) {
 function demoHistory(values) {
   const ages = [95, 64, 34, 4]
   return values.map((value, index) => ({ date: daysAgoDate(ages[index]), value }))
+}
+
+function demoParameterHistory(analysisId, parameterKey) {
+  return DEMO_ANALYSES.find((item) => item.id === analysisId)
+    ?.parameters?.find((parameter) => parameter.key === parameterKey)?.history || []
 }
 
 const DEMO_ANALYSES = [
