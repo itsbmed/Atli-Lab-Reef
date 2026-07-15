@@ -124,9 +124,17 @@ function enrichAnalysis(analysis) {
     severity: severity(analysis),
     reportNumber: analysis.reportNumber || analysis.barcode?.replaceAll('-', ''),
     issueCount: analysis.issueCount ?? analysis.issues?.length ?? 0,
-    parameters: analysis.parameters || [],
+    parameters: (analysis.parameters || []).map((parameter) => ({
+      ...parameter,
+      history: parameter.history || analysis.parameterHistory?.[parameter.key] || [],
+    })),
     recommendations: analysis.recommendations || [],
   }
+}
+
+function demoHistory(values) {
+  const ages = [95, 64, 34, 4]
+  return values.map((value, index) => ({ date: daysAgoDate(ages[index]), value }))
 }
 
 const DEMO_ANALYSES = [
@@ -144,12 +152,12 @@ const DEMO_ANALYSES = [
     completedAt: daysAgoDate(3),
     issues: ['Phosphat erhöht', 'Jod niedrig', 'Kalium beobachten', 'Zink erhöht', 'Nitrat niedrig'],
     parameters: [
-      { key: 'salinity', label: 'Salinität', value: 35.1, unit: 'PSU', target: '34.8 - 35.2', tone: 'good' },
-      { key: 'kh', label: 'KH', value: 6.8, unit: 'dKH', target: '7.5 - 8.5', tone: 'watch' },
-      { key: 'calcium', label: 'Calcium', value: 418, unit: 'mg/l', target: '410 - 440', tone: 'good' },
-      { key: 'magnesium', label: 'Magnesium', value: 1260, unit: 'mg/l', target: '1280 - 1350', tone: 'watch' },
-      { key: 'nitrate', label: 'Nitrat', value: 1.2, unit: 'mg/l', target: '2 - 10', tone: 'watch' },
-      { key: 'phosphate', label: 'Phosphat', value: 0.14, unit: 'mg/l', target: '0.03 - 0.08', tone: 'critical' },
+      { key: 'salinity', label: 'Salinität', value: 35.1, unit: 'PSU', target: '34.8 - 35.2', tone: 'good', history: demoHistory([34.9, 35.3, 35, 35.1]) },
+      { key: 'kh', label: 'KH', value: 6.8, unit: 'dKH', target: '7.5 - 8.5', tone: 'watch', history: demoHistory([8.2, 7.9, 7.4, 6.8]) },
+      { key: 'calcium', label: 'Calcium', value: 418, unit: 'mg/l', target: '410 - 440', tone: 'good', history: demoHistory([425, 432, 421, 418]) },
+      { key: 'magnesium', label: 'Magnesium', value: 1260, unit: 'mg/l', target: '1280 - 1350', tone: 'watch', history: demoHistory([1320, 1305, 1284, 1260]) },
+      { key: 'nitrate', label: 'Nitrat', value: 1.2, unit: 'mg/l', target: '2 - 10', tone: 'watch', history: demoHistory([4.8, 3.6, 2.1, 1.2]) },
+      { key: 'phosphate', label: 'Phosphat', value: 0.14, unit: 'mg/l', target: '0.03 - 0.08', tone: 'critical', history: demoHistory([0.06, 0.08, 0.11, 0.14]) },
     ],
     recommendations: ['Fütterung und Adsorber-Einsatz prüfen.', 'Jod vorsichtig nachdosieren und in 14 Tagen kontrollieren.', 'KH über mehrere Tage langsam stabilisieren.'],
   },
@@ -167,12 +175,12 @@ const DEMO_ANALYSES = [
     completedAt: daysAgoDate(10),
     issues: ['Strontium leicht niedrig', 'Phosphat beobachten'],
     parameters: [
-      { key: 'salinity', label: 'Salinität', value: 35, unit: 'PSU', target: '34.8 - 35.2', tone: 'good' },
-      { key: 'kh', label: 'KH', value: 8.1, unit: 'dKH', target: '7.5 - 8.5', tone: 'good' },
-      { key: 'calcium', label: 'Calcium', value: 432, unit: 'mg/l', target: '410 - 440', tone: 'good' },
-      { key: 'magnesium', label: 'Magnesium', value: 1315, unit: 'mg/l', target: '1280 - 1350', tone: 'good' },
-      { key: 'nitrate', label: 'Nitrat', value: 6.4, unit: 'mg/l', target: '2 - 10', tone: 'good' },
-      { key: 'phosphate', label: 'Phosphat', value: 0.09, unit: 'mg/l', target: '0.03 - 0.08', tone: 'watch' },
+      { key: 'salinity', label: 'Salinität', value: 35, unit: 'PSU', target: '34.8 - 35.2', tone: 'good', history: demoHistory([35.2, 35.1, 34.9, 35]) },
+      { key: 'kh', label: 'KH', value: 8.1, unit: 'dKH', target: '7.5 - 8.5', tone: 'good', history: demoHistory([7.8, 8, 8.2, 8.1]) },
+      { key: 'calcium', label: 'Calcium', value: 432, unit: 'mg/l', target: '410 - 440', tone: 'good', history: demoHistory([421, 427, 435, 432]) },
+      { key: 'magnesium', label: 'Magnesium', value: 1315, unit: 'mg/l', target: '1280 - 1350', tone: 'good', history: demoHistory([1298, 1310, 1322, 1315]) },
+      { key: 'nitrate', label: 'Nitrat', value: 6.4, unit: 'mg/l', target: '2 - 10', tone: 'good', history: demoHistory([7.2, 6.8, 5.9, 6.4]) },
+      { key: 'phosphate', label: 'Phosphat', value: 0.09, unit: 'mg/l', target: '0.03 - 0.08', tone: 'watch', history: demoHistory([0.06, 0.07, 0.08, 0.09]) },
     ],
     recommendations: ['Strontium über Versorgungssystem kontrollieren.', 'Phosphat über Fütterung und Filtermedien stabil halten.'],
   },

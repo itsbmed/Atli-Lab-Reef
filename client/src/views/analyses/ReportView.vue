@@ -244,6 +244,13 @@
                 <span>Nächster Schritt</span>
                 <p>{{ parameterAction(parameter) }}</p>
               </div>
+              <div class="parameter-trend">
+                <div class="trend-heading">
+                  <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                  <strong>{{ historyChange(parameter) }}</strong>
+                </div>
+                <ParameterTrendChart :parameter="parameter" />
+              </div>
             </div>
           </article>
           <div v-if="!visibleParameters.length" class="no-results">
@@ -261,6 +268,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
+import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 
 const route = useRoute()
 const analyses = useAnalysesStore()
@@ -376,6 +384,23 @@ function parameterAction(parameter) {
   if (parameter.tone === 'good') return 'Dosierung und Pflege beibehalten. Den Wert beim nächsten Laborbericht als Referenz vergleichen.'
   return analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
     || `${parameter.label} langsam korrigieren, keine starken Einzeländerungen vornehmen und zeitnah kontrollieren.`
+}
+function trendSummary(parameter) {
+  const history = parameter.history || []
+  if (history.length < 2) return 'Noch keine Vergleichsmessung vorhanden.'
+  const first = Number(history[0].value)
+  const last = Number(history.at(-1).value)
+  const direction = last > first ? 'gestiegen' : last < first ? 'gesunken' : 'stabil geblieben'
+  return `Seit der ersten Vergleichsmessung ${direction}.`
+}
+function historyChange(parameter) {
+  const history = parameter.history || []
+  if (history.length < 2) return 'Erste Messung'
+  const first = Number(history[0].value)
+  const last = Number(history.at(-1).value)
+  const percent = first ? ((last - first) / Math.abs(first)) * 100 : 0
+  const prefix = percent > 0 ? '+' : ''
+  return `${prefix}${percent.toLocaleString('de-DE', { maximumFractionDigits: 1 })}%`
 }
 function buildCareAction(parameter, index) {
   const recommendation = analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
@@ -595,6 +620,10 @@ function markPdf() {
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
 .element-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
 .element-detail p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.parameter-trend { grid-column: 1 / -1; min-width: 0; margin-top: 2px; padding-top: 16px; border-top: 1px solid var(--border); }
+.trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.trend-heading p { margin-top: 4px; }
+.trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
 .no-results { display: grid; place-items: center; gap: 5px; min-height: 150px; border: 1px dashed var(--border); border-radius: 15px; color: var(--text-muted); text-align: center; }
 .no-results strong { color: var(--text); }
 @media (max-width: 900px) {
