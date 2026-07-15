@@ -526,18 +526,20 @@ function osmosisSourceMeta(source) {
   box-shadow: 0 30px 86px rgba(10,27,67,0.24);
   overflow: hidden;
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 .tank-hero::after { content: ''; position: absolute; right: 34%; top: 0; bottom: 0; width: 1px; background: linear-gradient(transparent, rgba(136,193,233,0.42), transparent); }
 .tank-hero-visual,
 .tank-hero-copy,
-.tank-health-card { position: relative; z-index: 1; }
+.tank-health-card { position: relative; z-index: 1; min-width: 0; }
 .tank-hero-visual { min-height: 230px; border-radius: 24px; overflow: hidden; box-shadow: 0 28px 80px rgba(0,0,0,0.28); }
 .tank-hero-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tank-hero-visual span { position: absolute; left: 16px; top: 16px; padding: 6px 11px; border-radius: 999px; background: rgba(10,27,67,0.58); color: #fff; font-size: 11px; font-weight: 800; backdrop-filter: blur(12px); }
 .tank-hero-copy { align-self: center; }
 .hero-kicker { color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; }
-.tank-hero h1 { font-size: clamp(34px, 4.5vw, 56px); line-height: 0.98; font-weight: 800; letter-spacing: -0.055em; margin-bottom: 12px; }
-.tank-hero p { max-width: 580px; color: rgba(255,255,255,0.72); font-size: 15px; }
+.tank-hero h1 { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(34px, 4.5vw, 56px); line-height: 0.98; font-weight: 800; letter-spacing: -0.055em; margin-bottom: 12px; }
+.tank-hero p { max-width: 580px; overflow-wrap: anywhere; color: rgba(255,255,255,0.72); font-size: 15px; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .btn-ghost { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
 .btn-danger { background: #e85d4f; color: #fff; border: 0; }
@@ -551,14 +553,14 @@ function osmosisSourceMeta(source) {
 .tank-health-card span { display: block; color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .tank-health-card strong { display: block; margin-top: 5px; font-size: 22px; line-height: 1.05; font-weight: 800; }
 .tank-health-card em { display: block; margin-top: 8px; color: rgba(255,255,255,0.66); font-size: 12px; font-style: normal; font-weight: 800; }
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 14px; margin-bottom: 20px; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 14px; width: 100%; min-width: 0; margin-bottom: 20px; }
 .metric-card { padding: 18px; border-radius: var(--radius); background: rgba(255,255,255,0.76); border: 1px solid rgba(255,255,255,0.78); box-shadow: var(--shadow); }
 .metric-card span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .metric-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 28px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
 .metric-card em { display: block; margin-top: 6px; color: var(--teal-700); font-size: 12px; font-style: normal; font-weight: 700; }
-.detail-layout { display: grid; grid-template-columns: minmax(min(100%, 560px), 1fr) minmax(min(100%, 320px), 0.42fr); gap: 22px; align-items: start; }
+.detail-layout { display: grid; grid-template-columns: minmax(min(100%, 560px), 1fr) minmax(min(100%, 320px), 0.42fr); gap: 22px; align-items: start; width: 100%; min-width: 0; }
 .main-column,
-.side-column { display: grid; gap: 18px; }
+.side-column { display: grid; gap: 18px; min-width: 0; }
 .side-column { position: sticky; top: 98px; }
 .lab-panel,
 .target-panel,
@@ -676,14 +678,30 @@ function osmosisSourceMeta(source) {
   .detail-layout { grid-template-columns: 1fr; }
   .tank-hero::after { display: none; }
   .tank-hero-visual { min-height: 220px; }
-  .tank-health-card { max-width: 460px; }
+  .tank-health-card { width: 100%; max-width: 460px; }
   .side-column { position: static; }
 }
 @media (max-width: 760px) {
-  .tank-hero { padding: 20px; }
+  .tank-hero { gap: 18px; padding: 18px; border-radius: 24px; }
+  .tank-hero-visual { width: 100%; min-height: 190px; border-radius: 20px; }
+  .tank-hero h1 { font-size: 34px; line-height: 1.02; }
   .hero-actions { flex-direction: column; }
   .hero-actions .btn { width: 100%; }
-  .tank-health-card { grid-template-columns: 1fr; }
+  .tank-health-card { grid-template-columns: 100px minmax(0, 1fr); gap: 14px; padding: 16px; border-radius: 20px; }
+  .health-ring { width: 100px; height: 100px; }
+  .tank-health-card strong { font-size: 19px; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .metric-card { min-width: 0; padding: 15px; }
+  .metric-card strong { font-size: 24px; }
+  .lab-panel,
+  .target-panel,
+  .system-card,
+  .source-card,
+  .attention-card,
+  .action-card,
+  .edit-card { width: 100%; min-width: 0; padding: 16px; }
+  .section-header { flex-wrap: wrap; }
+  .score-chart { height: 220px; }
   .timeline-row { grid-template-columns: 12px 1fr auto; }
   .timeline-row small { grid-column: 2 / -1; }
   .photo-edit { align-items: flex-start; }

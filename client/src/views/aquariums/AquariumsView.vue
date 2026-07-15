@@ -98,7 +98,7 @@ function osmosisSourceName(aquarium) {
 </script>
 
 <style scoped>
-.aq-list { flex: 1; display: flex; flex-direction: column; }
+.aq-list { flex: 1; display: flex; flex-direction: column; width: 100%; min-width: 0; }
 .aq-list-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .aq-list-head h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 800; letter-spacing: -0.03em; color: var(--text); line-height: 1.05; }
 .aq-list-head h2 small { margin-left: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text-muted); }
@@ -147,8 +147,8 @@ function osmosisSourceName(aquarium) {
 .aq-empty-step p { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
 
 /* Kartenraster */
-.aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 22px; }
-.aq-card { display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.18); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+.aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 22px; width: 100%; min-width: 0; }
+.aq-card { display: flex; flex-direction: column; min-width: 0; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid rgba(136,193,233,0.18); box-shadow: var(--shadow); text-decoration: none; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
 .aq-card:hover { transform: translateY(-4px); border-color: rgba(136,193,233,0.5); box-shadow: 0 22px 50px rgba(10,27,67,0.13); }
 .aq-card-media { position: relative; height: 170px; }
 .aq-card-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(10,27,67,0.3)); }
@@ -158,15 +158,17 @@ function osmosisSourceName(aquarium) {
 .aq-card-badge.wt-osmo { color: #0e7490; }
 .aq-card-badge.wt-salt { color: #7c3aed; }
 .aq-card-badge.wt-aqua { color: #047857; }
-.aq-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.aq-card-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; }
 .aq-card-body h3 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
-.aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--text-muted); font-size: 12.5px; }
-.aq-source-chip { color: #0e7490; font-weight: 800; }
-.aq-card-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); }
-.aq-card-link { color: var(--brand-blue); font-weight: 700; }
+.aq-card-meta { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; color: var(--text-muted); font-size: 12.5px; }
+.aq-card-meta span { min-width: 0; overflow-wrap: anywhere; }
+.aq-source-chip { flex-basis: 100%; color: #0e7490; font-weight: 800; }
+.aq-card-foot { margin-top: auto; padding-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; font-size: 11.5px; color: var(--text-muted); border-top: 1px solid var(--border); }
+.aq-card-foot > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.aq-card-link { flex-shrink: 0; color: var(--brand-blue); font-weight: 700; }
 
 .aq-card-add {
-  align-items: center; justify-content: center; gap: 12px; min-height: 270px;
+  align-items: center; justify-content: center; gap: 12px; min-height: 314px;
   border: 2px dashed rgba(136,193,233,0.42); box-shadow: none;
   background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(238,245,251,0.84));
   color: var(--teal-700, #0f5d6b); font-size: 14px; font-weight: 800;
@@ -182,9 +184,12 @@ function osmosisSourceName(aquarium) {
 @media (max-width: 620px) {
   .aq-list-head { flex-direction: column; align-items: flex-start; gap: 12px; }
   .aq-list-head .btn { width: 100%; }
-  .aq-grid { gap: 16px; }
+  .aq-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .aq-card { width: 100%; max-width: 100%; }
   .aq-card-media { height: 150px; }
-  .aq-card-add { min-height: 200px; }
+  .aq-card-body { padding: 16px; }
+  .aq-card-foot { align-items: flex-start; }
+  .aq-card-add { min-height: 210px; }
   .aq-empty-steps { grid-template-columns: 1fr; }
   .aq-empty-actions { flex-direction: column; }
   .aq-empty-actions .btn { width: 100%; }
