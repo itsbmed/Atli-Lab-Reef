@@ -59,23 +59,82 @@
 
       <section v-show="activeTab === 'overview'" class="report-layout">
         <main class="report-main">
-          <section class="panel">
-            <div class="section-head">
+          <section class="panel group-overview">
+            <div class="section-head group-overview-head">
               <div>
-                <span>Laborwerte</span>
-                <h2>Parameterübersicht</h2>
+                <span>Gruppen</span>
+                <h2>Gruppenstatus im Bericht</h2>
+                <p>Wählen Sie eine Gruppe und öffnen Sie einen Wert für Einordnung, Korrektur und Verlauf.</p>
               </div>
               <strong>{{ analysis.parameters.length || '—' }} Werte</strong>
             </div>
 
-            <div v-if="analysis.parameters.length" class="parameter-grid">
-              <div v-for="param in analysis.parameters" :key="param.key" :class="['parameter-card', param.tone]">
-                <span>{{ param.label }}</span>
-                <strong>{{ param.value }} <small>{{ param.unit }}</small></strong>
-                <em>Ziel {{ param.target }}</em>
-              </div>
+            <div v-if="analysis.parameters.length" class="group-deck">
+              <button
+                v-for="group in parameterGroups"
+                :key="group.key"
+                type="button"
+                :class="['group-card', group.tone, { active: selectedOverviewGroup === group.key }]"
+                @click="selectedOverviewGroup = selectedOverviewGroup === group.key ? '' : group.key"
+              >
+                <span class="group-dial" :style="groupDialStyle(group)"><b>{{ group.score }}</b><em>%</em></span>
+                <span class="group-copy">
+                  <strong>{{ group.label }}</strong>
+                  <em>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Stabil' }} · {{ group.total }} Werte</em>
+                </span>
+                <small>{{ groupDescription(group.key) }}</small>
+              </button>
             </div>
             <p v-else class="muted">Die Laborwerte werden angezeigt, sobald der Bericht fertig ist.</p>
+
+            <div v-if="selectedOverviewGroupData" class="group-detail-panel">
+              <div class="group-detail-head">
+                <div><span>Aufschlüsselung</span><h3>{{ selectedOverviewGroupData.label }}</h3></div>
+                <div class="group-detail-actions">
+                  <button type="button" class="soft-link" @click="openGroupInExplorer(selectedOverviewGroupData.key)">Im Explorer öffnen</button>
+                  <button type="button" class="group-close" aria-label="Gruppe schließen" title="Schließen" @click="selectedOverviewGroup = ''">×</button>
+                </div>
+              </div>
+              <div class="element-list overview-elements">
+                <article
+                  v-for="parameter in selectedOverviewGroupData.parameters"
+                  :key="parameter.key"
+                  :class="['element-row', parameter.tone, { expanded: expandedParameters[`overview-${parameter.key}`] }]"
+                >
+                  <button class="element-head" type="button" @click="toggleParameter(`overview-${parameter.key}`)">
+                    <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+                    <span class="element-name">
+                      <strong>{{ parameter.label }}</strong>
+                      <em>{{ parameterStatusLabel(parameter.tone) }}</em>
+                    </span>
+                    <span class="target-gauge">
+                      <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                      <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+                    </span>
+                    <span class="element-reading"><strong>{{ parameter.value }}</strong><small>{{ parameter.unit }}</small></span>
+                    <span class="element-chevron" aria-hidden="true">⌄</span>
+                  </button>
+                  <button
+                    type="button"
+                    :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
+                    :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
+                    :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                    @click="analyses.toggleFavorite(parameter.key)"
+                  >★</button>
+                  <div v-if="expandedParameters[`overview-${parameter.key}`]" class="element-detail">
+                    <div><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
+                    <div><span>Nächster Schritt</span><p>{{ parameterAction(parameter) }}</p></div>
+                    <div class="parameter-trend">
+                      <div class="trend-heading">
+                        <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                        <strong>{{ historyChange(parameter) }}</strong>
+                      </div>
+                      <ParameterTrendChart :parameter="parameter" />
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
           </section>
 
           <section class="panel">
@@ -345,6 +404,7 @@ const analyses = useAnalysesStore()
 const actionMsg = ref('')
 const activeTab = ref('overview')
 const selectedGroup = ref('')
+const selectedOverviewGroup = ref('')
 const parameterSearch = ref('')
 const parameterStatus = ref('all')
 const careMode = ref('quick')
@@ -381,9 +441,12 @@ const parameterGroups = computed(() => {
   }
   return [...groups.values()].map((group) => ({
     ...group,
+    total: group.parameters.length,
+    score: Math.round(((group.parameters.length - group.issueCount) / group.parameters.length) * 100),
     tone: group.parameters.some((item) => item.tone === 'critical') ? 'critical' : group.issueCount ? 'watch' : 'good',
   }))
 })
+const selectedOverviewGroupData = computed(() => parameterGroups.value.find((group) => group.key === selectedOverviewGroup.value) || null)
 const visibleParameters = computed(() => {
   const query = parameterSearch.value.trim().toLowerCase()
   return (analysis.value?.parameters || [])
@@ -418,12 +481,29 @@ const GROUP_MAP = {
   phosphate: { key: 'nutrients', label: 'Nährstoffe' },
 }
 const SYMBOL_MAP = { salinity: 'PSU', kh: 'KH', calcium: 'Ca', magnesium: 'Mg', nitrate: 'NO₃', phosphate: 'PO₄' }
+const GROUP_DESCRIPTIONS = {
+  basis: 'Grundlage für Dichte, KH und Systemstabilität.',
+  quantity: 'Hauptversorgung für Wachstum und Skelettaufbau.',
+  nutrients: 'NO₃, PO₄ und mögliche Quellen für Algen- oder Mangelstress.',
+  trace: 'Feine Versorgung für Farbe, Enzyme und Stoffwechsel.',
+}
 
 function parameterGroup(parameter) {
   return GROUP_MAP[parameter.key] || { key: 'trace', label: 'Spurenelemente' }
 }
 function parameterSymbol(parameter) {
   return SYMBOL_MAP[parameter.key] || parameter.label.slice(0, 2)
+}
+function groupDescription(key) {
+  return GROUP_DESCRIPTIONS[key] || 'Parameter dieser Laborgruppe gemeinsam betrachten.'
+}
+function groupDialStyle(group) {
+  const color = group.tone === 'critical' ? '#e85d4f' : group.tone === 'watch' ? '#f59e0b' : '#10b981'
+  return { background: `conic-gradient(${color} ${group.score * 3.6}deg, #e7eef6 0deg)` }
+}
+function openGroupInExplorer(key) {
+  selectedGroup.value = key
+  activeTab.value = 'values'
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
@@ -590,6 +670,35 @@ function markPdf() {
 .parameter-card strong { margin-top: 5px; color: var(--text); font-size: 24px; }
 .parameter-card small { color: var(--text-muted); font-size: 12px; }
 .parameter-card em { margin-top: 5px; color: var(--text-muted); font-style: normal; font-size: 12px; font-weight: 700; }
+.group-overview { display: grid; gap: 16px; }
+.group-overview-head { margin-bottom: 0; }
+.group-overview-head p { max-width: 620px; margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.group-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.group-card { min-height: 116px; display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 14px; text-align: left; border: 1px solid var(--border); border-radius: 15px; background: #fff; color: var(--text); cursor: pointer; }
+.group-card:hover { border-color: var(--teal-400); transform: translateY(-1px); }
+.group-card.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
+.group-card.critical.active { border-color: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.1); }
+.group-card.watch.active { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+.group-dial { position: relative; display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; }
+.group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
+.group-card.active .group-dial::after { background: var(--teal-50); }
+.group-dial b,
+.group-dial em { position: relative; z-index: 1; }
+.group-dial b { font-size: 14px; }
+.group-dial em { margin: 4px 0 0 1px; color: var(--text-muted); font-size: 8px; font-style: normal; }
+.group-copy strong,
+.group-copy em { display: block; }
+.group-copy strong { font-size: 14px; }
+.group-copy em { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
+.group-card > small { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.group-detail-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: #f8fbfe; }
+.group-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.group-detail-head span { color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.group-detail-head h3 { margin-top: 3px; color: var(--text); font-size: 20px; }
+.group-detail-actions { display: flex; align-items: center; gap: 8px; }
+.group-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+.group-close:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
+.overview-elements .element-row { background: #fff; }
 .recommendation-list,
 .issue-list,
 .meta-panel { display: grid; gap: 10px; }
@@ -712,6 +821,7 @@ function markPdf() {
   .score-card { min-width: 0; width: 100%; }
   .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
+  .group-detail-head { align-items: flex-start; flex-direction: column; }
   .explorer-head,
   .explorer-controls,
   .care-head { align-items: stretch; flex-direction: column; }
