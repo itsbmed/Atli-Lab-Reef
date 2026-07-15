@@ -3,7 +3,8 @@ import { daysAgoDate } from '@/services/dashboardDemo'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
-const DEMO_ANALYSIS_IDS = new Set(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-3', 'demo-analysis-4'])
+const DEMO_OWNER = 'demo-full'
+const COMPLETED_DEMO_ANALYSIS_IDS = new Set(['demo-analysis-1', 'demo-analysis-2'])
 
 export const ANALYSIS_PACKAGES = [
   { key: 'standard', label: 'Standard Laboranalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
@@ -206,8 +207,23 @@ const DEMO_ANALYSES = [
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
-export function removeDemoAnalyses() {
+export function syncDemoAnalysisPlaceholders() {
   const all = read(ANALYSES_KEY, [])
-  const retained = all.filter((analysis) => !DEMO_ANALYSIS_IDS.has(analysis.id))
-  if (retained.length !== all.length) write(ANALYSES_KEY, retained)
+  const retained = all.filter((analysis) => !COMPLETED_DEMO_ANALYSIS_IDS.has(analysis.id))
+  const placeholders = DEMO_ANALYSES.filter((analysis) => analysis.status !== 'completed')
+
+  for (const analysis of placeholders) {
+    const seededAnalysis = {
+      addons: ['sak254'],
+      aquariumId: '',
+      osmoseAquariumId: '',
+      ...analysis,
+      ownerId: DEMO_OWNER,
+    }
+    const existingIndex = retained.findIndex((item) => item.id === analysis.id)
+    if (existingIndex === -1) retained.push(seededAnalysis)
+    else retained[existingIndex] = seededAnalysis
+  }
+
+  write(ANALYSES_KEY, retained)
 }
