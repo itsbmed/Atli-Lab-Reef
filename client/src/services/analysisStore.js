@@ -3,7 +3,7 @@ import { daysAgoDate } from '@/services/dashboardDemo'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
-const DEMO_OWNER = 'demo-full'
+const DEMO_ANALYSIS_IDS = new Set(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-3', 'demo-analysis-4'])
 
 export const ANALYSIS_PACKAGES = [
   { key: 'standard', label: 'Standard Laboranalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
@@ -206,17 +206,8 @@ const DEMO_ANALYSES = [
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
-export function ensureDemoAnalyses() {
+export function removeDemoAnalyses() {
   const all = read(ANALYSES_KEY, [])
-  if (all.some((a) => a.ownerId === DEMO_OWNER)) return
-  for (const analysis of DEMO_ANALYSES) {
-    all.push({
-      addons: ['sak254'],
-      aquariumId: '',
-      osmoseAquariumId: '',
-      ...analysis,
-      ownerId: DEMO_OWNER,
-    })
-  }
-  write(ANALYSES_KEY, all)
+  const retained = all.filter((analysis) => !DEMO_ANALYSIS_IDS.has(analysis.id))
+  if (retained.length !== all.length) write(ANALYSES_KEY, retained)
 }

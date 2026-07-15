@@ -5,12 +5,12 @@ import router from './router'
 import './assets/styles/main.css'
 import { ensureDemoUsers } from '@/services/localStore'
 import { ensureDemoAquariums } from '@/services/aquariumStore'
-import { ensureDemoAnalyses } from '@/services/analysisStore'
+import { removeDemoAnalyses } from '@/services/analysisStore'
 
-// Demo-Konten, -Aquarien und -Analysen anlegen (falls noch nicht vorhanden).
+// Demo-Konten und -Aquarien anlegen; alte Beispielberichte aus lokalen Sitzungen entfernen.
 ensureDemoUsers()
 ensureDemoAquariums()
-ensureDemoAnalyses()
+removeDemoAnalyses()
 
 const app = createApp(App)
 app.use(createPinia())
