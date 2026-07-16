@@ -12,12 +12,13 @@ export const useAnalysesStore = defineStore('analyses', () => {
   const count = computed(() => items.value.length)
 
   function load() {
+    analysisStore.syncDemoAnalyses(ownerId.value)
     items.value = analysisStore.getAnalyses(ownerId.value)
     favoriteParameters.value = analysisStore.getFavoriteParameters(ownerId.value)
   }
 
   function byId(id) {
-    return items.value.find((a) => a.id === id) || analysisStore.getAnalysis(id)
+    return items.value.find((a) => a.id === id) || analysisStore.getAnalysis(id, ownerId.value)
   }
 
   function activate(data) {

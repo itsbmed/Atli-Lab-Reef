@@ -93,14 +93,16 @@ export function severity(analysis) {
 }
 
 export function getAnalyses(ownerId) {
+  if (!ownerId) return []
   const all = read(ANALYSES_KEY, [])
-  return (ownerId ? all.filter((a) => a.ownerId === ownerId) : all)
+  return all.filter((a) => a.ownerId === ownerId)
     .map(enrichAnalysis)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
-export function getAnalysis(id) {
-  const item = read(ANALYSES_KEY, []).find((a) => a.id === id)
+export function getAnalysis(id, ownerId) {
+  if (!ownerId) return null
+  const item = read(ANALYSES_KEY, []).find((a) => a.id === id && a.ownerId === ownerId)
   return item ? enrichAnalysis(item) : null
 }
 
@@ -208,7 +210,8 @@ const DEMO_ANALYSES = [
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
-export function syncDemoAnalyses() {
+export function syncDemoAnalyses(ownerId) {
+  if (ownerId !== DEMO_OWNER) return
   const retained = read(ANALYSES_KEY, [])
   const liveExamples = DEMO_ANALYSES.filter((analysis) =>
     analysis.status !== 'completed' || approvedCompletedAnalysisIds.has(analysis.id)

@@ -5,12 +5,11 @@ import router from './router'
 import './assets/styles/main.css'
 import { ensureDemoUsers } from '@/services/localStore'
 import { ensureDemoAquariums } from '@/services/aquariumStore'
-import { syncDemoAnalyses } from '@/services/analysisStore'
 
-// Demo-Konten, Aquarien und die freigegebenen Analysebeispiele abgleichen.
+// Demo-Konten und Aquarien abgleichen. Analysebeispiele werden erst nach
+// der Konto-Prüfung im Analysen-Store synchronisiert.
 ensureDemoUsers()
 ensureDemoAquariums()
-syncDemoAnalyses()
 
 const app = createApp(App)
 app.use(createPinia())
