@@ -208,12 +208,13 @@ const DEMO_ANALYSES = [
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
 
-export function syncDemoAnalysisPlaceholders() {
-  const all = read(ANALYSES_KEY, [])
-  const retained = all.filter((analysis) => !approvedCompletedAnalysisIds.has(analysis.id))
-  const placeholders = DEMO_ANALYSES.filter((analysis) => analysis.status !== 'completed')
+export function syncDemoAnalyses() {
+  const retained = read(ANALYSES_KEY, [])
+  const liveExamples = DEMO_ANALYSES.filter((analysis) =>
+    analysis.status !== 'completed' || approvedCompletedAnalysisIds.has(analysis.id)
+  )
 
-  for (const analysis of placeholders) {
+  for (const analysis of liveExamples) {
     const seededAnalysis = {
       addons: ['sak254'],
       aquariumId: '',
