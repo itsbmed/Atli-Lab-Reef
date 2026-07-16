@@ -4,7 +4,8 @@ import { daysAgoDate } from '@/services/dashboardDemo'
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
-const COMPLETED_DEMO_ANALYSIS_IDS = new Set(['demo-analysis-1', 'demo-analysis-2'])
+export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze(['demo-analysis-1', 'demo-analysis-2'])
+const approvedCompletedAnalysisIds = new Set(APPROVED_COMPLETED_ANALYSIS_IDS)
 
 export const ANALYSIS_PACKAGES = [
   { key: 'standard', label: 'Standard Laboranalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
@@ -209,7 +210,7 @@ const DEMO_ANALYSES = [
 
 export function syncDemoAnalysisPlaceholders() {
   const all = read(ANALYSES_KEY, [])
-  const retained = all.filter((analysis) => !COMPLETED_DEMO_ANALYSIS_IDS.has(analysis.id))
+  const retained = all.filter((analysis) => !approvedCompletedAnalysisIds.has(analysis.id))
   const placeholders = DEMO_ANALYSES.filter((analysis) => analysis.status !== 'completed')
 
   for (const analysis of placeholders) {
