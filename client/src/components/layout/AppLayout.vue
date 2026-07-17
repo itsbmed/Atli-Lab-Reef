@@ -87,7 +87,7 @@
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M5 7l5 5 5-5"/></svg>
             <div class="user-dropdown">
               <RouterLink to="/account" class="dropdown-item">Profil</RouterLink>
-              <RouterLink to="/account" class="dropdown-item">Einstellungen</RouterLink>
+              <RouterLink to="/settings" class="dropdown-item">Einstellungen</RouterLink>
               <hr style="margin:4px 0;border:none;border-top:1px solid var(--border)" />
               <button class="dropdown-item danger" type="button" @click="logout">Abmelden</button>
             </div>
@@ -195,6 +195,7 @@ const routeMeta = {
   '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
+  '/settings': { title: 'Einstellungen', sub: () => 'Darstellung, Benachrichtigungen und Assistent konfigurieren' },
 }
 const pageTitle = computed(() => {
   if (route.path.startsWith('/analyses/') && route.path !== '/analyses/activate') return 'Analysebericht'
@@ -232,7 +233,7 @@ const mainNav = [
 const adminNav = [
   { label: 'Tools', icon: iconTools, to: null },
   { label: 'Profil', icon: iconUser, to: '/account' },
-  { label: 'Einstellungen', icon: iconSettings, to: '/account' },
+  { label: 'Einstellungen', icon: iconSettings, to: '/settings' },
 ]
 function isActive(item) {
   return !!item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`))

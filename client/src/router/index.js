@@ -14,6 +14,7 @@ const routes = [
   { path: '/analyses/activate', name: 'ActivateAnalysis', component: () => import('@/views/analyses/ActivateView.vue'), meta: { public: true, shell: true } },
   { path: '/analyses/:id', name: 'AnalysisReport', component: () => import('@/views/analyses/ReportView.vue'), meta: { public: true, shell: true } },
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { public: true, shell: true } },
+  { path: '/settings', name: 'Settings', component: () => import('@/views/SettingsView.vue'), meta: { public: true, shell: true } },
 
   // 404 → Startseite
   { path: '/:pathMatch(.*)*', redirect: '/' },
