@@ -392,7 +392,7 @@ const sheetNav = [...mainNav, ...adminNav]
 
   /* Bottom tab bar */
   .mobile-tabbar {
-    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     position: fixed; left: 10px; right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 120; padding: 8px 6px;
@@ -412,7 +412,7 @@ const sheetNav = [...mainNav, ...adminNav]
   .tabbar-icon { display: grid; place-items: center; width: 38px; height: 30px; border-radius: 11px; transition: background 0.16s, box-shadow 0.16s; }
   .tabbar-item--active { color: #fff; }
   .tabbar-item--active .tabbar-icon { background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); box-shadow: 0 8px 18px rgba(0,114,206,0.42); }
-  .tabbar-label { white-space: nowrap; }
+  .tabbar-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Slide-up sheet */
   .mobile-sheet-overlay {

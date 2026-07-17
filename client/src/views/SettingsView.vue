@@ -7,8 +7,8 @@
         <p>Verwalten Sie Darstellung, regionale Angaben und Benachrichtigungen an einem Ort.</p>
       </div>
       <div class="settings-readout">
-        <span>Konfiguration</span>
-        <strong>Persönlich</strong>
+        <span>Benachrichtigungen</span>
+        <strong>{{ activeNotificationCount }} aktiv</strong>
         <em>Für dieses Konto</em>
       </div>
     </section>
@@ -48,20 +48,43 @@
               </select>
             </div>
           </div>
-          <div class="save-row">
-            <p :class="['save-note', saveState.type]" role="status">{{ saveState.message }}</p>
-            <button class="btn btn-primary" type="button" :disabled="saving" @click="saveRegion">
-              {{ saving ? 'Speichern...' : 'Region speichern' }}
-            </button>
-          </div>
         </section>
       </main>
 
       <aside class="settings-side">
         <section class="card side-card">
-          <span class="eyebrow">Status</span>
-          <h2>Bereit zur Einrichtung</h2>
-          <p>Persönliche Einstellungen gelten ausschließlich für das aktuell angemeldete Konto.</p>
+          <span class="eyebrow">Benachrichtigungen</span>
+          <h2>Kontakt</h2>
+          <div class="notification-list">
+            <label class="toggle-row">
+              <div>
+                <strong>Newsletter</strong>
+                <span>ATI Neuigkeiten und Produktupdates</span>
+              </div>
+              <input v-model="settings.newsletter" type="checkbox" />
+            </label>
+            <label class="toggle-row">
+              <div>
+                <strong>Analyse-Erinnerung</strong>
+                <span>Hinweis, wenn eine Analyse älter als 3 Monate ist</span>
+              </div>
+              <input v-model="settings.analysis_reminder" type="checkbox" />
+            </label>
+            <label class="toggle-row">
+              <div>
+                <strong>Push-Benachrichtigungen</strong>
+                <span>Statusänderungen Ihrer Probe in Echtzeit</span>
+              </div>
+              <input v-model="settings.push_notifications" type="checkbox" />
+            </label>
+          </div>
+        </section>
+
+        <section class="card save-card">
+          <button class="btn btn-primary btn-block" type="button" :disabled="saving" @click="save">
+            {{ saving ? 'Speichern...' : 'Einstellungen speichern' }}
+          </button>
+          <p :class="['save-note', saveState.type]" role="status">{{ saveState.message }}</p>
         </section>
       </aside>
     </div>
@@ -69,7 +92,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { loadSettingsPreferences, saveSettingsPreferences } from '@/services/settingsPreferences'
 
@@ -79,11 +102,19 @@ const settings = reactive({
   language: auth.user?.language || 'de',
   country: auth.user?.country || 'DE',
   units: localPreferences.units,
+  newsletter: !!auth.user?.newsletter,
+  analysis_reminder: auth.user?.analysis_reminder !== false,
+  push_notifications: localPreferences.push_notifications,
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
+const activeNotificationCount = computed(() => [
+  settings.newsletter,
+  settings.analysis_reminder,
+  settings.push_notifications,
+].filter(Boolean).length)
 
-async function saveRegion() {
+async function save() {
   saving.value = true
   saveState.message = ''
   saveState.type = ''
@@ -93,14 +124,18 @@ async function saveRegion() {
       await auth.updateProfile({
         language: settings.language,
         country: settings.country,
+        newsletter: settings.newsletter,
+        analysis_reminder: settings.analysis_reminder,
       })
     }
     saveSettingsPreferences(auth.user?.id, {
       ...localPreferences,
       units: settings.units,
+      push_notifications: settings.push_notifications,
     })
     localPreferences.units = settings.units
-    saveState.message = 'Regionale Einstellungen gespeichert.'
+    localPreferences.push_notifications = settings.push_notifications
+    saveState.message = 'Einstellungen gespeichert.'
     saveState.type = 'success'
   } catch (error) {
     saveState.message = error.error || 'Einstellungen konnten nicht gespeichert werden.'
@@ -112,7 +147,7 @@ async function saveRegion() {
 </script>
 
 <style scoped>
-.settings-page { display: grid; gap: 20px; }
+.settings-page { width: 100%; min-width: 0; display: grid; gap: 20px; }
 .settings-hero {
   display: flex;
   justify-content: space-between;
@@ -135,8 +170,9 @@ async function saveRegion() {
   text-transform: uppercase;
 }
 .settings-hero .eyebrow { color: var(--teal-200); }
-.settings-hero h1 { max-width: 720px; font-size: clamp(34px, 5vw, 54px); line-height: 1; font-weight: 800; }
-.settings-hero p { max-width: 660px; margin-top: 10px; color: rgba(255, 255, 255, 0.72); line-height: 1.6; }
+.settings-hero > div:first-child { min-width: 0; }
+.settings-hero h1 { max-width: 720px; font-size: 54px; line-height: 1; font-weight: 800; overflow-wrap: anywhere; }
+.settings-hero p { max-width: 660px; margin-top: 10px; color: rgba(255, 255, 255, 0.72); line-height: 1.6; overflow-wrap: anywhere; }
 .settings-readout {
   min-width: 220px;
   height: fit-content;
@@ -151,21 +187,21 @@ async function saveRegion() {
 .settings-readout span { color: var(--teal-200); font-size: 11px; font-weight: 800; text-transform: uppercase; }
 .settings-readout strong { margin-top: 5px; font-size: 21px; }
 .settings-readout em { margin-top: 5px; color: rgba(255, 255, 255, 0.68); font-size: 12px; font-style: normal; }
-.settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr); gap: 20px; align-items: start; }
+.settings-layout { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr); gap: 20px; align-items: start; }
 .settings-main,
-.settings-side { display: grid; gap: 16px; }
+.settings-side { min-width: 0; display: grid; gap: 16px; }
 .settings-section,
 .side-card { padding: 22px; }
+.save-card { padding: 16px; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .section-heading h2,
 .side-card h2 { color: var(--text); font-size: 22px; font-weight: 800; }
-.section-copy,
-.side-card p { color: var(--text-muted); font-size: 13px; line-height: 1.65; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
 .form-group select {
   width: 100%;
+  min-width: 0;
   min-height: 46px;
   padding: 0 13px;
   border: 1px solid var(--border);
@@ -176,8 +212,16 @@ async function saveRegion() {
   outline: 0;
 }
 .form-group select:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
-.save-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 18px; }
-.save-note { margin-right: auto; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.notification-list { display: grid; margin-top: 4px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.toggle-row:last-child { border-bottom: 0; }
+.toggle-row strong,
+.toggle-row span { display: block; }
+.toggle-row strong { color: var(--text); font-size: 14px; font-weight: 800; }
+.toggle-row span { margin-top: 3px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.toggle-row input { width: 19px; height: 19px; flex: none; accent-color: var(--teal-500); cursor: pointer; }
+.btn-block { width: 100%; }
+.save-note { margin-top: 10px; color: var(--text-muted); font-size: 12px; font-weight: 700; text-align: center; }
 .save-note:empty { display: none; }
 .save-note.success { color: #047857; }
 .save-note.error { color: var(--coral); }
@@ -186,9 +230,8 @@ async function saveRegion() {
 }
 @media (max-width: 700px) {
   .settings-hero { flex-direction: column; padding: 22px; }
+  .settings-hero h1 { font-size: 34px; }
   .settings-readout { min-width: 0; }
   .form-grid { grid-template-columns: 1fr; }
-  .save-row { align-items: stretch; flex-direction: column; }
-  .save-row .btn { width: 100%; }
 }
 </style>
