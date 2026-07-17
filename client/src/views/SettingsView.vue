@@ -18,14 +18,42 @@
         <section class="settings-section card">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Arbeitsbereich</span>
-              <h2>Ihre Reef-Lab-Einstellungen</h2>
+              <span class="eyebrow">Sprache & Region</span>
+              <h2>Regionale Darstellung</h2>
             </div>
           </div>
-          <p class="section-copy">
-            Die Bereiche für Sprache, Region und Benachrichtigungen werden hier zentral verwaltet.
-            Weitere Assistenten- und Berichtsoptionen folgen in den nächsten Ausbaustufen.
-          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="settings-language">Sprache</label>
+              <select id="settings-language" v-model="settings.language">
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="settings-country">Land</label>
+              <select id="settings-country" v-model="settings.country">
+                <option value="DE">Deutschland</option>
+                <option value="AT">Österreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="GB">United Kingdom</option>
+                <option value="US">United States</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="settings-units">Einheitensystem</label>
+              <select id="settings-units" v-model="settings.units">
+                <option value="metric">Metrisch (cm, L)</option>
+                <option value="imperial">Imperial (inch, gal)</option>
+              </select>
+            </div>
+          </div>
+          <div class="save-row">
+            <p :class="['save-note', saveState.type]" role="status">{{ saveState.message }}</p>
+            <button class="btn btn-primary" type="button" :disabled="saving" @click="saveRegion">
+              {{ saving ? 'Speichern...' : 'Region speichern' }}
+            </button>
+          </div>
         </section>
       </main>
 
@@ -39,6 +67,49 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { reactive, ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { loadSettingsPreferences, saveSettingsPreferences } from '@/services/settingsPreferences'
+
+const auth = useAuthStore()
+const localPreferences = loadSettingsPreferences(auth.user?.id)
+const settings = reactive({
+  language: auth.user?.language || 'de',
+  country: auth.user?.country || 'DE',
+  units: localPreferences.units,
+})
+const saving = ref(false)
+const saveState = reactive({ message: '', type: '' })
+
+async function saveRegion() {
+  saving.value = true
+  saveState.message = ''
+  saveState.type = ''
+
+  try {
+    if (auth.user) {
+      await auth.updateProfile({
+        language: settings.language,
+        country: settings.country,
+      })
+    }
+    saveSettingsPreferences(auth.user?.id, {
+      ...localPreferences,
+      units: settings.units,
+    })
+    localPreferences.units = settings.units
+    saveState.message = 'Regionale Einstellungen gespeichert.'
+    saveState.type = 'success'
+  } catch (error) {
+    saveState.message = error.error || 'Einstellungen konnten nicht gespeichert werden.'
+    saveState.type = 'error'
+  } finally {
+    saving.value = false
+  }
+}
+</script>
 
 <style scoped>
 .settings-page { display: grid; gap: 20px; }
@@ -90,11 +161,34 @@
 .side-card h2 { color: var(--text); font-size: 22px; font-weight: 800; }
 .section-copy,
 .side-card p { color: var(--text-muted); font-size: 13px; line-height: 1.65; }
+.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 7px; }
+.form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.form-group select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  outline: 0;
+}
+.form-group select:focus { border-color: var(--teal-400); box-shadow: var(--shadow-focus); }
+.save-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 18px; }
+.save-note { margin-right: auto; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.save-note:empty { display: none; }
+.save-note.success { color: #047857; }
+.save-note.error { color: var(--coral); }
 @media (max-width: 980px) {
   .settings-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .settings-hero { flex-direction: column; padding: 22px; }
   .settings-readout { min-width: 0; }
+  .form-grid { grid-template-columns: 1fr; }
+  .save-row { align-items: stretch; flex-direction: column; }
+  .save-row .btn { width: 100%; }
 }
 </style>
