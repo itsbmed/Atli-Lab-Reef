@@ -8,8 +8,8 @@
       </div>
       <div class="settings-readout">
         <span>Aktiver Modus</span>
-        <strong>{{ assistantIntentLabel }}</strong>
-        <em>{{ activeNotificationCount }} Benachrichtigungen aktiv</em>
+        <strong>{{ assistantModeLabel }}</strong>
+        <em>{{ settings.explanation_depth === 'expert' ? 'Laborfokus' : 'kundenfreundlich' }}</em>
       </div>
     </section>
 
@@ -65,6 +65,22 @@
                 >
                   <strong>{{ audience.label }}</strong>
                   <span>{{ audience.desc }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-block">
+              <label>Erklärungstiefe</label>
+              <div class="segmented">
+                <button
+                  v-for="mode in explanationModes"
+                  :key="mode.key"
+                  type="button"
+                  :class="{ active: settings.explanation_depth === mode.key }"
+                  @click="settings.explanation_depth = mode.key"
+                >
+                  <strong>{{ mode.label }}</strong>
+                  <span>{{ mode.desc }}</span>
                 </button>
               </div>
             </div>
@@ -163,14 +179,10 @@ const settings = reactive({
   push_notifications: localPreferences.push_notifications,
   assistant_intent: localPreferences.assistant_intent,
   assistant_audience: localPreferences.assistant_audience,
+  explanation_depth: localPreferences.explanation_depth,
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
-const activeNotificationCount = computed(() => [
-  settings.newsletter,
-  settings.analysis_reminder,
-  settings.push_notifications,
-].filter(Boolean).length)
 const assistantIntents = [
   { key: 'action', label: 'Schnell handeln', desc: 'Priorität, nächster Schritt und Kontrolle zuerst.' },
   { key: 'learn', label: 'Verstehen lernen', desc: 'Ursache, Wirkung und Aquarium-Zusammenhang stärker erklären.' },
@@ -181,11 +193,19 @@ const audienceModes = [
   { key: 'reefkeeper', label: 'Riffhalter', desc: 'Praxis + Werte' },
   { key: 'advisor', label: 'Fachberater', desc: 'Kompakter Laborblick' },
 ]
+const explanationModes = [
+  { key: 'simple', label: 'Einfach', desc: 'Kurze Klartext-Erklärungen' },
+  { key: 'balanced', label: 'Ausgewogen', desc: 'Ursache, Risiko und nächster Schritt' },
+  { key: 'expert', label: 'Expert', desc: 'Mehr Labor- und Methodenkontext' },
+]
 const assistantIntentLabel = computed(() => (
   assistantIntents.find((intent) => intent.key === settings.assistant_intent)?.label || 'Schnell handeln'
 ))
 const audienceLabel = computed(() => (
   audienceModes.find((audience) => audience.key === settings.assistant_audience)?.label || 'Riffhalter'
+))
+const assistantModeLabel = computed(() => (
+  explanationModes.find((mode) => mode.key === settings.explanation_depth)?.label || 'Ausgewogen'
 ))
 const assistantPreview = computed(() => {
   if (settings.assistant_intent === 'learn') {
@@ -200,9 +220,21 @@ const assistantPreview = computed(() => {
       copy: 'Entscheidungen, Kontrolltermine und Verlaufshinweise bleiben für den nächsten Bericht vergleichbar.',
     }
   }
+  if (settings.explanation_depth === 'simple') {
+    return {
+      title: 'Schnell verstehen, was zu tun ist.',
+      copy: 'Der Assistent fasst Ursachen und Korrekturen in kurzen, klaren Schritten zusammen.',
+    }
+  }
+  if (settings.explanation_depth === 'expert') {
+    return {
+      title: 'Mehr Kontext zu Methode und Rolle.',
+      copy: 'Zusätzlich zu Maßnahmen werden Messmethode, Parameterrolle und fachliche Hintergründe betont.',
+    }
+  }
   return {
-    title: 'Schnell verstehen, was jetzt zu tun ist.',
-    copy: 'Priorität, nächste Maßnahme und sinnvoller Kontrollzeitpunkt stehen zuerst.',
+    title: 'Klartext mit genug Tiefe.',
+    copy: 'Empfehlungen zeigen Ursache, Risiko, Zielbereich und den nächsten sinnvollen Schritt.',
   }
 })
 
@@ -226,11 +258,13 @@ async function save() {
       push_notifications: settings.push_notifications,
       assistant_intent: settings.assistant_intent,
       assistant_audience: settings.assistant_audience,
+      explanation_depth: settings.explanation_depth,
     })
     localPreferences.units = settings.units
     localPreferences.push_notifications = settings.push_notifications
     localPreferences.assistant_intent = settings.assistant_intent
     localPreferences.assistant_audience = settings.assistant_audience
+    localPreferences.explanation_depth = settings.explanation_depth
     saveState.message = 'Einstellungen gespeichert.'
     saveState.type = 'success'
   } catch (error) {
