@@ -31,6 +31,9 @@
                 <span>Live-Vorschau</span>
                 <strong>{{ assistantPreview.title }}</strong>
                 <p>{{ assistantPreview.copy }}</p>
+                <div class="assistant-chips">
+                  <b>{{ audienceLabel }}</b>
+                </div>
               </div>
             </div>
 
@@ -46,6 +49,22 @@
                 >
                   <strong>{{ intent.label }}</strong>
                   <span>{{ intent.desc }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-block">
+              <label>Für wen erklären?</label>
+              <div class="segmented compact">
+                <button
+                  v-for="audience in audienceModes"
+                  :key="audience.key"
+                  type="button"
+                  :class="{ active: settings.assistant_audience === audience.key }"
+                  @click="settings.assistant_audience = audience.key"
+                >
+                  <strong>{{ audience.label }}</strong>
+                  <span>{{ audience.desc }}</span>
                 </button>
               </div>
             </div>
@@ -143,6 +162,7 @@ const settings = reactive({
   analysis_reminder: auth.user?.analysis_reminder !== false,
   push_notifications: localPreferences.push_notifications,
   assistant_intent: localPreferences.assistant_intent,
+  assistant_audience: localPreferences.assistant_audience,
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
@@ -156,8 +176,16 @@ const assistantIntents = [
   { key: 'learn', label: 'Verstehen lernen', desc: 'Ursache, Wirkung und Aquarium-Zusammenhang stärker erklären.' },
   { key: 'document', label: 'Für Verlauf dokumentieren', desc: 'Entscheidungen, Trends und Kontrollpunkte sauber festhalten.' },
 ]
+const audienceModes = [
+  { key: 'beginner', label: 'Einsteiger', desc: 'Weniger Fachsprache' },
+  { key: 'reefkeeper', label: 'Riffhalter', desc: 'Praxis + Werte' },
+  { key: 'advisor', label: 'Fachberater', desc: 'Kompakter Laborblick' },
+]
 const assistantIntentLabel = computed(() => (
   assistantIntents.find((intent) => intent.key === settings.assistant_intent)?.label || 'Schnell handeln'
+))
+const audienceLabel = computed(() => (
+  audienceModes.find((audience) => audience.key === settings.assistant_audience)?.label || 'Riffhalter'
 ))
 const assistantPreview = computed(() => {
   if (settings.assistant_intent === 'learn') {
@@ -197,10 +225,12 @@ async function save() {
       units: settings.units,
       push_notifications: settings.push_notifications,
       assistant_intent: settings.assistant_intent,
+      assistant_audience: settings.assistant_audience,
     })
     localPreferences.units = settings.units
     localPreferences.push_notifications = settings.push_notifications
     localPreferences.assistant_intent = settings.assistant_intent
+    localPreferences.assistant_audience = settings.assistant_audience
     saveState.message = 'Einstellungen gespeichert.'
     saveState.type = 'success'
   } catch (error) {
@@ -271,6 +301,8 @@ async function save() {
 .assistant-preview span { color: var(--teal-200); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .assistant-preview strong { margin-top: 4px; font-size: 18px; }
 .assistant-preview p { margin-top: 6px; color: rgba(255, 255, 255, 0.7); font-size: 13px; line-height: 1.55; }
+.assistant-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.assistant-chips b { padding: 5px 8px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: var(--teal-100); font-size: 10px; font-weight: 800; }
 .setting-block { display: grid; gap: 9px; }
 .setting-block > label { color: var(--text-muted); font-size: 12px; font-weight: 800; }
 .choice-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -281,6 +313,13 @@ async function save() {
 .choice-list span { display: block; }
 .choice-list strong { font-size: 14px; font-weight: 800; }
 .choice-list span { margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px; border: 1px solid var(--border); border-radius: 15px; background: rgba(238, 245, 251, 0.78); }
+.segmented button { min-width: 0; padding: 11px 9px; border: 0; border-radius: 11px; background: transparent; color: var(--text); cursor: pointer; }
+.segmented button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 5px 16px rgba(10, 27, 67, 0.1); }
+.segmented strong,
+.segmented span { display: block; }
+.segmented strong { font-size: 13px; font-weight: 800; }
+.segmented span { margin-top: 3px; color: var(--text-muted); font-size: 10px; line-height: 1.35; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
@@ -320,6 +359,7 @@ async function save() {
   .form-grid { grid-template-columns: 1fr; }
   .section-heading { flex-direction: column; }
   .choice-list { grid-template-columns: 1fr; }
+  .segmented { grid-template-columns: 1fr; }
   .assistant-preview { flex-direction: column; }
 }
 </style>
