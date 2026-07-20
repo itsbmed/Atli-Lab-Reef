@@ -3,6 +3,7 @@ const STORAGE_PREFIX = 'ati_settings'
 export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   units: 'metric',
   push_notifications: false,
+  assistant_intent: 'action',
 })
 
 function accountKey(accountId) {

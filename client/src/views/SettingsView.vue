@@ -3,18 +3,55 @@
     <section class="settings-hero">
       <div>
         <span class="eyebrow">Einstellungen</span>
-        <h1>Reef Lab passend einrichten.</h1>
-        <p>Verwalten Sie Darstellung, regionale Angaben und Benachrichtigungen an einem Ort.</p>
+        <h1>Assistent, Erklärungen und Konto feinjustieren.</h1>
+        <p>Steuern Sie, wie detailliert Reef Lab Ergebnisse erklärt, wann es Sie erinnert und welche Kontofunktionen aktiv sind.</p>
       </div>
       <div class="settings-readout">
-        <span>Benachrichtigungen</span>
-        <strong>{{ activeNotificationCount }} aktiv</strong>
-        <em>Für dieses Konto</em>
+        <span>Aktiver Modus</span>
+        <strong>{{ assistantIntentLabel }}</strong>
+        <em>{{ activeNotificationCount }} Benachrichtigungen aktiv</em>
       </div>
     </section>
 
     <div class="settings-layout">
       <main class="settings-main">
+        <section class="settings-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Assistent & Erklärung</span>
+              <h2>Wie der Assistent arbeiten soll</h2>
+            </div>
+            <span class="status-pill">{{ assistantIntentLabel }}</span>
+          </div>
+
+          <div class="assistant-panel card">
+            <div class="assistant-preview">
+              <div class="assistant-mark">AI</div>
+              <div>
+                <span>Live-Vorschau</span>
+                <strong>{{ assistantPreview.title }}</strong>
+                <p>{{ assistantPreview.copy }}</p>
+              </div>
+            </div>
+
+            <div class="setting-block">
+              <label>Ziel des Assistenten</label>
+              <div class="choice-list">
+                <button
+                  v-for="intent in assistantIntents"
+                  :key="intent.key"
+                  type="button"
+                  :class="{ active: settings.assistant_intent === intent.key }"
+                  @click="settings.assistant_intent = intent.key"
+                >
+                  <strong>{{ intent.label }}</strong>
+                  <span>{{ intent.desc }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="settings-section card">
           <div class="section-heading">
             <div>
@@ -105,6 +142,7 @@ const settings = reactive({
   newsletter: !!auth.user?.newsletter,
   analysis_reminder: auth.user?.analysis_reminder !== false,
   push_notifications: localPreferences.push_notifications,
+  assistant_intent: localPreferences.assistant_intent,
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
@@ -113,6 +151,32 @@ const activeNotificationCount = computed(() => [
   settings.analysis_reminder,
   settings.push_notifications,
 ].filter(Boolean).length)
+const assistantIntents = [
+  { key: 'action', label: 'Schnell handeln', desc: 'Priorität, nächster Schritt und Kontrolle zuerst.' },
+  { key: 'learn', label: 'Verstehen lernen', desc: 'Ursache, Wirkung und Aquarium-Zusammenhang stärker erklären.' },
+  { key: 'document', label: 'Für Verlauf dokumentieren', desc: 'Entscheidungen, Trends und Kontrollpunkte sauber festhalten.' },
+]
+const assistantIntentLabel = computed(() => (
+  assistantIntents.find((intent) => intent.key === settings.assistant_intent)?.label || 'Schnell handeln'
+))
+const assistantPreview = computed(() => {
+  if (settings.assistant_intent === 'learn') {
+    return {
+      title: 'Der Assistent erklärt zuerst den Zusammenhang.',
+      copy: 'Empfehlungen zeigen, warum ein Wert aus dem Rahmen fällt und welche Rolle er im Aquarium spielt.',
+    }
+  }
+  if (settings.assistant_intent === 'document') {
+    return {
+      title: 'Der Assistent macht den Bericht nachvollziehbar.',
+      copy: 'Entscheidungen, Kontrolltermine und Verlaufshinweise bleiben für den nächsten Bericht vergleichbar.',
+    }
+  }
+  return {
+    title: 'Schnell verstehen, was jetzt zu tun ist.',
+    copy: 'Priorität, nächste Maßnahme und sinnvoller Kontrollzeitpunkt stehen zuerst.',
+  }
+})
 
 async function save() {
   saving.value = true
@@ -132,9 +196,11 @@ async function save() {
       ...localPreferences,
       units: settings.units,
       push_notifications: settings.push_notifications,
+      assistant_intent: settings.assistant_intent,
     })
     localPreferences.units = settings.units
     localPreferences.push_notifications = settings.push_notifications
+    localPreferences.assistant_intent = settings.assistant_intent
     saveState.message = 'Einstellungen gespeichert.'
     saveState.type = 'success'
   } catch (error) {
@@ -196,6 +262,25 @@ async function save() {
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .section-heading h2,
 .side-card h2 { color: var(--text); font-size: 22px; font-weight: 800; }
+.status-pill { padding: 6px 11px; border-radius: 999px; background: var(--green-bg); color: #065f46; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.assistant-panel { display: grid; gap: 20px; padding: 22px; }
+.assistant-preview { display: flex; align-items: flex-start; gap: 16px; padding: 18px; border-radius: 20px; background: linear-gradient(120deg, rgba(10, 27, 67, 0.96), rgba(0, 51, 102, 0.86)); color: #fff; }
+.assistant-mark { width: 58px; height: 58px; flex: none; display: grid; place-items: center; border-radius: 18px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); font-weight: 800; }
+.assistant-preview span,
+.assistant-preview strong { display: block; }
+.assistant-preview span { color: var(--teal-200); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.assistant-preview strong { margin-top: 4px; font-size: 18px; }
+.assistant-preview p { margin-top: 6px; color: rgba(255, 255, 255, 0.7); font-size: 13px; line-height: 1.55; }
+.setting-block { display: grid; gap: 9px; }
+.setting-block > label { color: var(--text-muted); font-size: 12px; font-weight: 800; }
+.choice-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.choice-list button { min-width: 0; min-height: 94px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: #fff; color: var(--text); text-align: left; cursor: pointer; }
+.choice-list button:hover { border-color: var(--teal-400); }
+.choice-list button.active { border-color: var(--brand-blue); background: rgba(0, 114, 206, 0.06); box-shadow: inset 0 0 0 1px var(--brand-blue); }
+.choice-list strong,
+.choice-list span { display: block; }
+.choice-list strong { font-size: 14px; font-weight: 800; }
+.choice-list span { margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
@@ -233,5 +318,8 @@ async function save() {
   .settings-hero h1 { font-size: 34px; }
   .settings-readout { min-width: 0; }
   .form-grid { grid-template-columns: 1fr; }
+  .section-heading { flex-direction: column; }
+  .choice-list { grid-template-columns: 1fr; }
+  .assistant-preview { flex-direction: column; }
 }
 </style>
