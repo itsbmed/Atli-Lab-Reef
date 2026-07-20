@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS_PREFERENCES = Object.freeze({
   assistant_intent: 'action',
   assistant_audience: 'reefkeeper',
   explanation_depth: 'balanced',
+  correction_style: 'careful',
 })
 
 function accountKey(accountId) {

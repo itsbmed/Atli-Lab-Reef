@@ -33,6 +33,7 @@
                 <p>{{ assistantPreview.copy }}</p>
                 <div class="assistant-chips">
                   <b>{{ audienceLabel }}</b>
+                  <b>{{ correctionLabel }}</b>
                 </div>
               </div>
             </div>
@@ -78,6 +79,22 @@
                   type="button"
                   :class="{ active: settings.explanation_depth === mode.key }"
                   @click="settings.explanation_depth = mode.key"
+                >
+                  <strong>{{ mode.label }}</strong>
+                  <span>{{ mode.desc }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-block">
+              <label>Korrekturen</label>
+              <div class="option-card-list">
+                <button
+                  v-for="mode in correctionModes"
+                  :key="mode.key"
+                  type="button"
+                  :class="{ active: settings.correction_style === mode.key }"
+                  @click="settings.correction_style = mode.key"
                 >
                   <strong>{{ mode.label }}</strong>
                   <span>{{ mode.desc }}</span>
@@ -180,6 +197,7 @@ const settings = reactive({
   assistant_intent: localPreferences.assistant_intent,
   assistant_audience: localPreferences.assistant_audience,
   explanation_depth: localPreferences.explanation_depth,
+  correction_style: localPreferences.correction_style,
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
@@ -198,6 +216,11 @@ const explanationModes = [
   { key: 'balanced', label: 'Ausgewogen', desc: 'Ursache, Risiko und nächster Schritt' },
   { key: 'expert', label: 'Expert', desc: 'Mehr Labor- und Methodenkontext' },
 ]
+const correctionModes = [
+  { key: 'careful', label: 'Vorsichtig', desc: 'Langsam korrigieren, keine starken Sprünge.' },
+  { key: 'standard', label: 'Normal', desc: 'Klare Maßnahme mit üblicher Kontrollfrist.' },
+  { key: 'strict', label: 'Streng', desc: 'Kritische Werte aggressiver priorisieren.' },
+]
 const assistantIntentLabel = computed(() => (
   assistantIntents.find((intent) => intent.key === settings.assistant_intent)?.label || 'Schnell handeln'
 ))
@@ -206,6 +229,9 @@ const audienceLabel = computed(() => (
 ))
 const assistantModeLabel = computed(() => (
   explanationModes.find((mode) => mode.key === settings.explanation_depth)?.label || 'Ausgewogen'
+))
+const correctionLabel = computed(() => (
+  correctionModes.find((mode) => mode.key === settings.correction_style)?.label || 'Vorsichtig'
 ))
 const assistantPreview = computed(() => {
   if (settings.assistant_intent === 'learn') {
@@ -259,12 +285,14 @@ async function save() {
       assistant_intent: settings.assistant_intent,
       assistant_audience: settings.assistant_audience,
       explanation_depth: settings.explanation_depth,
+      correction_style: settings.correction_style,
     })
     localPreferences.units = settings.units
     localPreferences.push_notifications = settings.push_notifications
     localPreferences.assistant_intent = settings.assistant_intent
     localPreferences.assistant_audience = settings.assistant_audience
     localPreferences.explanation_depth = settings.explanation_depth
+    localPreferences.correction_style = settings.correction_style
     saveState.message = 'Einstellungen gespeichert.'
     saveState.type = 'success'
   } catch (error) {
@@ -354,6 +382,14 @@ async function save() {
 .segmented span { display: block; }
 .segmented strong { font-size: 13px; font-weight: 800; }
 .segmented span { margin-top: 3px; color: var(--text-muted); font-size: 10px; line-height: 1.35; }
+.option-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.option-card-list button { min-width: 0; padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: #fff; color: var(--text); text-align: left; cursor: pointer; }
+.option-card-list button:hover { border-color: var(--teal-400); }
+.option-card-list button.active { border-color: var(--brand-blue); background: rgba(0, 114, 206, 0.06); box-shadow: inset 0 0 0 1px var(--brand-blue); }
+.option-card-list strong,
+.option-card-list span { display: block; }
+.option-card-list strong { font-size: 13px; font-weight: 800; }
+.option-card-list span { margin-top: 4px; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-group label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
@@ -394,6 +430,7 @@ async function save() {
   .section-heading { flex-direction: column; }
   .choice-list { grid-template-columns: 1fr; }
   .segmented { grid-template-columns: 1fr; }
+  .option-card-list { grid-template-columns: 1fr; }
   .assistant-preview { flex-direction: column; }
 }
 </style>
