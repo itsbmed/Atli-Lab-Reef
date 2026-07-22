@@ -10,7 +10,7 @@
     </section>
 
     <section class="stat-grid">
-      <button v-for="item in statCards" :key="item.key" :class="['stat-card', item.tone, { active: filter.severity === item.key }]" type="button" @click="toggleSeverity(item.key)">
+      <button v-for="item in statCards" :key="item.key" :class="['stat-card', item.tone, { active: isStatActive(item.key) }]" type="button" :disabled="isLoading" @click="toggleSeverity(item.key)">
         <span>{{ item.label }}</span>
         <strong>{{ item.value }}</strong>
         <em>{{ item.caption }}</em>
@@ -18,15 +18,29 @@
     </section>
 
     <section class="analysis-workspace">
-      <aside class="filter-panel">
+      <button class="mobile-filter-trigger" type="button" aria-haspopup="dialog" :aria-expanded="filterOpen" @click="filterOpen = true">
+        <span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="18" height="18"><path d="M3 5h14M5.5 10h9M8 15h4"/></svg>
+          Filter & Sortierung
+        </span>
+        <b v-if="activeFilterCount">{{ activeFilterCount }}</b>
+      </button>
+
+      <button v-if="filterOpen" class="filter-overlay" type="button" aria-label="Filter schließen" @click="filterOpen = false"></button>
+
+      <aside :class="['filter-panel', { open: filterOpen }]" aria-label="Analyseberichte filtern">
+        <div class="filter-grip" aria-hidden="true"></div>
         <div class="panel-title">
           <h2>Filter</h2>
-          <button class="soft-link" type="button" @click="resetFilters">Zurücksetzen</button>
+          <div class="panel-title-actions">
+            <button class="soft-link" type="button" @click="resetFilters">Zurücksetzen</button>
+            <button class="filter-close" type="button" aria-label="Filter schließen" @click="filterOpen = false">×</button>
+          </div>
         </div>
 
         <div class="search-box">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/></svg>
-          <input v-model="filter.search" type="search" placeholder="Aquarium, Barcode, Paket..." />
+          <input v-model="filter.search" type="search" placeholder="Aquarium, Barcode, Paket..." aria-label="Analyseberichte durchsuchen" />
         </div>
 
         <div class="form-group">
@@ -66,21 +80,42 @@
             <b>{{ countBySeverity(option.key) }}</b>
           </button>
         </div>
+
+        <button class="filter-apply btn btn-primary" type="button" @click="filterOpen = false">
+          {{ filteredAnalyses.length }} {{ filteredAnalyses.length === 1 ? 'Bericht' : 'Berichte' }} anzeigen
+        </button>
       </aside>
 
       <main class="results-area">
         <div class="view-toolbar">
           <div>
-            <strong>{{ filteredAnalyses.length }} Berichte</strong>
-            <span>{{ activeFilterLabel }}</span>
+            <strong>{{ isLoading ? 'Berichte werden geladen' : `${filteredAnalyses.length} Berichte` }}</strong>
+            <span>{{ isLoading ? 'Laborberichte werden vorbereitet …' : activeFilterLabel }}</span>
           </div>
-          <div class="view-toggle">
+          <div v-if="!isLoading && !loadError" class="view-toggle" role="group" aria-label="Darstellung der Analyseberichte">
             <button type="button" :class="{ active: viewMode === 'cards' }" @click="viewMode = 'cards'">Karten</button>
             <button type="button" :class="{ active: viewMode === 'table' }" @click="viewMode = 'table'">Tabelle</button>
           </div>
         </div>
 
-        <section v-if="!analyses.count" class="empty-state">
+        <section v-if="isLoading" class="analysis-skeleton" aria-live="polite" aria-label="Analyseberichte werden geladen">
+          <article v-for="item in 4" :key="item" class="skeleton-card" aria-hidden="true">
+            <span class="skeleton-line short"></span>
+            <span class="skeleton-line score"></span>
+            <span class="skeleton-line title"></span>
+            <span class="skeleton-line"></span>
+            <span class="skeleton-line medium"></span>
+          </article>
+        </section>
+
+        <section v-else-if="loadError" class="empty-state error-state" role="alert">
+          <span>Laden fehlgeschlagen</span>
+          <h2>Die Analyseberichte konnten nicht geladen werden</h2>
+          <p>{{ loadError }}</p>
+          <button class="btn btn-primary" type="button" @click="loadAnalyses">Erneut versuchen</button>
+        </section>
+
+        <section v-else-if="!analyses.count" class="empty-state">
           <span>Analyse-Center</span>
           <h2>Noch keine registrierten Analysen</h2>
           <p>Starten Sie mit einem Testkit-Barcode. Danach ordnen Sie die Probe einem Aquarium zu und verfolgen den Laborstatus.</p>
@@ -148,12 +183,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 
 const analyses = useAnalysesStore()
 const viewMode = ref('cards')
+const filterOpen = ref(false)
+const isLoading = ref(true)
+const loadError = ref('')
 const filter = ref({ search: '', status: '', range: 'all', severity: '', sort: 'date_desc' })
 const severityOptions = [
   { key: 'critical', label: 'Kritisch' },
@@ -162,14 +200,28 @@ const severityOptions = [
   { key: 'open', label: 'Laufend' },
 ]
 const workflowSteps = WORKFLOW_STEPS
+let compactViewQuery
+let filterSheetQuery
 
-onMounted(() => analyses.load())
+onMounted(() => {
+  compactViewQuery = window.matchMedia('(max-width: 680px)')
+  filterSheetQuery = window.matchMedia('(max-width: 980px)')
+  compactViewQuery.addEventListener('change', syncCompactView)
+  filterSheetQuery.addEventListener('change', syncFilterSheet)
+  syncCompactView(compactViewQuery)
+  loadAnalyses()
+})
+
+onBeforeUnmount(() => {
+  compactViewQuery?.removeEventListener('change', syncCompactView)
+  filterSheetQuery?.removeEventListener('change', syncFilterSheet)
+})
 
 const statCards = computed(() => [
-  { key: 'all', label: 'Berichte', value: analyses.count, caption: 'gesamt', tone: 'neutral' },
-  { key: 'critical', label: 'Kritisch', value: countBySeverity('critical'), caption: 'sofort prüfen', tone: 'critical' },
-  { key: 'watch', label: 'Beobachten', value: countBySeverity('watch'), caption: 'auffällig', tone: 'watch' },
-  { key: 'open', label: 'Laufend', value: countBySeverity('open'), caption: 'im Laborprozess', tone: 'open' },
+  { key: 'all', label: 'Berichte', value: isLoading.value ? '—' : analyses.count, caption: 'gesamt', tone: 'neutral' },
+  { key: 'critical', label: 'Kritisch', value: isLoading.value ? '—' : countBySeverity('critical'), caption: 'sofort prüfen', tone: 'critical' },
+  { key: 'watch', label: 'Beobachten', value: isLoading.value ? '—' : countBySeverity('watch'), caption: 'auffällig', tone: 'watch' },
+  { key: 'open', label: 'Laufend', value: isLoading.value ? '—' : countBySeverity('open'), caption: 'im Laborprozess', tone: 'open' },
 ])
 const filteredAnalyses = computed(() => {
   const query = filter.value.search.trim().toLowerCase()
@@ -200,6 +252,34 @@ const activeFilterLabel = computed(() => {
   if (!filter.value.search && !filter.value.status && !filter.value.severity && filter.value.range === 'all') return 'Alle sichtbaren Laborberichte'
   return 'Gefilterte Ansicht'
 })
+const activeFilterCount = computed(() => [
+  filter.value.search,
+  filter.value.status,
+  filter.value.severity,
+  filter.value.range !== 'all' ? filter.value.range : '',
+].filter(Boolean).length)
+
+async function loadAnalyses() {
+  isLoading.value = true
+  loadError.value = ''
+  try {
+    await Promise.resolve(analyses.load())
+  } catch (error) {
+    loadError.value = error?.error || error?.message || 'Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function isStatActive(key) {
+  return key === 'all' ? !filter.value.severity : filter.value.severity === key
+}
+function syncCompactView(event) {
+  if (event.matches) viewMode.value = 'cards'
+}
+function syncFilterSheet(event) {
+  if (!event.matches) filterOpen.value = false
+}
 
 function toggleSeverity(key) {
   filter.value.severity = key === 'all' || filter.value.severity === key ? '' : key
@@ -234,6 +314,7 @@ function formatDate(iso) {
 .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .stat-card { text-align: left; padding: 18px; border: 1px solid rgba(136,193,233,0.22); border-radius: 20px; background: #fff; box-shadow: var(--shadow); cursor: pointer; }
 .stat-card.active { outline: 3px solid rgba(0,114,206,0.18); border-color: var(--teal-400); }
+.stat-card:disabled { cursor: wait; }
 .stat-card span,
 .stat-card strong,
 .stat-card em { display: block; }
@@ -247,8 +328,14 @@ function formatDate(iso) {
 .empty-state,
 .table-card { border-radius: 22px; background: #fff; border: 1px solid rgba(136,193,233,0.22); box-shadow: var(--shadow); }
 .filter-panel { position: sticky; top: 88px; display: grid; gap: 14px; padding: 18px; }
+.mobile-filter-trigger,
+.filter-overlay,
+.filter-close,
+.filter-grip,
+.filter-apply { display: none; }
 .panel-title,
 .view-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.panel-title-actions { display: flex; align-items: center; gap: 8px; }
 .panel-title h2 { color: var(--text); font-size: 18px; font-weight: 800; }
 .soft-link { border: 0; background: none; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer; }
 .search-box { position: relative; }
@@ -276,6 +363,16 @@ function formatDate(iso) {
 .empty-state span { color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .empty-state h2 { color: var(--text); font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
 .empty-state p { max-width: 520px; color: var(--text-muted); line-height: 1.6; }
+.error-state { border-color: rgba(232,93,79,0.28); }
+.error-state > span { color: var(--coral); }
+.analysis-skeleton { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.skeleton-card { min-height: 230px; display: grid; align-content: start; gap: 14px; padding: 18px; overflow: hidden; border: 1px solid rgba(136,193,233,0.18); border-radius: 22px; background: #fff; box-shadow: var(--shadow); }
+.skeleton-line { display: block; width: 100%; height: 12px; border-radius: 999px; background: linear-gradient(90deg, #e8eff6 20%, #f7fafe 42%, #e8eff6 64%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s ease-in-out infinite; }
+.skeleton-line.short { width: 30%; height: 24px; }
+.skeleton-line.score { width: 52px; height: 38px; justify-self: end; margin-top: -38px; }
+.skeleton-line.title { width: 68%; height: 23px; margin-top: 18px; }
+.skeleton-line.medium { width: 56%; }
+@keyframes skeleton-shimmer { to { background-position: -120% 0; } }
 .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
 .analysis-card { display: grid; gap: 16px; padding: 18px; border-radius: 22px; background: #fff; border: 1px solid rgba(136,193,233,0.22); box-shadow: var(--shadow); color: inherit; text-decoration: none; transition: transform 0.16s, border-color 0.16s; }
 .analysis-card:hover { transform: translateY(-2px); border-color: var(--teal-400); }
@@ -313,12 +410,22 @@ td b.critical { color: var(--coral); }
 @media (max-width: 980px) {
   .analysis-workspace,
   .stat-grid { grid-template-columns: 1fr; }
-  .filter-panel { position: static; }
+  .mobile-filter-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 0 16px; border: 1px solid rgba(136,193,233,0.28); border-radius: 16px; background: #fff; color: var(--text); box-shadow: var(--shadow); font-weight: 800; cursor: pointer; }
+  .mobile-filter-trigger span { display: flex; align-items: center; gap: 9px; }
+  .mobile-filter-trigger svg { color: var(--brand-blue); }
+  .mobile-filter-trigger b { display: grid; place-items: center; min-width: 25px; height: 25px; padding: 0 7px; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 11px; }
+  .filter-overlay { position: fixed; z-index: 70; inset: 0; display: block; border: 0; background: rgba(10,27,67,0.48); backdrop-filter: blur(4px); }
+  .filter-panel { position: fixed; z-index: 71; left: 12px; right: 12px; bottom: 12px; top: auto; max-height: min(82vh, 680px); overflow-y: auto; padding: 14px 18px 18px; border-radius: 24px; transform: translateY(calc(100% + 24px)); opacity: 0; visibility: hidden; transition: transform 0.24s ease, opacity 0.2s ease, visibility 0.2s; }
+  .filter-panel.open { transform: translateY(0); opacity: 1; visibility: visible; }
+  .filter-grip { display: block; width: 42px; height: 4px; margin: 0 auto 2px; border-radius: 999px; background: var(--border-strong); }
+  .filter-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+  .filter-apply { display: inline-flex; position: sticky; bottom: 0; width: 100%; margin-top: 2px; }
 }
 @media (max-width: 680px) {
   .analysis-hero { align-items: flex-start; flex-direction: column; }
-  .analysis-hero .btn,
-  .view-toggle { width: 100%; }
+  .analysis-hero .btn { width: 100%; }
+  .view-toggle { display: none; }
   .view-toolbar { align-items: stretch; flex-direction: column; }
+  .filter-panel { left: 8px; right: 8px; bottom: 8px; max-height: 88vh; }
 }
 </style>
