@@ -144,7 +144,7 @@ const heroGauges = [
 .hero-card { position: absolute; z-index: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,0.92); backdrop-filter: blur(14px); box-shadow: 0 22px 50px rgba(10,27,67,0.2); }
 .hero-card-score { top: 22px; left: -18px; display: flex; flex-direction: column; gap: 2px; }
 .hc-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
-.hc-value { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: var(--brand-blue); }
+.hc-value { display: inline-flex; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: var(--brand-blue); }
 .hc-value em { font-size: 16px; font-style: normal; color: var(--brand-cyan); }
 .hc-sub { font-size: 11.5px; color: var(--text-muted); }
 .hero-card-gauges { right: -16px; bottom: 20px; width: 176px; display: flex; flex-direction: column; gap: 9px; }

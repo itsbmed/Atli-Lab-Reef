@@ -24,8 +24,9 @@
 
         <div class="score-card">
           <div class="score-ring" :style="scoreRingStyle">
-            <strong>{{ analysis.score ?? '—' }}</strong>
-            <span v-if="analysis.score !== null">%</span>
+            <span class="score-value">
+              <strong>{{ analysis.score ?? '—' }}</strong><small v-if="analysis.score !== null">%</small>
+            </span>
           </div>
           <div>
             <span>{{ analysis.statusLabel }}</span>
@@ -631,10 +632,9 @@ function markPdf() {
 .score-card { min-width: 310px; display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: 22px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); }
 .score-ring { width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; position: relative; }
 .score-ring::after { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: rgba(10,27,67,0.94); }
-.score-ring strong,
-.score-ring span { position: relative; z-index: 1; }
-.score-ring strong { font-size: 34px; line-height: 1; }
-.score-ring span { margin-top: 34px; margin-left: -18px; font-size: 12px; }
+.score-ring .score-value { position: relative; z-index: 1; display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 2px; white-space: nowrap; }
+.score-card .score-ring .score-value strong { margin: 0; font-size: 34px; line-height: 1; }
+.score-ring .score-value small { flex: 0 0 auto; color: var(--teal-200); font-size: 12px; font-weight: 800; }
 .score-card span,
 .score-card strong,
 .score-card em { display: block; }
@@ -679,7 +679,7 @@ function markPdf() {
 .group-card.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 .group-card.critical.active { border-color: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.1); }
 .group-card.watch.active { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
-.group-dial { position: relative; display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; }
+.group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 50px; height: 50px; border-radius: 50%; }
 .group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
 .group-card.active .group-dial::after { background: var(--teal-50); }
 .group-dial b,

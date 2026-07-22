@@ -17,8 +17,7 @@
           <div v-else :class="`tank-thumb ${featuredTankTheme}`"></div>
         </div>
         <div class="portfolio-score" :style="portfolioRingStyle">
-          <strong>{{ overallScore }}</strong>
-          <span>%</span>
+          <span class="score-value"><strong>{{ overallScore }}</strong><small>%</small></span>
         </div>
         <div class="portfolio-meta">
           <span>Portfolio Score</span>
@@ -362,10 +361,9 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
   background: linear-gradient(rgba(10,27,67,0.9), rgba(10,27,67,0.94)), url('/reef-tank.webp') center / cover;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
 }
-.portfolio-score strong,
-.portfolio-score span { position: relative; z-index: 1; }
-.portfolio-score strong { align-self: end; font-size: 42px; font-weight: var(--fw-heading-strong); letter-spacing: -0.06em; }
-.portfolio-score span { align-self: start; margin-top: -8px; font-size: 12px; color: rgba(255,255,255,0.62); font-weight: var(--fw-label); }
+.portfolio-score .score-value { position: relative; z-index: 1; display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 2px; white-space: nowrap; }
+.portfolio-score .score-value strong { font-size: 42px; line-height: 1; font-weight: var(--fw-heading-strong); letter-spacing: -0.06em; }
+.portfolio-score .score-value small { flex: 0 0 auto; font-size: 12px; color: rgba(255,255,255,0.62); font-weight: var(--fw-label); }
 .portfolio-meta { min-height: 98px; padding: 22px 22px 22px 166px; background: rgba(255,255,255,0.94); color: var(--text); }
 .portfolio-meta span { display: block; color: var(--teal-700); font-size: 11px; font-weight: var(--fw-label); letter-spacing: 0.1em; text-transform: uppercase; }
 .portfolio-meta strong { display: block; margin-top: 5px; font-size: 24px; line-height: 1.05; font-weight: var(--fw-heading); letter-spacing: -0.03em; }
@@ -447,7 +445,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 .tank-top { display: flex; justify-content: space-between; gap: 14px; align-items: start; }
 .tank-top h3 { font-size: 18px; font-weight: var(--fw-heading-strong); color: var(--text); letter-spacing: -0.03em; }
 .tank-top p { color: var(--text-muted); font-size: 12px; font-weight: var(--fw-label); margin-top: 2px; }
-.tank-score { color: var(--text); font-size: 28px; line-height: 1; font-weight: var(--fw-heading-strong); letter-spacing: -0.05em; }
+.tank-score { display: inline-flex; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; color: var(--text); font-size: 28px; line-height: 1; font-weight: var(--fw-heading-strong); letter-spacing: -0.05em; }
 .tank-score small { font-size: 12px; color: var(--text-muted); margin-left: 1px; }
 .health-track { height: 10px; border-radius: 999px; background: rgba(100,130,165,0.14); overflow: hidden; margin: 15px 0 12px; }
 .health-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal-400), var(--green)); }
@@ -494,7 +492,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
 .feed-dot.critical { background: var(--coral); }
 .feed-row strong { display: block; color: var(--text); font-size: 13px; font-weight: var(--fw-label); }
 .feed-row em { display: block; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: var(--fw-bold); }
-.feed-row b { color: var(--text); font-size: 13px; }
+.feed-row b { white-space: nowrap; color: var(--text); font-size: 13px; }
 .insight-dashboard {
   display: grid;
   grid-template-columns: minmax(min(100%, 560px), 1fr) minmax(min(100%, 320px), 0.38fr);
@@ -546,7 +544,7 @@ function formatDateShort(d) { return new Date(d).toLocaleDateString('de-DE', { d
   .tank-card { grid-template-columns: 1fr; min-height: 0; }
   .tank-visual { width: 100%; height: 170px; min-height: 170px; }
   .portfolio-score { left: 18px; bottom: 96px; width: 104px; height: 104px; }
-  .portfolio-score strong { font-size: 34px; }
+  .portfolio-score .score-value strong { font-size: 34px; }
   .portfolio-meta { padding-left: 138px; }
 }
 </style>

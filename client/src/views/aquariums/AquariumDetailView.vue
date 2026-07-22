@@ -26,8 +26,9 @@
         </div>
         <div class="tank-health-card">
           <div class="health-ring" :style="healthRingStyle">
-            <strong>{{ latestScore ?? '—' }}</strong>
-            <span>{{ latestScore === null ? '' : '%' }}</span>
+            <span class="score-value">
+              <strong>{{ latestScore ?? '—' }}</strong><small v-if="latestScore !== null">%</small>
+            </span>
           </div>
           <div>
             <span>Letzter Lab Score</span>
@@ -546,10 +547,9 @@ function osmosisSourceMeta(source) {
 .tank-health-card { align-self: center; display: grid; grid-template-columns: 122px 1fr; gap: 16px; align-items: center; padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(18px); }
 .health-ring { width: 122px; height: 122px; border-radius: 50%; display: grid; place-items: center; position: relative; }
 .health-ring::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: linear-gradient(rgba(10,27,67,0.9), rgba(10,27,67,0.94)), url('/reef-tank.webp') center / cover; }
-.health-ring strong,
-.health-ring span { position: relative; z-index: 1; }
-.health-ring strong { align-self: end; font-size: 38px; font-weight: 800; letter-spacing: -0.06em; }
-.health-ring span { align-self: start; margin-top: -8px; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 800; }
+.health-ring .score-value { position: relative; z-index: 1; display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 2px; white-space: nowrap; }
+.tank-health-card .health-ring .score-value strong { margin: 0; font-size: 38px; line-height: 1; font-weight: 800; letter-spacing: -0.06em; }
+.health-ring .score-value small { flex: 0 0 auto; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 800; }
 .tank-health-card span { display: block; color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .tank-health-card strong { display: block; margin-top: 5px; font-size: 22px; line-height: 1.05; font-weight: 800; }
 .tank-health-card em { display: block; margin-top: 8px; color: rgba(255,255,255,0.66); font-size: 12px; font-style: normal; font-weight: 800; }
@@ -584,7 +584,7 @@ function osmosisSourceMeta(source) {
 .timeline-row.critical .timeline-dot { background: #e85d4f; }
 .timeline-row strong { display: block; color: var(--text); font-size: 13px; font-weight: 800; }
 .timeline-row em { display: block; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
-.timeline-row b { color: var(--text); font-size: 14px; }
+.timeline-row b { white-space: nowrap; color: var(--text); font-size: 14px; }
 .timeline-row small { color: var(--text-muted); font-weight: 800; }
 .timeline-empty { padding: 18px; border-radius: 18px; background: rgba(136,193,233,0.1); border: 1px dashed rgba(136,193,233,0.42); }
 .timeline-empty strong,

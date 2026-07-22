@@ -277,7 +277,7 @@ const prepTips = [
   border-radius: 50%;
   background: rgba(10,27,67,0.9);
 }
-.nd-setup-ring b { position: relative; z-index: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.04em; }
+.nd-setup-ring b { position: relative; z-index: 1; display: inline-flex; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; font-size: 18px; font-weight: 800; letter-spacing: -0.04em; }
 .nd-setup-ring small { font-size: 10px; color: rgba(255,255,255,0.6); margin-left: 1px; }
 .nd-setup-steps { display: grid; gap: 10px; }
 .nd-setup-step {
