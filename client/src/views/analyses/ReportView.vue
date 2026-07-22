@@ -2,13 +2,7 @@
   <div class="report">
     <RouterLink to="/analyses" class="back-link">← Zurück zu den Analysen</RouterLink>
 
-    <section v-if="reportLoading" class="report-loading" aria-live="polite">
-      <span class="loading-line short"></span>
-      <span class="loading-line title"></span>
-      <span class="loading-line"></span>
-    </section>
-
-    <section v-else-if="!analysis" class="missing-card">
+    <section v-if="!analysis" class="missing-card">
       <span>Analysebericht</span>
       <h1>Bericht nicht gefunden</h1>
       <p>Der gesuchte Laborbericht ist lokal nicht vorhanden.</p>
@@ -22,8 +16,8 @@
           <h1>{{ analysis.aquariumName }}</h1>
           <p>{{ analysis.reasonLabel }} · {{ formatDate(analysis.createdAt) }} · {{ analysis.barcode }}</p>
           <div class="hero-actions">
-            <button class="btn btn-primary" type="button" @click="copyReportLink">Link kopieren</button>
-            <button class="btn btn-ghost" type="button" @click="printReport">Drucken / PDF</button>
+            <button class="btn btn-primary" type="button" @click="copyReportLink">Bericht teilen</button>
+            <button class="btn btn-ghost" type="button" @click="markPdf">PDF vormerken</button>
           </div>
           <p v-if="actionMsg" class="action-msg">{{ actionMsg }}</p>
         </div>
@@ -31,7 +25,7 @@
         <div class="score-card">
           <div class="score-ring" :style="scoreRingStyle">
             <span class="score-value">
-              <strong>{{ analysis.score ?? '—' }}</strong><small v-if="analysis.score != null">%</small>
+              <strong>{{ analysis.score ?? '—' }}</strong><small v-if="analysis.score !== null">%</small>
             </span>
           </div>
           <div>
@@ -43,7 +37,7 @@
       </section>
 
       <section class="workflow-card">
-        <div v-for="step in WORKFLOW_STEPS" :key="step.key" :class="['workflow-step', { done: step.rank <= currentRank, active: step.key === analysis.status }]" :aria-current="step.key === analysis.status ? 'step' : undefined">
+        <div v-for="step in WORKFLOW_STEPS" :key="step.key" :class="['workflow-step', { done: step.rank <= currentRank, active: step.key === analysis.status }]">
           <i></i>
           <span>{{ step.label }}</span>
         </div>
@@ -64,30 +58,7 @@
         </button>
       </nav>
 
-      <section v-if="analysis.status !== 'completed'" class="pending-report panel">
-        <div class="pending-copy">
-          <span class="section-kicker">Laufende Analyse</span>
-          <h2>{{ pendingTitle }}</h2>
-          <p>{{ pendingCopy }}</p>
-          <div class="pending-meta">
-            <div><span>Barcode</span><strong>{{ analysis.barcode }}</strong></div>
-            <div><span>Aquarium</span><strong>{{ analysis.aquariumName }}</strong></div>
-            <div><span>Voraussichtlich</span><strong>{{ expectedResultDate }}</strong></div>
-          </div>
-          <RouterLink to="/analyses" class="btn btn-ghost">Zur Berichtsliste</RouterLink>
-        </div>
-        <div class="pending-timeline" aria-label="Laborfortschritt">
-          <div v-for="step in WORKFLOW_STEPS" :key="step.key" :class="['pending-step', { done: step.rank < currentRank, active: step.key === analysis.status }]">
-            <span>{{ step.rank }}</span>
-            <div>
-              <strong>{{ step.label }}</strong>
-              <em>{{ workflowDescription(step.key) }}</em>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="analysis.status === 'completed'" v-show="activeTab === 'overview'" class="report-layout">
+      <section v-show="activeTab === 'overview'" class="report-layout">
         <main class="report-main">
           <section class="panel group-overview">
             <div class="section-head group-overview-head">
@@ -423,7 +394,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
@@ -431,7 +402,6 @@ import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 
 const route = useRoute()
 const analyses = useAnalysesStore()
-const reportLoading = ref(true)
 const actionMsg = ref('')
 const activeTab = ref('overview')
 const selectedGroup = ref('')
@@ -441,15 +411,7 @@ const parameterStatus = ref('all')
 const careMode = ref('quick')
 const expandedParameters = reactive({})
 const completedActions = reactive({})
-onMounted(() => {
-  try {
-    analyses.load()
-  } finally {
-    reportLoading.value = false
-  }
-})
-
-watch(() => route.params.id, resetReportView)
+onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
 const currentRank = computed(() => WORKFLOW_STEPS.find((step) => step.key === analysis.value?.status)?.rank || 0)
@@ -462,10 +424,10 @@ const resultLabel = computed(() => {
 const issueCopy = computed(() => {
   if (!analysis.value) return ''
   if (analysis.value.status !== 'completed') return 'Ergebnisse werden vorbereitet.'
-  return `${analysis.value.issueCount} ${analysis.value.issueCount === 1 ? 'Hinweis' : 'Hinweise'} im Bericht`
+  return `${analysis.value.issueCount} Hinweise im Bericht`
 })
 const scoreRingStyle = computed(() => {
-  const score = Math.min(100, Math.max(0, Number(analysis.value?.score) || 0))
+  const score = analysis.value?.score ?? 0
   const color = analysis.value?.severity === 'critical' ? '#e85d4f' : analysis.value?.severity === 'watch' ? '#f59e0b' : '#10b981'
   return { background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.16) 0deg)` }
 })
@@ -510,21 +472,6 @@ const carePlan = computed(() => issueParameters.value
 const careProgress = computed(() => carePlan.value.filter((item) => completedActions[item.key]).length)
 const careProgressPercent = computed(() => carePlan.value.length ? Math.round((careProgress.value / carePlan.value.length) * 100) : 100)
 const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
-const expectedResultDate = computed(() => {
-  const date = new Date(analysis.value?.createdAt || Date.now())
-  date.setDate(date.getDate() + 5)
-  return formatDate(date)
-})
-const pendingTitle = computed(() => ({
-  registered: 'Testkit wurde registriert',
-  received: 'Probe ist im Labor angekommen',
-  in_analysis: 'Probe wird ausgewertet',
-}[analysis.value?.status] || 'Laborprozess läuft'))
-const pendingCopy = computed(() => ({
-  registered: 'Der Laborauftrag ist angelegt. Senden Sie die Probe mit dem registrierten Barcode ein, damit die Auswertung starten kann.',
-  received: 'Die Probe wurde erfasst und für die Messung vorbereitet. Der Status aktualisiert sich automatisch.',
-  in_analysis: 'Die Messwerte werden verarbeitet. Der vollständige Analysebericht erscheint nach Abschluss automatisch hier.',
-}[analysis.value?.status] || 'Die Probe befindet sich im Laborprozess.'))
 
 const GROUP_MAP = {
   salinity: { key: 'basis', label: 'Basiswerte' },
@@ -578,25 +525,6 @@ function gaugePosition(parameter) {
 }
 function toggleParameter(key) {
   expandedParameters[key] = !expandedParameters[key]
-}
-function workflowDescription(status) {
-  return {
-    registered: 'Testkit und Aquarium wurden zugeordnet.',
-    received: 'Die Probe wurde im Labor erfasst.',
-    in_analysis: 'Messung und Qualitätskontrolle laufen.',
-    completed: 'Messwerte und Empfehlungen sind verfügbar.',
-  }[status] || ''
-}
-function resetReportView() {
-  activeTab.value = 'overview'
-  selectedGroup.value = ''
-  selectedOverviewGroup.value = ''
-  parameterSearch.value = ''
-  parameterStatus.value = 'all'
-  careMode.value = 'quick'
-  Object.keys(expandedParameters).forEach((key) => delete expandedParameters[key])
-  Object.keys(completedActions).forEach((key) => delete completedActions[key])
-  actionMsg.value = ''
 }
 function parameterInsight(parameter) {
   if (parameter.tone === 'good') return `${parameter.label} liegt im vorgesehenen Zielbereich und unterstützt die aktuelle Systemstabilität.`
@@ -665,35 +593,17 @@ function formatDate(iso) {
 }
 async function copyReportLink() {
   actionMsg.value = ''
-  let copied = false
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(window.location.href)
-      copied = true
-    }
+    await navigator.clipboard?.writeText(window.location.href)
+    actionMsg.value = 'Link zum Bericht kopiert.'
   } catch {
-    copied = false
+    actionMsg.value = 'Bericht ist bereit zum Teilen.'
   }
-  if (!copied) copied = fallbackCopy(window.location.href)
-  actionMsg.value = copied ? 'Link zum Bericht kopiert.' : 'Link konnte nicht kopiert werden.'
   setTimeout(() => { actionMsg.value = '' }, 2200)
 }
-function fallbackCopy(value) {
-  const textarea = document.createElement('textarea')
-  textarea.value = value
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  try {
-    return typeof document.execCommand === 'function' && document.execCommand('copy')
-  } finally {
-    textarea.remove()
-  }
-}
-function printReport() {
-  window.print()
+function markPdf() {
+  actionMsg.value = 'PDF-Export wird später mit dem Backend verbunden.'
+  setTimeout(() => { actionMsg.value = '' }, 2600)
 }
 </script>
 
@@ -701,16 +611,10 @@ function printReport() {
 .report { display: grid; gap: 18px; }
 .back-link { color: var(--teal-700); font-weight: 800; text-decoration: none; }
 .missing-card,
-.report-loading,
 .report-hero,
 .workflow-card,
 .panel { border-radius: 24px; background: #fff; border: 1px solid rgba(136,193,233,0.22); box-shadow: var(--shadow); }
 .missing-card { max-width: 620px; padding: 34px; }
-.report-loading { min-height: 230px; display: grid; align-content: center; gap: 14px; padding: 34px; }
-.loading-line { display: block; width: 100%; max-width: 520px; height: 13px; border-radius: 999px; background: linear-gradient(90deg, #e8eff6 20%, #f7fafe 42%, #e8eff6 64%); background-size: 220% 100%; animation: report-shimmer 1.25s ease-in-out infinite; }
-.loading-line.short { width: 130px; }
-.loading-line.title { width: min(420px, 80%); height: 42px; }
-@keyframes report-shimmer { to { background-position: -120% 0; } }
 .missing-card span,
 .hero-kicker,
 .section-head span,
@@ -742,33 +646,12 @@ function printReport() {
 .workflow-step i { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
 .workflow-step.done i { background: var(--teal-500); }
 .workflow-step.active { color: var(--brand-blue); background: var(--teal-50); }
-.report-tabs { position: sticky; top: calc(var(--topbar-height, 68px) + 12px); z-index: 20; display: flex; gap: 6px; max-width: 100%; width: fit-content; overflow-x: auto; padding: 5px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.report-tabs { display: flex; gap: 6px; max-width: 100%; width: fit-content; overflow-x: auto; padding: 5px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .report-tabs button { flex: 0 0 auto; min-height: 40px; padding: 0 16px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font-weight: 800; white-space: nowrap; cursor: pointer; }
 .report-tabs button.active { color: #fff; background: var(--brand-blue); }
 .report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
 .report-tabs button.active b { background: rgba(255,255,255,0.2); }
 .report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
-.pending-report { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr); gap: 24px; padding: 28px; }
-.section-kicker { display: block; color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.pending-copy h2 { margin-top: 5px; color: var(--text); font-size: 30px; line-height: 1.08; font-weight: 800; }
-.pending-copy > p { max-width: 680px; margin-top: 9px; color: var(--text-muted); font-size: 14px; line-height: 1.65; }
-.pending-copy > .btn { margin-top: 18px; }
-.pending-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
-.pending-meta div { min-width: 0; padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: var(--teal-50); }
-.pending-meta span,
-.pending-meta strong { display: block; }
-.pending-meta span { color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.pending-meta strong { margin-top: 4px; overflow-wrap: anywhere; color: var(--text); font-size: 13px; }
-.pending-timeline { display: grid; gap: 9px; }
-.pending-step { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 11px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: #f8fbfe; }
-.pending-step > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: rgba(100, 130, 165, 0.14); color: var(--text-muted); font-size: 12px; font-weight: 900; }
-.pending-step.done > span,
-.pending-step.active > span { background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)); color: #fff; }
-.pending-step.active { border-color: var(--teal-400); background: var(--teal-50); }
-.pending-step strong,
-.pending-step em { display: block; }
-.pending-step strong { color: var(--text); font-size: 13px; }
-.pending-step em { margin-top: 3px; color: var(--text-muted); font-size: 11px; line-height: 1.4; font-style: normal; }
 .report-main,
 .report-side { display: grid; gap: 18px; }
 .panel { padding: 22px; }
@@ -937,9 +820,7 @@ function printReport() {
   .score-card { align-items: flex-start; flex-direction: column; }
   .score-card { min-width: 0; width: 100%; }
   .workflow-card,
-  .report-layout,
-  .pending-report { grid-template-columns: 1fr; }
-  .report-tabs { position: static; }
+  .report-layout { grid-template-columns: 1fr; }
   .group-detail-head { align-items: flex-start; flex-direction: column; }
   .explorer-head,
   .explorer-controls,
@@ -959,36 +840,5 @@ function printReport() {
   .element-chevron { display: none; }
   .favorite-button { top: 22px; right: 12px; }
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
-}
-@media (max-width: 620px) {
-  .pending-report { padding: 20px; }
-  .pending-meta { grid-template-columns: 1fr; }
-}
-@media print {
-  :global(.sidebar),
-  :global(.topbar),
-  :global(.main-footer),
-  :global(.mobile-tabbar),
-  .back-link,
-  .hero-actions,
-  .action-msg,
-  .workflow-card,
-  .report-tabs,
-  .explorer-controls,
-  .favorite-button { display: none !important; }
-  :global(.main-wrapper) { margin-left: 0 !important; }
-  :global(.main-content) { max-width: none !important; padding: 0 !important; }
-  .report { display: block; }
-  .report > * + * { margin-top: 16px; }
-  .report-hero { align-items: center; flex-direction: row; padding: 24px; break-inside: avoid; box-shadow: none; }
-  .score-card { width: auto; min-width: 280px; align-items: center; flex-direction: row; }
-  .report-layout { display: grid !important; }
-  .care-plan,
-  .element-explorer { display: grid !important; margin-top: 16px; }
-  .favorites-panel { display: none !important; }
-  .panel { box-shadow: none; }
-  .recommendation-row,
-  .element-row,
-  .care-card { break-inside: avoid; }
 }
 </style>
