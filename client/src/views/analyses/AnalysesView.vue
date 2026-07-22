@@ -44,6 +44,16 @@
         </div>
 
         <div class="form-group">
+          <label for="analysis-aquarium-filter">Aquarium</label>
+          <select id="analysis-aquarium-filter" v-model="filter.aquarium">
+            <option value="">Alle Aquarien</option>
+            <option v-for="aquarium in aquariumOptions" :key="aquarium.value" :value="aquarium.value">
+              {{ aquarium.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label>Status</label>
           <select v-model="filter.status">
             <option value="">Alle Status</option>
@@ -185,14 +195,16 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAnalysesStore } from '@/stores/analyses'
+import { useAquariumsStore } from '@/stores/aquariums'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 
 const analyses = useAnalysesStore()
+const aquariums = useAquariumsStore()
 const viewMode = ref('cards')
 const filterOpen = ref(false)
 const isLoading = ref(true)
 const loadError = ref('')
-const filter = ref({ search: '', status: '', range: 'all', severity: '', sort: 'date_desc' })
+const filter = ref({ search: '', aquarium: '', status: '', range: 'all', severity: '', sort: 'date_desc' })
 const severityOptions = [
   { key: 'critical', label: 'Kritisch' },
   { key: 'watch', label: 'Beobachten' },
@@ -223,6 +235,33 @@ const statCards = computed(() => [
   { key: 'watch', label: 'Beobachten', value: isLoading.value ? '—' : countBySeverity('watch'), caption: 'auffällig', tone: 'watch' },
   { key: 'open', label: 'Laufend', value: isLoading.value ? '—' : countBySeverity('open'), caption: 'im Laborprozess', tone: 'open' },
 ])
+const aquariumOptions = computed(() => {
+  const options = aquariums.items.map((aquarium) => ({
+    value: `id:${aquarium.id}`,
+    id: aquarium.id,
+    name: aquarium.name,
+  }))
+  const knownIds = new Set(options.map((option) => option.id))
+  const knownNames = new Set(options.map((option) => normalizeName(option.name)))
+
+  analyses.items.forEach((analysis) => {
+    const name = analysis.aquariumName || 'Aquarium'
+    const normalizedName = normalizeName(name)
+    if (analysis.aquariumId && !knownIds.has(analysis.aquariumId)) {
+      options.push({ value: `id:${analysis.aquariumId}`, id: analysis.aquariumId, name })
+      knownIds.add(analysis.aquariumId)
+      knownNames.add(normalizedName)
+    } else if (!analysis.aquariumId && !knownNames.has(normalizedName)) {
+      options.push({ value: `name:${normalizedName}`, id: '', name })
+      knownNames.add(normalizedName)
+    }
+  })
+
+  return options.sort((a, b) => a.name.localeCompare(b.name, 'de'))
+})
+const selectedAquarium = computed(() => (
+  aquariumOptions.value.find((aquarium) => aquarium.value === filter.value.aquarium) || null
+))
 const filteredAnalyses = computed(() => {
   const query = filter.value.search.trim().toLowerCase()
   const now = Date.now()
@@ -233,6 +272,7 @@ const filteredAnalyses = computed(() => {
         const haystack = [analysis.aquariumName, analysis.barcode, analysis.packageLabel, analysis.reasonLabel].join(' ').toLowerCase()
         if (!haystack.includes(query)) return false
       }
+      if (selectedAquarium.value && !belongsToAquarium(analysis, selectedAquarium.value)) return false
       if (filter.value.status && analysis.status !== filter.value.status) return false
       if (filter.value.severity && analysis.severity !== filter.value.severity) return false
       if (rangeDays) {
@@ -249,11 +289,13 @@ const filteredAnalyses = computed(() => {
     })
 })
 const activeFilterLabel = computed(() => {
-  if (!filter.value.search && !filter.value.status && !filter.value.severity && filter.value.range === 'all') return 'Alle sichtbaren Laborberichte'
+  if (!filter.value.search && !filter.value.aquarium && !filter.value.status && !filter.value.severity && filter.value.range === 'all') return 'Alle sichtbaren Laborberichte'
+  if (selectedAquarium.value) return `${selectedAquarium.value.name} · Gefilterte Ansicht`
   return 'Gefilterte Ansicht'
 })
 const activeFilterCount = computed(() => [
   filter.value.search,
+  filter.value.aquarium,
   filter.value.status,
   filter.value.severity,
   filter.value.range !== 'all' ? filter.value.range : '',
@@ -263,6 +305,7 @@ async function loadAnalyses() {
   isLoading.value = true
   loadError.value = ''
   try {
+    aquariums.load()
     await Promise.resolve(analyses.load())
   } catch (error) {
     loadError.value = error?.error || error?.message || 'Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.'
@@ -285,7 +328,14 @@ function toggleSeverity(key) {
   filter.value.severity = key === 'all' || filter.value.severity === key ? '' : key
 }
 function resetFilters() {
-  filter.value = { search: '', status: '', range: 'all', severity: '', sort: 'date_desc' }
+  filter.value = { search: '', aquarium: '', status: '', range: 'all', severity: '', sort: 'date_desc' }
+}
+function normalizeName(name) {
+  return String(name || '').trim().toLocaleLowerCase('de-DE')
+}
+function belongsToAquarium(analysis, aquarium) {
+  if (aquarium.id && analysis.aquariumId) return analysis.aquariumId === aquarium.id
+  return normalizeName(analysis.aquariumName) === normalizeName(aquarium.name)
 }
 function countBySeverity(key) {
   return analyses.items.filter((analysis) => analysis.severity === key).length
