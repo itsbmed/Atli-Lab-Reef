@@ -696,6 +696,9 @@ function markPdf() {
 .group-detail-head span { color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .group-detail-head h3 { margin-top: 3px; color: var(--text); font-size: 20px; }
 .group-detail-actions { display: flex; align-items: center; gap: 8px; }
+.soft-link { padding: 6px 4px; border: 0; appearance: none; background: transparent; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer; }
+.soft-link:hover { color: var(--teal-700); text-decoration: underline; }
+.soft-link:focus-visible { border-radius: 6px; outline: 3px solid rgba(0, 114, 206, 0.2); outline-offset: 2px; }
 .group-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-muted); font-size: 22px; cursor: pointer; }
 .group-close:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
 .overview-elements .element-row { background: #fff; }
