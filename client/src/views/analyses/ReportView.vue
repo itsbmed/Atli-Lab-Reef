@@ -75,7 +75,7 @@
                 v-for="group in parameterGroups"
                 :key="group.key"
                 type="button"
-                :class="['group-card', group.tone, { active: selectedOverviewGroup === group.key }]"
+                :class="['group-card', group.tone, `group-${group.key}`, { active: selectedOverviewGroup === group.key }]"
                 @click="selectedOverviewGroup = selectedOverviewGroup === group.key ? '' : group.key"
               >
                 <span class="group-dial" :style="groupDialStyle(group)"><b>{{ group.score }}</b><em>%</em></span>
@@ -100,7 +100,7 @@
                 <article
                   v-for="parameter in selectedOverviewGroupData.parameters"
                   :key="parameter.key"
-                  :class="['element-row', parameter.tone, { expanded: expandedParameters[`overview-${parameter.key}`] }]"
+                  :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[`overview-${parameter.key}`] }]"
                 >
                   <button class="element-head" type="button" @click="toggleParameter(`overview-${parameter.key}`)">
                     <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
@@ -268,7 +268,7 @@
             v-for="group in parameterGroups"
             :key="group.key"
             type="button"
-            :class="[group.tone, { active: selectedGroup === group.key }]"
+            :class="[group.tone, `group-${group.key}`, { active: selectedGroup === group.key }]"
             @click="selectedGroup = selectedGroup === group.key ? '' : group.key"
           >
             <span>{{ group.label }}</span>
@@ -343,7 +343,7 @@
           <article
             v-for="parameter in favoriteParameters"
             :key="parameter.key"
-            :class="['element-row', parameter.tone, { expanded: expandedParameters[`favorite-${parameter.key}`] }]"
+            :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[`favorite-${parameter.key}`] }]"
           >
             <button class="element-head" type="button" @click="toggleParameter(`favorite-${parameter.key}`)">
               <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
@@ -679,6 +679,10 @@ function markPdf() {
 .group-card.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 .group-card.critical.active { border-color: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.1); }
 .group-card.watch.active { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+.group-card.group-basis { border-left: 4px solid #1686d9; }
+.group-card.group-quantity { border-left: 4px solid #6b9f36; }
+.group-card.group-nutrients { border-left: 4px solid #f59e0b; }
+.group-card.group-trace { border-left: 4px solid #0f9f8f; }
 .group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 50px; height: 50px; border-radius: 50%; }
 .group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
 .group-card.active .group-dial::after { background: var(--teal-50); }
@@ -778,12 +782,20 @@ function markPdf() {
 .parameter-groups button.critical { border-left: 4px solid #e85d4f; }
 .parameter-groups button.watch { border-left: 4px solid #f59e0b; }
 .parameter-groups button.good { border-left: 4px solid #10b981; }
+.parameter-groups button.group-basis { border-left-color: #1686d9; }
+.parameter-groups button.group-quantity { border-left-color: #6b9f36; }
+.parameter-groups button.group-nutrients { border-left-color: #f59e0b; }
+.parameter-groups button.group-trace { border-left-color: #0f9f8f; }
 .parameter-groups span { font-size: 13px; font-weight: 800; }
 .parameter-groups b { color: var(--text-muted); font-size: 11px; }
 .element-list { display: grid; gap: 9px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
+.element-row.group-basis { border-left-color: #1686d9; }
+.element-row.group-quantity { border-left-color: #6b9f36; }
+.element-row.group-nutrients { border-left-color: #f59e0b; }
+.element-row.group-trace { border-left-color: #0f9f8f; }
 .element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 72px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
