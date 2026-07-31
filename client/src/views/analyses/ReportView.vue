@@ -123,11 +123,17 @@
                     @click="analyses.toggleFavorite(parameter.key)"
                   >★</button>
                   <div v-if="expandedParameters[`overview-${parameter.key}`]" class="element-detail">
-                    <div><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
-                    <div><span>Nächster Schritt</span><p>{{ parameterAction(parameter) }}</p></div>
-                    <div class="parameter-trend">
+                    <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
+                      <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(`overview-${parameter.key}`) === detail.key" :class="{ active: parameterDetailPanel(`overview-${parameter.key}`) === detail.key }" @click="selectParameterDetail(`overview-${parameter.key}`, detail.key)">
+                        <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
+                        <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
+                      </button>
+                    </div>
+                    <div v-if="parameterDetailPanel(`overview-${parameter.key}`) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
+                    <div v-else-if="parameterDetailPanel(`overview-${parameter.key}`) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+                    <div v-else class="parameter-trend">
                       <div class="trend-heading">
-                        <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                        <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
                         <strong>{{ historyChange(parameter) }}</strong>
                       </div>
                       <ParameterTrendChart :parameter="parameter" />
@@ -276,57 +282,57 @@
           </button>
         </div>
 
-        <div class="element-list">
-          <article
-            v-for="parameter in visibleParameters"
-            :key="parameter.key"
-            :class="['element-row', parameter.tone, { expanded: expandedParameters[parameter.key] }]"
-          >
-            <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
-              <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-              <span class="element-name">
-                <strong>{{ parameter.label }}</strong>
-                <em>{{ parameterGroup(parameter).label }} · {{ parameterStatusLabel(parameter.tone) }}</em>
-              </span>
-              <span class="target-gauge">
-                <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
-                <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
-              </span>
-              <span class="element-reading">
-                <strong>{{ parameter.value }}</strong>
-                <small>{{ parameter.unit }}</small>
-              </span>
-              <span class="element-chevron" aria-hidden="true">⌄</span>
-            </button>
-            <button
-              type="button"
-              :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
-              :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
-              :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
-              @click="analyses.toggleFavorite(parameter.key)"
-            >★</button>
-            <div v-if="expandedParameters[parameter.key]" class="element-detail">
-              <div>
-                <span>Einordnung</span>
-                <p>{{ parameterInsight(parameter) }}</p>
-              </div>
-              <div>
-                <span>Nächster Schritt</span>
-                <p>{{ parameterAction(parameter) }}</p>
-              </div>
-              <div class="parameter-trend">
-                <div class="trend-heading">
-                  <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
-                  <strong>{{ historyChange(parameter) }}</strong>
+        <div v-if="visibleParameters.length" class="element-list">
+              <article
+                v-for="parameter in visibleParametersByGroup"
+                :key="parameter.key"
+                :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[parameter.key] }]"
+              >
+                <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
+                  <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+                  <span class="element-name">
+                    <strong>{{ parameter.label }}</strong>
+                    <em>{{ parameterStatusLabel(parameter.tone) }}</em>
+                  </span>
+                  <span class="target-gauge">
+                    <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                    <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+                  </span>
+                  <span class="element-reading">
+                    <strong>{{ parameter.value }}</strong>
+                    <small>{{ parameter.unit }}</small>
+                  </span>
+                  <span class="element-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <button
+                  type="button"
+                  :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
+                  :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
+                  :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                  @click="analyses.toggleFavorite(parameter.key)"
+                >★</button>
+                <div v-if="expandedParameters[parameter.key]" class="element-detail">
+                  <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
+                    <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(parameter.key) === detail.key" :class="{ active: parameterDetailPanel(parameter.key) === detail.key }" @click="selectParameterDetail(parameter.key, detail.key)">
+                      <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
+                      <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
+                    </button>
+                  </div>
+                  <div v-if="parameterDetailPanel(parameter.key) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
+                  <div v-else-if="parameterDetailPanel(parameter.key) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+                  <div v-else class="parameter-trend">
+                    <div class="trend-heading">
+                      <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                      <strong>{{ historyChange(parameter) }}</strong>
+                    </div>
+                    <ParameterTrendChart :parameter="parameter" />
+                  </div>
                 </div>
-                <ParameterTrendChart :parameter="parameter" />
-              </div>
-            </div>
-          </article>
-          <div v-if="!visibleParameters.length" class="no-results">
-            <strong>Keine Messwerte gefunden</strong>
-            <span>Suche oder Filter anpassen, um wieder Parameter zu sehen.</span>
-          </div>
+              </article>
+        </div>
+        <div v-else class="no-results">
+          <strong>Keine Messwerte gefunden</strong>
+          <span>Suche oder Filter anpassen, um wieder Parameter zu sehen.</span>
         </div>
       </section>
 
@@ -369,11 +375,17 @@
               @click="analyses.toggleFavorite(parameter.key)"
             >★</button>
             <div v-if="expandedParameters[`favorite-${parameter.key}`]" class="element-detail">
-              <div><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
-              <div><span>Nächster Schritt</span><p>{{ parameterAction(parameter) }}</p></div>
-              <div class="parameter-trend">
+              <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
+                <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(`favorite-${parameter.key}`) === detail.key" :class="{ active: parameterDetailPanel(`favorite-${parameter.key}`) === detail.key }" @click="selectParameterDetail(`favorite-${parameter.key}`, detail.key)">
+                  <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
+                  <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
+                </button>
+              </div>
+              <div v-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
+              <div v-else-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+              <div v-else class="parameter-trend">
                 <div class="trend-heading">
-                  <div><span>Verlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                  <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
                   <strong>{{ historyChange(parameter) }}</strong>
                 </div>
                 <ParameterTrendChart :parameter="parameter" />
@@ -400,6 +412,12 @@ import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 
+const PARAMETER_DETAIL_TABS = [
+  { key: 'info', label: 'Einordnung', icon: 'i' },
+  { key: 'action', label: 'Empfehlung', icon: '✦' },
+  { key: 'history', label: 'Messverlauf', icon: '↗' },
+]
+
 const route = useRoute()
 const analyses = useAnalysesStore()
 const actionMsg = ref('')
@@ -410,6 +428,7 @@ const parameterSearch = ref('')
 const parameterStatus = ref('all')
 const careMode = ref('quick')
 const expandedParameters = reactive({})
+const parameterDetailPanels = reactive({})
 const completedActions = reactive({})
 onMounted(() => analyses.load())
 
@@ -460,6 +479,8 @@ const visibleParameters = computed(() => {
     .filter((parameter) => !query || `${parameter.label} ${parameter.key}`.toLowerCase().includes(query))
     .sort((a, b) => toneRank(a.tone) - toneRank(b.tone) || a.label.localeCompare(b.label, 'de'))
 })
+const visibleParametersByGroup = computed(() => parameterGroups.value.flatMap((group) =>
+  visibleParameters.value.filter((parameter) => parameterGroup(parameter).key === group.key)))
 const explorerSummary = computed(() => {
   const scope = parameterGroups.value.find((group) => group.key === selectedGroup.value)?.label || 'allen Gruppen'
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
@@ -525,6 +546,12 @@ function gaugePosition(parameter) {
 }
 function toggleParameter(key) {
   expandedParameters[key] = !expandedParameters[key]
+}
+function parameterDetailPanel(key) {
+  return parameterDetailPanels[key] || 'info'
+}
+function selectParameterDetail(key, panel) {
+  parameterDetailPanels[key] = panel
 }
 function parameterInsight(parameter) {
   if (parameter.tone === 'good') return `${parameter.label} liegt im vorgesehenen Zielbereich und unterstützt die aktuelle Systemstabilität.`
