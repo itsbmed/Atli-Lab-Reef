@@ -872,9 +872,21 @@ function markPdf() {
 .favorite-button { position: absolute; z-index: 2; top: 22px; right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
 .favorite-button:hover { border-color: #f59e0b; color: #f59e0b; }
 .favorite-button.active { border-color: #fcd34d; background: #fffbeb; color: #f59e0b; }
-.element-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
+.element-detail { display: grid; gap: 14px; padding: 14px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
 .element-detail p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
-.parameter-trend { grid-column: 1 / -1; min-width: 0; margin-top: 2px; padding-top: 16px; border-top: 1px solid var(--border); }
+.parameter-detail-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: hidden; border: 1px solid rgba(136,193,233,0.3); border-radius: 15px; background: rgba(255,255,255,0.58); }
+.parameter-detail-tabs button { position: relative; min-width: 0; min-height: 68px; display: grid; place-items: center; align-content: center; gap: 5px; padding: 8px; overflow: hidden; border: 0; border-right: 1px solid rgba(136,193,233,0.22); background: transparent; color: var(--text-muted); text-align: center; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; }
+.parameter-detail-tabs button:last-child { border-right: 0; }
+.parameter-detail-tabs button:hover { background: rgba(255,255,255,0.72); color: var(--brand-blue); }
+.parameter-detail-tabs button.active { background: #fff; color: var(--brand-blue); box-shadow: inset 0 0 0 1px rgba(0,114,206,0.08); }
+.parameter-detail-tabs button.active::after { position: absolute; right: 22%; bottom: 0; left: 22%; height: 3px; border-radius: 999px 999px 0 0; background: var(--brand-blue); content: ''; }
+.parameter-detail-tabs button:focus-visible { outline: 3px solid rgba(0,114,206,0.18); outline-offset: 1px; }
+.parameter-detail-tabs .parameter-tab-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; line-height: 1; letter-spacing: 0; text-transform: none; }
+.parameter-detail-tabs button.active .parameter-tab-icon { background: var(--brand-blue); color: #fff; box-shadow: 0 3px 8px rgba(0,114,206,0.18); }
+.parameter-detail-tabs .parameter-tab-copy { min-width: 0; display: block; color: inherit; letter-spacing: 0; text-transform: none; }
+.parameter-tab-copy strong { display: block; overflow: hidden; color: currentColor; font-size: 11px; font-weight: 850; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-detail-copy { min-height: 66px; padding: 4px 3px 0; }
+.parameter-trend { min-width: 0; padding-top: 2px; }
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
@@ -911,5 +923,9 @@ function markPdf() {
   .element-chevron { display: none; }
   .favorite-button { top: 22px; right: 12px; }
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
+}
+@media (max-width: 600px) {
+  .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
+  .parameter-tab-copy strong { font-size: 10px; }
 }
 </style>
