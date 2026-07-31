@@ -793,8 +793,37 @@ function markPdf() {
 .element-reading small { display: block; }
 .element-name strong { color: var(--text); font-size: 14px; }
 .element-name em { margin-top: 4px; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
-.target-gauge i { position: relative; display: block; height: 8px; overflow: visible; border-radius: 999px; background: linear-gradient(90deg, #f8c9c4 0 25%, #bbf7d0 25% 75%, #f8c9c4 75%); }
-.target-gauge i b { position: absolute; top: 50%; width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 1px 4px rgba(10,27,67,0.3); transform: translate(-50%, -50%); }
+.target-gauge i {
+  position: relative;
+  display: block;
+  height: 10px;
+  overflow: visible;
+  border: 1px solid rgba(10,27,67,0.08);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #e85d4f 0%,
+    #f28a35 13%,
+    #f4c84a 25%,
+    #8fd06a 38%,
+    #20b77a 50%,
+    #8fd06a 62%,
+    #f4c84a 75%,
+    #f28a35 87%,
+    #e85d4f 100%
+  );
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.45), 0 2px 6px rgba(10,27,67,0.08);
+}
+.target-gauge i::after {
+  position: absolute;
+  inset: 1px 4px auto;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.5), rgba(255,255,255,0.22));
+  content: "";
+  pointer-events: none;
+}
+.target-gauge i b { position: absolute; z-index: 1; top: 50%; width: 16px; height: 16px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 2px 7px rgba(10,27,67,0.34), 0 0 0 1px rgba(10,27,67,0.08); transform: translate(-50%, -50%); }
 .target-gauge small { display: block; margin-top: 7px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .element-reading { text-align: right; }
 .element-reading strong { color: var(--text); font-size: 21px; }
