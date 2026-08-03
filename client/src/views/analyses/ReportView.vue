@@ -129,8 +129,23 @@
                         <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
                       </button>
                     </div>
-                    <div v-if="parameterDetailPanel(`overview-${parameter.key}`) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
-                    <div v-else-if="parameterDetailPanel(`overview-${parameter.key}`) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+                    <div v-if="parameterDetailPanel(`overview-${parameter.key}`) === 'info'" class="parameter-info-panel">
+                      <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
+                      <div class="parameter-spec-grid">
+                        <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
+                        <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
+                        <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
+                      </div>
+                      <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
+                      <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
+                    </div>
+                    <div v-else-if="parameterDetailPanel(`overview-${parameter.key}`) === 'action'" class="parameter-recommendation-panel">
+                      <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
+                      <div class="level-recommendations">
+                        <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
+                        <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
+                      </div>
+                    </div>
                     <div v-else class="parameter-trend">
                       <div class="trend-heading">
                         <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
@@ -193,8 +208,8 @@
             <p v-else>Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
           </div>
           <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
-            <button type="button" :class="{ active: careMode === 'quick' }" @click="careMode = 'quick'">Schnell</button>
-            <button type="button" :class="{ active: careMode === 'detail' }" @click="careMode = 'detail'">Ausführlich</button>
+            <button type="button" :class="{ active: careMode === 'quick' }" @click="setCareMode('quick')">Schnell</button>
+            <button type="button" :class="{ active: careMode === 'detail' }" @click="setCareMode('detail')">Ausführlich</button>
           </div>
         </div>
 
@@ -207,43 +222,45 @@
           <div><strong>System stabil</strong><p>Nutzen Sie diesen Bericht als Referenz für die nächste Messung.</p></div>
         </div>
 
-        <ol v-else-if="careMode === 'quick'" class="quick-actions">
-          <li v-for="(item, index) in carePlan" :key="item.key" :class="[item.tone, { done: completedActions[item.key] }]">
-            <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
-              {{ completedActions[item.key] ? '✓' : index + 1 }}
-            </button>
-            <div><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></div>
-            <em>{{ item.recheck }}</em>
-            <button type="button" class="care-open" @click="openCareDetail(item.key)">Plan ansehen</button>
-          </li>
-        </ol>
-
-        <div v-else class="care-details">
-          <article v-for="(item, index) in carePlan" :key="item.key" :data-care-key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key] }]">
-            <header>
-              <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
-                {{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}
-              </button>
-              <div>
-                <span>Priorität {{ item.priority }}</span>
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.summary }}</p>
-              </div>
-              <em>{{ item.recheck }}</em>
+        <div v-else class="care-groups">
+          <section v-for="group in carePlanGroups" :key="group.key" :class="['care-group', `group-${group.key}`]">
+            <header class="care-group-head">
+              <div><i aria-hidden="true"></i><span>{{ group.label }}</span></div>
+              <strong>{{ group.items.length }} {{ group.items.length === 1 ? 'Empfehlung' : 'Empfehlungen' }}</strong>
             </header>
-            <div class="care-card-grid">
-              <div>
-                <span class="care-label">Warum</span>
-                <p>{{ item.why }}</p>
-              </div>
-              <div>
-                <span class="care-label">So gehen Sie vor</span>
-                <ol>
-                  <li v-for="step in item.steps" :key="step">{{ step }}</li>
-                </ol>
-              </div>
+            <div class="care-details">
+              <article v-for="(item, index) in group.items" :key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key], expanded: expandedCareCards[item.key] }]">
+                <div class="care-card-head">
+                  <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
+                    {{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}
+                  </button>
+                  <button type="button" class="care-card-toggle" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
+                    <span class="care-card-copy">
+                      <small>Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small>
+                      <strong>{{ item.title }}</strong>
+                      <em>{{ item.summary }}</em>
+                      <span class="care-elements"><b v-for="parameter in item.parameters" :key="parameter">{{ parameter }}</b></span>
+                    </span>
+                    <span class="care-card-meta"><em>{{ item.recheck }}</em><i aria-hidden="true">⌄</i></span>
+                  </button>
+                </div>
+                <Transition name="care-slide">
+                  <div v-show="expandedCareCards[item.key]" class="care-card-grid">
+                    <div>
+                      <span class="care-label">Warum</span>
+                      <p v-for="reason in item.whys" :key="reason">{{ reason }}</p>
+                    </div>
+                    <div>
+                      <span class="care-label">So gehen Sie vor</span>
+                      <ol>
+                        <li v-for="step in item.steps" :key="step">{{ step }}</li>
+                      </ol>
+                    </div>
+                  </div>
+                </Transition>
+              </article>
             </div>
-          </article>
+          </section>
         </div>
       </section>
 
@@ -318,8 +335,23 @@
                       <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
                     </button>
                   </div>
-                  <div v-if="parameterDetailPanel(parameter.key) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
-                  <div v-else-if="parameterDetailPanel(parameter.key) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+                  <div v-if="parameterDetailPanel(parameter.key) === 'info'" class="parameter-info-panel">
+                    <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
+                    <div class="parameter-spec-grid">
+                      <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
+                      <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
+                      <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
+                    </div>
+                    <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
+                    <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
+                  </div>
+                  <div v-else-if="parameterDetailPanel(parameter.key) === 'action'" class="parameter-recommendation-panel">
+                    <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
+                    <div class="level-recommendations">
+                      <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
+                      <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
+                    </div>
+                  </div>
                   <div v-else class="parameter-trend">
                     <div class="trend-heading">
                       <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
@@ -381,8 +413,23 @@
                   <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
                 </button>
               </div>
-              <div v-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'info'" class="parameter-detail-copy"><span>Einordnung</span><p>{{ parameterInsight(parameter) }}</p></div>
-              <div v-else-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'action'" class="parameter-detail-copy"><span>Empfehlung</span><p>{{ parameterAction(parameter) }}</p></div>
+              <div v-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'info'" class="parameter-info-panel">
+                <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
+                <div class="parameter-spec-grid">
+                  <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
+                  <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
+                  <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
+                </div>
+                <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
+                <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
+              </div>
+              <div v-else-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'action'" class="parameter-recommendation-panel">
+                <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
+                <div class="level-recommendations">
+                  <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
+                  <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
+                </div>
+              </div>
               <div v-else class="parameter-trend">
                 <div class="trend-heading">
                   <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
@@ -410,16 +457,18 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
+import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
-  { key: 'info', label: 'Einordnung', icon: 'i' },
-  { key: 'action', label: 'Empfehlung', icon: '✦' },
+  { key: 'info', label: 'Info & Technik', icon: 'i' },
+  { key: 'action', label: 'Empfehlungen', icon: '✦' },
   { key: 'history', label: 'Messverlauf', icon: '↗' },
 ]
 
 const route = useRoute()
 const analyses = useAnalysesStore()
+const parameterContent = loadAnalysisContent()
 const actionMsg = ref('')
 const activeTab = ref('overview')
 const selectedGroup = ref('')
@@ -429,6 +478,7 @@ const parameterStatus = ref('all')
 const careMode = ref('quick')
 const expandedParameters = reactive({})
 const parameterDetailPanels = reactive({})
+const expandedCareCards = reactive({})
 const completedActions = reactive({})
 onMounted(() => analyses.load())
 
@@ -487,9 +537,43 @@ const explorerSummary = computed(() => {
   return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
 })
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
-const carePlan = computed(() => issueParameters.value
+const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
+const carePlanGroups = computed(() => parameterGroups.value
+  .map((group) => {
+    const recommendations = new Map()
+    for (const action of individualCareActions.value.filter((item) => item.groupKey === group.key)) {
+      const recommendationKey = action.summary.trim().toLocaleLowerCase('de-DE')
+      if (!recommendations.has(recommendationKey)) {
+        recommendations.set(recommendationKey, {
+          ...action,
+          key: `${group.key}-${action.parameterKey}`,
+          parameters: [action.parameterLabel],
+          whys: [action.why],
+        })
+        continue
+      }
+      const merged = recommendations.get(recommendationKey)
+      merged.key += `-${action.parameterKey}`
+      merged.parameters.push(action.parameterLabel)
+      merged.whys.push(action.why)
+      merged.steps = [...new Set([...merged.steps, ...action.steps])]
+      if (toneRank(action.tone) < toneRank(merged.tone)) {
+        merged.tone = action.tone
+        merged.priority = action.priority
+      }
+      if (action.days < merged.days) {
+        merged.days = action.days
+        merged.recheck = action.recheck
+      }
+      merged.title = `${merged.parameters.join(' & ')} gemeinsam stabilisieren`
+    }
+    const items = [...recommendations.values()].sort((a, b) => toneRank(a.tone) - toneRank(b.tone))
+    return { ...group, items }
+  })
+  .filter((group) => group.items.length))
+const carePlan = computed(() => carePlanGroups.value.flatMap((group) => group.items))
 const careProgress = computed(() => carePlan.value.filter((item) => completedActions[item.key]).length)
 const careProgressPercent = computed(() => carePlan.value.length ? Math.round((careProgress.value / carePlan.value.length) * 100) : 100)
 const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
@@ -509,9 +593,11 @@ const GROUP_DESCRIPTIONS = {
   nutrients: 'NO₃, PO₄ und mögliche Quellen für Algen- oder Mangelstress.',
   trace: 'Feine Versorgung für Farbe, Enzyme und Stoffwechsel.',
 }
-
 function parameterGroup(parameter) {
   return GROUP_MAP[parameter.key] || { key: 'trace', label: 'Spurenelemente' }
+}
+function parameterGuide(parameter) {
+  return parameterContent[parameter.key] || DEFAULT_PARAMETER_GUIDE
 }
 function parameterSymbol(parameter) {
   return SYMBOL_MAP[parameter.key] || parameter.label.slice(0, 2)
@@ -592,8 +678,12 @@ function buildCareAction(parameter, index) {
   const days = parameter.tone === 'critical' ? 7 : 14
   return {
     key: parameter.key,
+    parameterKey: parameter.key,
+    parameterLabel: parameter.label,
+    groupKey: parameterGroup(parameter).key,
     tone: parameter.tone,
     priority,
+    days,
     title: `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
     summary: recommendation,
     why: `${parameter.label} liegt mit ${parameter.value} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
@@ -610,9 +700,12 @@ function careSteps(parameter, isHigh) {
 function toggleCareAction(key) {
   completedActions[key] = !completedActions[key]
 }
-function openCareDetail(key) {
-  careMode.value = 'detail'
-  requestAnimationFrame(() => document.querySelector(`.care-card[data-care-key="${key}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+function setCareMode(mode) {
+  careMode.value = mode
+  for (const item of carePlan.value) expandedCareCards[item.key] = mode === 'detail'
+}
+function toggleCareCard(key) {
+  expandedCareCards[key] = !expandedCareCards[key]
 }
 
 function formatDate(iso) {
@@ -747,7 +840,6 @@ function markPdf() {
 .care-plan { display: grid; gap: 18px; }
 .care-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .care-head > div:first-child > span,
-.care-card header span,
 .care-label { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .care-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 800; }
 .care-head p { margin-top: 6px; color: var(--text-muted); font-size: 13px; }
@@ -760,35 +852,51 @@ function markPdf() {
 .care-clean > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 24px; font-weight: 900; }
 .care-clean strong { display: block; color: #065f46; font-size: 18px; }
 .care-clean p { margin-top: 3px; color: #047857; font-size: 13px; }
-.quick-actions,
+.care-groups { display: grid; gap: 22px; }
+.care-group { --care-group-color: #0f9f8f; display: grid; gap: 10px; }
+.care-group.group-basis { --care-group-color: #1686d9; }
+.care-group.group-quantity { --care-group-color: #6b9f36; }
+.care-group.group-nutrients { --care-group-color: #f59e0b; }
+.care-group-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 3px; }
+.care-group-head > div { display: flex; align-items: center; gap: 9px; }
+.care-group-head i { width: 9px; height: 9px; border-radius: 50%; background: var(--care-group-color); box-shadow: 0 0 0 4px color-mix(in srgb, var(--care-group-color) 14%, transparent); }
+.care-group-head span { color: var(--text); font-size: 14px; font-weight: 850; }
+.care-group-head strong { padding: 5px 9px; border-radius: 999px; background: color-mix(in srgb, var(--care-group-color) 10%, #fff); color: var(--care-group-color); font-size: 10px; font-weight: 850; }
 .care-details { display: grid; gap: 10px; }
-.quick-actions { list-style: none; }
-.quick-actions li { min-height: 76px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-left: 4px solid #f59e0b; border-radius: 15px; background: #fff; transition: opacity 0.2s ease; }
-.quick-actions li.critical { border-left-color: #e85d4f; }
-.quick-actions li.done,
-.care-card.done { opacity: 0.6; }
-.quick-actions li.done strong,
-.care-card.done h3 { text-decoration: line-through; }
+.care-card.done { opacity: 0.62; }
+.care-card.done .care-card-copy > strong { text-decoration: line-through; }
 .care-check { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; cursor: pointer; }
 .done .care-check { border-color: #10b981; background: #10b981; color: #fff; }
-.quick-actions strong,
-.quick-actions span { display: block; }
-.quick-actions strong { color: var(--text); font-size: 14px; }
-.quick-actions span { margin-top: 4px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
-.quick-actions em,
-.care-card header > em { color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 800; white-space: nowrap; }
-.care-open { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 800; cursor: pointer; }
-.care-open:hover { border-color: var(--brand-blue); }
-.care-card { overflow: hidden; border: 1px solid var(--border); border-top: 4px solid #f59e0b; border-radius: 16px; background: #fff; }
-.care-card.critical { border-top-color: #e85d4f; }
-.care-card header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px; }
-.care-card h3 { margin-top: 4px; color: var(--text); font-size: 20px; font-weight: 800; }
-.care-card header p { margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.care-card { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid var(--care-group-color); border-radius: 16px; background: #fff; transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
+.care-card:hover { border-color: color-mix(in srgb, var(--care-group-color) 48%, var(--border)); box-shadow: 0 7px 20px rgba(10,27,67,0.07); }
+.care-card.expanded { box-shadow: 0 9px 24px rgba(10,27,67,0.09); }
+.care-card-head { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 14px; }
+.care-card-toggle { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 3px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.care-card-copy,
+.care-card-copy > small,
+.care-card-copy > strong,
+.care-card-copy > em { display: block; }
+.care-card-copy > small { color: var(--teal-700); font-size: 10px; font-weight: 850; font-style: normal; letter-spacing: 0.07em; text-transform: uppercase; }
+.care-card-copy > strong { margin-top: 3px; color: var(--text); font-size: 17px; font-weight: 850; }
+.care-card-copy > em { margin-top: 4px; color: var(--text-muted); font-size: 12px; font-style: normal; line-height: 1.45; }
+.care-elements { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.care-elements b { padding: 4px 7px; border-radius: 7px; background: color-mix(in srgb, var(--care-group-color) 9%, #fff); color: var(--care-group-color); font-size: 9px; font-weight: 850; }
+.care-card-meta { display: flex; align-items: center; gap: 12px; }
+.care-card-meta em { color: var(--text-muted); font-size: 10px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.care-card-meta i { color: var(--care-group-color); font-size: 20px; font-style: normal; transition: transform 0.25s ease; }
+.care-card.expanded .care-card-meta i { transform: rotate(180deg); }
 .care-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 18px 20px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
 .care-card-grid p,
 .care-card-grid ol { margin-top: 7px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.care-card-grid p + p { padding-top: 8px; border-top: 1px solid var(--border); }
 .care-card-grid ol { padding-left: 18px; }
 .care-card-grid li + li { margin-top: 5px; }
+.care-slide-enter-active,
+.care-slide-leave-active { overflow: hidden; transition: max-height 0.3s ease, opacity 0.22s ease, transform 0.3s ease; }
+.care-slide-enter-from,
+.care-slide-leave-to { max-height: 0; opacity: 0; transform: translateY(-8px); }
+.care-slide-enter-to,
+.care-slide-leave-from { max-height: 900px; opacity: 1; transform: translateY(0); }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
@@ -885,7 +993,36 @@ function markPdf() {
 .parameter-detail-tabs button.active .parameter-tab-icon { background: var(--brand-blue); color: #fff; box-shadow: 0 3px 8px rgba(0,114,206,0.18); }
 .parameter-detail-tabs .parameter-tab-copy { min-width: 0; display: block; color: inherit; letter-spacing: 0; text-transform: none; }
 .parameter-tab-copy strong { display: block; overflow: hidden; color: currentColor; font-size: 11px; font-weight: 850; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.parameter-detail-copy { min-height: 66px; padding: 4px 3px 0; }
+.parameter-info-panel,
+.parameter-recommendation-panel { display: grid; gap: 12px; }
+.parameter-info-lead,
+.parameter-purpose,
+.current-recommendation { padding: 14px 15px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
+.parameter-info-lead p,
+.parameter-purpose p,
+.current-recommendation p,
+.parameter-current-status p,
+.level-recommendations p { margin-top: 5px; }
+.parameter-spec-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.parameter-spec-grid > div { min-width: 0; padding: 11px 12px; border-radius: 12px; background: #eef5fb; }
+.parameter-spec-grid strong { display: block; margin-top: 4px; overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-current-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; padding: 13px 15px; border: 1px solid #bbf7d0; border-radius: 13px; background: #ecfdf5; }
+.parameter-current-status > strong { color: #047857; font-size: 12px; }
+.parameter-current-status p { grid-column: 1 / -1; color: #086b51; }
+.parameter-current-status.watch { border-color: #fed7aa; background: #fff7ed; }
+.parameter-current-status.watch > strong,
+.parameter-current-status.watch p { color: #9a4d0a; }
+.parameter-current-status.critical { border-color: #f8c9c4; background: #fff1ef; }
+.parameter-current-status.critical > strong,
+.parameter-current-status.critical p { color: #b53a2e; }
+.current-recommendation { border-left: 4px solid #10b981; }
+.current-recommendation.watch { border-left-color: #f59e0b; }
+.current-recommendation.critical { border-left-color: #e85d4f; }
+.level-recommendations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.level-recommendations article { padding: 14px 15px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
+.level-recommendations article.high { border-top: 3px solid #e85d4f; }
+.level-recommendations article.low { border-top: 3px solid #1686d9; }
+.level-recommendations strong { color: var(--text); font-size: 12px; }
 .parameter-trend { min-width: 0; padding-top: 2px; }
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
@@ -909,11 +1046,8 @@ function markPdf() {
   .explorer-controls,
   .care-head { align-items: stretch; flex-direction: column; }
   .care-mode { align-self: flex-start; }
-  .quick-actions li { grid-template-columns: 42px minmax(0, 1fr); }
-  .quick-actions em,
-  .quick-actions .care-open { grid-column: 2; justify-self: start; }
-  .care-card header { grid-template-columns: 42px minmax(0, 1fr); }
-  .care-card header > em { grid-column: 2; }
+  .care-card-toggle { grid-template-columns: 1fr; gap: 10px; }
+  .care-card-meta { justify-content: space-between; }
   .care-card-grid { grid-template-columns: 1fr; padding-left: 18px; }
   .explorer-controls input { width: 100%; }
   .element-head { grid-template-columns: 42px minmax(0, 1fr) auto; }
@@ -927,5 +1061,7 @@ function markPdf() {
 @media (max-width: 600px) {
   .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
   .parameter-tab-copy strong { font-size: 10px; }
+  .parameter-spec-grid { grid-template-columns: 1fr; }
+  .level-recommendations { grid-template-columns: 1fr; }
 }
 </style>
