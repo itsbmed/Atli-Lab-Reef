@@ -29,6 +29,7 @@ function publicUser(u) {
     username: u.username,
     email: u.email,
     name: u.name || u.username,
+    role: u.role || 'endnutzer',
     kind: u.kind || 'new', // 'new' = leeres Dashboard, 'full' = mit Daten
     country: u.country || 'DE',
     language: u.language || 'de',
@@ -60,6 +61,7 @@ export function registerUser(data) {
     email: data.email,
     password: data.password,
     country: data.country,
+    role: 'endnutzer',
     kind: 'new',
     createdAt: new Date().toISOString(),
   }
@@ -142,9 +144,11 @@ export function clearSession() {
 //  · demo     → Neukunde  (leeres Einrichtungs-Dashboard)
 //  · kunde    → Bestandskunde (volles Dashboard mit Demo-Aquarien)
 const DEMO_USERS = [
-  { id: 'demo-full', username: 'kunde',    email: 'kunde@reefpilot.de', password: 'demo123', name: 'Mohamed',     kind: 'full' },
-  { id: 'demo-new',  username: 'demo',     email: 'demo@reefpilot.de',  password: 'demo123', name: 'Neuer Kunde', kind: 'new' },
-  { id: 'demo-neu',  username: 'neukunde', email: 'neu@reefpilot.de',   password: 'demo123', name: 'Neuer Kunde', kind: 'new' },
+  { id: 'demo-full', username: 'kunde',    email: 'kunde@reefpilot.de', password: 'demo123', name: 'Mohamed',        role: 'endnutzer', kind: 'full' },
+  { id: 'demo-new',  username: 'demo',     email: 'demo@reefpilot.de',  password: 'demo123', name: 'Neuer Kunde',    role: 'endnutzer', kind: 'new' },
+  { id: 'demo-neu',  username: 'neukunde', email: 'neu@reefpilot.de',   password: 'demo123', name: 'Neuer Kunde',    role: 'endnutzer', kind: 'new' },
+  { id: 'demo-admin', username: 'admin',    email: 'admin@reefpilot.de', password: 'demo123', name: 'ATI Admin',      role: 'admin',     kind: 'full' },
+  { id: 'demo-sub', username: 'subadmin',   email: 'sub@reefpilot.de',   password: 'demo123', name: 'ATI Redaktion',  role: 'subadmin',  kind: 'full' },
 ]
 
 export function ensureDemoUsers() {
@@ -155,9 +159,9 @@ export function ensureDemoUsers() {
     if (!existing) {
       users.push({ ...demo, country: 'DE', createdAt: new Date().toISOString() })
       changed = true
-    } else if (existing.kind !== demo.kind || existing.id !== demo.id) {
+    } else if (existing.kind !== demo.kind || existing.id !== demo.id || existing.role !== demo.role) {
       // Bestehendes Demo-Konto an die aktuelle Definition angleichen.
-      Object.assign(existing, { id: demo.id, kind: demo.kind, name: demo.name, email: demo.email })
+      Object.assign(existing, { id: demo.id, kind: demo.kind, name: demo.name, email: demo.email, role: demo.role })
       changed = true
     }
   }
@@ -166,8 +170,8 @@ export function ensureDemoUsers() {
   // Aktive Session eines angepassten Demo-Kontos aktualisieren (z. B. demo war „full").
   const session = loadSession()
   const def = session?.user?.username && DEMO_USERS.find((d) => d.username === session.user.username)
-  if (def && (session.user.kind !== def.kind || session.user.id !== def.id)) {
-    session.user = { ...session.user, id: def.id, kind: def.kind, name: def.name }
+  if (def && (session.user.kind !== def.kind || session.user.id !== def.id || session.user.role !== def.role)) {
+    session.user = { ...session.user, id: def.id, kind: def.kind, name: def.name, role: def.role }
     session.token = `local-${def.id}`
     saveSession(session)
   }
