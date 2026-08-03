@@ -104,6 +104,71 @@
           </div>
         </section>
 
+        <section v-if="canManageAnalysisContent" class="settings-section card content-admin">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Admin · Analyse-Inhalte</span>
+              <h2>Elementtexte zentral verwalten</h2>
+              <p>Diese Inhalte erscheinen in allen Analyseberichten unter Info & Technik und Empfehlungen.</p>
+            </div>
+            <span class="status-pill">{{ auth.user?.role === 'admin' ? 'Administrator' : 'Sub-Admin' }}</span>
+          </div>
+
+          <div class="content-workspace">
+            <nav class="parameter-content-list" aria-label="Element zum Bearbeiten auswählen">
+              <button
+                v-for="parameter in ANALYSIS_PARAMETERS"
+                :key="parameter.key"
+                type="button"
+                :class="{ active: selectedParameterKey === parameter.key }"
+                @click="selectedParameterKey = parameter.key"
+              >
+                <span>{{ parameter.symbol }}</span>
+                <div><strong>{{ parameter.label }}</strong><small>{{ parameter.group }}</small></div>
+                <i aria-hidden="true">›</i>
+              </button>
+            </nav>
+
+            <div class="content-editor">
+              <header>
+                <div>
+                  <span>{{ selectedParameterMeta.group }}</span>
+                  <h3>{{ selectedParameterMeta.label }}</h3>
+                </div>
+                <button type="button" class="reset-copy" @click="resetSelectedAnalysisCopy">Standard wiederherstellen</button>
+              </header>
+
+              <label>
+                <span>Allgemeine Information</span>
+                <small>Was ist dieses Element bzw. dieser Messwert?</small>
+                <textarea v-model="selectedAnalysisContent.general" rows="4"></textarea>
+              </label>
+              <label>
+                <span>Wofür wichtig</span>
+                <small>Welche Rolle spielt der Wert im Aquarium?</small>
+                <textarea v-model="selectedAnalysisContent.importance" rows="4"></textarea>
+              </label>
+              <div class="content-action-grid">
+                <label class="high">
+                  <span>Wenn der Wert zu hoch ist</span>
+                  <small>Konkrete, sichere Handlungsempfehlung</small>
+                  <textarea v-model="selectedAnalysisContent.high" rows="5"></textarea>
+                </label>
+                <label class="low">
+                  <span>Wenn der Wert zu niedrig ist</span>
+                  <small>Konkrete, sichere Handlungsempfehlung</small>
+                  <textarea v-model="selectedAnalysisContent.low" rows="5"></textarea>
+                </label>
+              </div>
+
+              <div class="content-save-row">
+                <p :class="['save-note', contentSaveState.type]" role="status">{{ contentSaveState.message }}</p>
+                <button class="btn btn-primary" type="button" @click="saveAnalysisCopy">Analyse-Inhalte speichern</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="settings-section card">
           <div class="section-heading">
             <div>
@@ -183,10 +248,13 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { ANALYSIS_PARAMETERS, DEFAULT_PARAMETER_CONTENT, loadAnalysisContent, saveAnalysisContent } from '@/services/analysisContent'
 import { loadSettingsPreferences, saveSettingsPreferences } from '@/services/settingsPreferences'
 
 const auth = useAuthStore()
 const localPreferences = loadSettingsPreferences(auth.user?.id)
+const analysisContent = reactive(loadAnalysisContent())
+const selectedParameterKey = ref(ANALYSIS_PARAMETERS[0].key)
 const settings = reactive({
   language: auth.user?.language || 'de',
   country: auth.user?.country || 'DE',
@@ -201,6 +269,7 @@ const settings = reactive({
 })
 const saving = ref(false)
 const saveState = reactive({ message: '', type: '' })
+const contentSaveState = reactive({ message: '', type: '' })
 const assistantIntents = [
   { key: 'action', label: 'Schnell handeln', desc: 'Priorität, nächster Schritt und Kontrolle zuerst.' },
   { key: 'learn', label: 'Verstehen lernen', desc: 'Ursache, Wirkung und Aquarium-Zusammenhang stärker erklären.' },
@@ -221,6 +290,9 @@ const correctionModes = [
   { key: 'standard', label: 'Normal', desc: 'Klare Maßnahme mit üblicher Kontrollfrist.' },
   { key: 'strict', label: 'Streng', desc: 'Kritische Werte aggressiver priorisieren.' },
 ]
+const canManageAnalysisContent = computed(() => ['admin', 'subadmin'].includes(auth.user?.role))
+const selectedParameterMeta = computed(() => ANALYSIS_PARAMETERS.find((item) => item.key === selectedParameterKey.value) || ANALYSIS_PARAMETERS[0])
+const selectedAnalysisContent = computed(() => analysisContent[selectedParameterKey.value])
 const assistantIntentLabel = computed(() => (
   assistantIntents.find((intent) => intent.key === settings.assistant_intent)?.label || 'Schnell handeln'
 ))
@@ -263,6 +335,24 @@ const assistantPreview = computed(() => {
     copy: 'Empfehlungen zeigen Ursache, Risiko, Zielbereich und den nächsten sinnvollen Schritt.',
   }
 })
+
+function resetSelectedAnalysisCopy() {
+  Object.assign(analysisContent[selectedParameterKey.value], DEFAULT_PARAMETER_CONTENT[selectedParameterKey.value])
+  contentSaveState.message = 'Standardtext geladen. Zum Veröffentlichen noch speichern.'
+  contentSaveState.type = ''
+}
+
+function saveAnalysisCopy() {
+  if (!canManageAnalysisContent.value) {
+    contentSaveState.message = 'Sie haben keine Berechtigung, Analyse-Inhalte zu bearbeiten.'
+    contentSaveState.type = 'error'
+    return
+  }
+  const saved = saveAnalysisContent(analysisContent)
+  for (const parameter of ANALYSIS_PARAMETERS) Object.assign(analysisContent[parameter.key], saved[parameter.key])
+  contentSaveState.message = 'Analyse-Inhalte gespeichert und für neue Berichtsaufrufe veröffentlicht.'
+  contentSaveState.type = 'success'
+}
 
 async function save() {
   saving.value = true
@@ -354,6 +444,7 @@ async function save() {
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .section-heading h2,
 .side-card h2 { color: var(--text); font-size: 22px; font-weight: 800; }
+.section-heading p { max-width: 650px; margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
 .status-pill { padding: 6px 11px; border-radius: 999px; background: var(--green-bg); color: #065f46; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .assistant-panel { display: grid; gap: 20px; padding: 22px; }
 .assistant-preview { display: flex; align-items: flex-start; gap: 16px; padding: 18px; border-radius: 20px; background: linear-gradient(120deg, rgba(10, 27, 67, 0.96), rgba(0, 51, 102, 0.86)); color: #fff; }
@@ -365,6 +456,36 @@ async function save() {
 .assistant-preview p { margin-top: 6px; color: rgba(255, 255, 255, 0.7); font-size: 13px; line-height: 1.55; }
 .assistant-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .assistant-chips b { padding: 5px 8px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: var(--teal-100); font-size: 10px; font-weight: 800; }
+.content-admin { padding: 22px; }
+.content-workspace { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; align-items: start; }
+.parameter-content-list { display: grid; gap: 6px; }
+.parameter-content-list button { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 9px; border: 1px solid transparent; border-radius: 12px; background: #f5f9fc; color: var(--text); text-align: left; cursor: pointer; }
+.parameter-content-list button:hover { border-color: var(--teal-400); background: #fff; }
+.parameter-content-list button.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: inset 3px 0 var(--brand-blue); }
+.parameter-content-list button > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 900; }
+.parameter-content-list strong,
+.parameter-content-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-content-list strong { font-size: 12px; }
+.parameter-content-list small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+.parameter-content-list i { color: var(--text-muted); font-size: 18px; font-style: normal; }
+.content-editor { min-width: 0; display: grid; gap: 13px; padding: 18px; border: 1px solid var(--border); border-radius: 17px; background: #f8fbfe; }
+.content-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.content-editor header span { color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.content-editor h3 { margin-top: 3px; color: var(--text); font-size: 22px; }
+.reset-copy { padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 800; cursor: pointer; }
+.reset-copy:hover { border-color: var(--brand-blue); }
+.content-editor > label,
+.content-action-grid label { display: grid; gap: 5px; }
+.content-editor label > span { color: var(--text); font-size: 12px; font-weight: 850; }
+.content-editor label > small { color: var(--text-muted); font-size: 10px; }
+.content-editor textarea { width: 100%; min-width: 0; resize: vertical; padding: 11px 12px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; outline: 0; }
+.content-editor textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.content-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.content-action-grid label { padding: 12px; border: 1px solid var(--border); border-top: 3px solid #e85d4f; border-radius: 13px; background: #fff; }
+.content-action-grid label.low { border-top-color: #1686d9; }
+.content-action-grid textarea { border-color: transparent; background: #f8fbfe; }
+.content-save-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding-top: 4px; }
+.content-save-row .save-note { margin: 0 auto 0 0; text-align: left; }
 .setting-block { display: grid; gap: 9px; }
 .setting-block > label { color: var(--text-muted); font-size: 12px; font-weight: 800; }
 .choice-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -421,6 +542,8 @@ async function save() {
 .save-note.error { color: var(--coral); }
 @media (max-width: 980px) {
   .settings-layout { grid-template-columns: 1fr; }
+  .content-workspace { grid-template-columns: 1fr; }
+  .parameter-content-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   .settings-hero { flex-direction: column; padding: 22px; }
@@ -432,5 +555,10 @@ async function save() {
   .segmented { grid-template-columns: 1fr; }
   .option-card-list { grid-template-columns: 1fr; }
   .assistant-preview { flex-direction: column; }
+  .parameter-content-list { grid-template-columns: 1fr 1fr; }
+  .content-action-grid { grid-template-columns: 1fr; }
+  .content-editor > header,
+  .content-save-row { align-items: stretch; flex-direction: column; }
+  .content-save-row .save-note { margin: 0; }
 }
 </style>
