@@ -187,9 +187,10 @@ export function ensureDemoUsers() {
     if (!existing) {
       users.push({ ...demo, country: 'DE', createdAt: new Date().toISOString() })
       changed = true
-    } else if (existing.kind !== demo.kind || existing.id !== demo.id || existing.role !== demo.role) {
+    } else if (existing.kind !== demo.kind || existing.id !== demo.id || (existing.role !== demo.role && !existing.permissions_updated_at)) {
       // Bestehendes Demo-Konto an die aktuelle Definition angleichen.
-      Object.assign(existing, { id: demo.id, kind: demo.kind, name: demo.name, email: demo.email, role: demo.role })
+      Object.assign(existing, { id: demo.id, kind: demo.kind, name: demo.name, email: demo.email })
+      if (!existing.permissions_updated_at) existing.role = demo.role
       changed = true
     }
   }
@@ -198,9 +199,10 @@ export function ensureDemoUsers() {
   // Aktive Session eines angepassten Demo-Kontos aktualisieren (z. B. demo war „full").
   const session = loadSession()
   const def = session?.user?.username && DEMO_USERS.find((d) => d.username === session.user.username)
-  if (def && (session.user.kind !== def.kind || session.user.id !== def.id || session.user.role !== def.role)) {
-    session.user = { ...session.user, id: def.id, kind: def.kind, name: def.name, role: def.role }
-    session.token = `local-${def.id}`
+  const storedSessionUser = def && getUsers().find((user) => user.username === def.username)
+  if (storedSessionUser && (session.user.kind !== storedSessionUser.kind || session.user.id !== storedSessionUser.id || session.user.role !== storedSessionUser.role)) {
+    session.user = publicUser(storedSessionUser)
+    session.token = `local-${storedSessionUser.id}`
     saveSession(session)
   }
 }
