@@ -39,11 +39,17 @@ function publicUser(u) {
     advisor_id: u.advisor_id || null,
     password_updated_at: u.password_updated_at || null,
     createdAt: u.createdAt || null,
+    lastLoginAt: u.last_login_at || null,
+    permissionsUpdatedAt: u.permissions_updated_at || null,
   }
 }
 
 export function getUsers() {
   return read(USERS_KEY, [])
+}
+
+export function getPublicUsers() {
+  return getUsers().map(publicUser)
 }
 
 export function registerUser(data) {
@@ -80,6 +86,8 @@ export function loginUser({ login, password }) {
   if (!user || user.password !== password) {
     throw { error: 'Benutzername/E-Mail oder Passwort ist falsch.' }
   }
+  user.last_login_at = new Date().toISOString()
+  write(USERS_KEY, users)
   return publicUser(user)
 }
 
