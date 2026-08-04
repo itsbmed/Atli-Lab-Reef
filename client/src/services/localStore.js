@@ -91,6 +91,26 @@ export function loginUser({ login, password }) {
   return publicUser(user)
 }
 
+export function updateUserRole(actorId, userId, role) {
+  const allowedRoles = ['endnutzer', 'subadmin', 'admin']
+  if (!allowedRoles.includes(role)) throw { error: 'Diese Rolle ist nicht zulässig.' }
+
+  const users = getUsers()
+  const actor = users.find((user) => user.id === actorId)
+  const target = users.find((user) => user.id === userId)
+  if (!actor || actor.role !== 'admin') throw { error: 'Nur Administratoren dürfen Rollen ändern.' }
+  if (!target) throw { error: 'Konto wurde nicht gefunden.' }
+  if (actorId === userId) throw { error: 'Die eigene Rolle kann nicht geändert werden.' }
+  if (target.role === 'admin' && role !== 'admin' && users.filter((user) => user.role === 'admin').length <= 1) {
+    throw { error: 'Der letzte Administrator kann nicht herabgestuft werden.' }
+  }
+
+  target.role = role
+  target.permissions_updated_at = new Date().toISOString()
+  write(USERS_KEY, users)
+  return publicUser(target)
+}
+
 export function updateUserProfile(userId, data) {
   const users = getUsers()
   const user = users.find((u) => u.id === userId)
