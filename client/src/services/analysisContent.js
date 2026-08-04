@@ -1,15 +1,10 @@
+import { ELEMENT_DEFINITIONS } from '@/services/analysisCatalog'
+
 const STORAGE_KEY = 'ati_analysis_content:v1'
 
-export const ANALYSIS_PARAMETERS = Object.freeze([
-  { key: 'salinity', label: 'Salinität', symbol: 'PSU', group: 'Basiswerte' },
-  { key: 'kh', label: 'KH', symbol: 'KH', group: 'Basiswerte' },
-  { key: 'calcium', label: 'Calcium', symbol: 'Ca', group: 'Mengenelemente' },
-  { key: 'magnesium', label: 'Magnesium', symbol: 'Mg', group: 'Mengenelemente' },
-  { key: 'nitrate', label: 'Nitrat', symbol: 'NO₃', group: 'Nährstoffe' },
-  { key: 'phosphate', label: 'Phosphat', symbol: 'PO₄', group: 'Nährstoffe' },
-])
+export const ANALYSIS_PARAMETERS = ELEMENT_DEFINITIONS
 
-export const DEFAULT_PARAMETER_CONTENT = Object.freeze({
+const CUSTOM_PARAMETER_CONTENT = {
   salinity: {
     general: 'Die Salinität beschreibt die gesamte Konzentration gelöster Salze im Meerwasser. Sie wird hier in Practical Salinity Units (PSU) angegeben.',
     importance: 'Eine stabile Salinität ist die Grundlage für den osmotischen Haushalt aller Tiere und beeinflusst zugleich die gemessenen Konzentrationen vieler weiterer Elemente.',
@@ -46,7 +41,7 @@ export const DEFAULT_PARAMETER_CONTENT = Object.freeze({
     high: 'Futter, Ablagerungen und Eintragsquellen prüfen. Adsorber oder Filtermaßnahmen vorsichtig einsetzen und keine schnelle Absenkung erzwingen.',
     low: 'Phosphatadsorber und Nährstoffexport reduzieren, Versorgung prüfen und den Wert bei Bedarf sehr langsam und messbegleitet anheben.',
   },
-})
+}
 
 export const DEFAULT_PARAMETER_GUIDE = Object.freeze({
   general: 'Dieser Laborparameter beschreibt die gemessene Konzentration eines für das Aquariensystem relevanten Stoffes.',
@@ -54,6 +49,25 @@ export const DEFAULT_PARAMETER_GUIDE = Object.freeze({
   high: 'Mögliche Eintragsquellen und Dosierungen prüfen. Den Wert langsam korrigieren und die Wirkung durch eine erneute Messung kontrollieren.',
   low: 'Verbrauch und Versorgung prüfen. Eine notwendige Ergänzung in kleinen Schritten vornehmen und zeitnah nachmessen.',
 })
+
+function defaultContent(definition) {
+  const range = definition.referenceRanges.Meerwasser
+  const custom = CUSTOM_PARAMETER_CONTENT[definition.key] || {}
+  return {
+    unit: definition.unit,
+    targetMin: range.min,
+    targetMax: range.max,
+    precision: definition.precision,
+    general: custom.general || `${definition.label} (${definition.symbol}) wird mit ${definition.source} bestimmt und in ${definition.unit} für den Kundenbericht ausgegeben.`,
+    importance: custom.importance || `${definition.label} gehört zur Gruppe „${definition.group}“. Der Wert wird zusammen mit dem Zielbereich, verwandten Elementen und seinem zeitlichen Verlauf beurteilt.`,
+    high: custom.high || DEFAULT_PARAMETER_GUIDE.high,
+    low: custom.low || DEFAULT_PARAMETER_GUIDE.low,
+  }
+}
+
+export const DEFAULT_PARAMETER_CONTENT = Object.freeze(Object.fromEntries(
+  ELEMENT_DEFINITIONS.map((definition) => [definition.key, Object.freeze(defaultContent(definition))]),
+))
 
 function cloneDefaults() {
   return Object.fromEntries(Object.entries(DEFAULT_PARAMETER_CONTENT).map(([key, value]) => [key, { ...value }]))
@@ -75,6 +89,10 @@ export function saveAnalysisContent(content) {
   for (const parameter of ANALYSIS_PARAMETERS) {
     const item = content[parameter.key] || {}
     safeContent[parameter.key] = {
+      unit: String(item.unit || parameter.unit).trim(),
+      targetMin: Number.isFinite(Number(item.targetMin)) ? Number(item.targetMin) : parameter.referenceRanges.Meerwasser.min,
+      targetMax: Number.isFinite(Number(item.targetMax)) ? Number(item.targetMax) : parameter.referenceRanges.Meerwasser.max,
+      precision: Number.isFinite(Number(item.precision)) ? Math.max(0, Math.min(4, Number(item.precision))) : parameter.precision,
       general: String(item.general || '').trim(),
       importance: String(item.importance || '').trim(),
       high: String(item.high || '').trim(),
