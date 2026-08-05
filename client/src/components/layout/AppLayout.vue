@@ -27,9 +27,9 @@
           <span>{{ item.label }}</span>
         </component>
 
-        <span class="nav-label">Verwaltung</span>
+        <span class="nav-label">{{ canManageSettings ? 'Verwaltung' : 'Konto & Hilfe' }}</span>
         <component
-          v-for="item in adminNav"
+          v-for="item in accountNav"
           :key="item.label"
           :is="item.to ? 'RouterLink' : 'a'"
           :to="item.to || undefined"
@@ -87,7 +87,8 @@
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M5 7l5 5 5-5"/></svg>
             <div class="user-dropdown">
               <RouterLink to="/account" class="dropdown-item">Profil</RouterLink>
-              <RouterLink to="/settings" class="dropdown-item">Einstellungen</RouterLink>
+              <RouterLink to="/support" class="dropdown-item">Hilfe &amp; Support</RouterLink>
+              <RouterLink v-if="canManageSettings" to="/settings" class="dropdown-item">Einstellungen</RouterLink>
               <hr style="margin:4px 0;border:none;border-top:1px solid var(--border)" />
               <button class="dropdown-item danger" type="button" @click="logout">Abmelden</button>
             </div>
@@ -195,7 +196,8 @@ const routeMeta = {
   '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
-  '/settings': { title: 'Einstellungen', sub: () => 'Darstellung, Benachrichtigungen und Assistent konfigurieren' },
+  '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
+  '/settings': { title: 'Admin-Einstellungen', sub: () => 'Elementinformationen und Berichtsinhalte verwalten' },
 }
 const pageTitle = computed(() => {
   if (route.path.startsWith('/analyses/') && route.path !== '/analyses/activate') return 'Analysebericht'
@@ -216,7 +218,6 @@ const iconTank = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" str
 const iconChart = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 17V3"/><path d="M3 17h14"/><path d="M6 13l3-4 3 2 4-6"/></svg>`
 const iconBulb = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M7.5 14.5A5 5 0 1 1 12.5 14.5"/><path d="M8 17h4"/><path d="M8.5 14.5h3"/></svg>`
 const iconClock = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>`
-const iconTools = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M12 5a3 3 0 0 1 4 4l-7 7-3 1 1-3 5-5z"/><path d="M5 5l3 3"/></svg>`
 const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3 3-5 6-5s6 2 6 5"/></svg>`
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
 const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.2"/><path d="M5.3 5.3l3.4 3.4M13.3 13.3l3.4 3.4M16.7 5.3l-3.4 3.4M8.7 13.3l-3.4 3.4"/></svg>`
@@ -230,11 +231,12 @@ const mainNav = [
   { label: 'Empfehlungen', icon: iconBulb, to: null },
   { label: 'Chronik', icon: iconClock, to: null },
 ]
-const adminNav = [
-  { label: 'Tools', icon: iconTools, to: null },
+const canManageSettings = computed(() => ['admin', 'subadmin'].includes(auth.user?.role))
+const accountNav = computed(() => [
   { label: 'Profil', icon: iconUser, to: '/account' },
-  { label: 'Einstellungen', icon: iconSettings, to: '/settings' },
-]
+  { label: 'Hilfe & Support', icon: iconLifebuoy, to: '/support' },
+  ...(canManageSettings.value ? [{ label: 'Einstellungen', icon: iconSettings, to: '/settings' }] : []),
+])
 function isActive(item) {
   return !!item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`))
 }
@@ -243,7 +245,7 @@ const iconMore = `<svg viewBox="0 0 20 20" fill="currentColor" width="17" height
 
 // Bottom-Tabbar: 4 Hauptziele, der Rest steckt im „Mehr“-Sheet.
 const mobilePrimary = mainNav.slice(0, 4)
-const sheetNav = [...mainNav, ...adminNav]
+const sheetNav = computed(() => [...mainNav, ...accountNav.value])
 </script>
 
 <style scoped>
