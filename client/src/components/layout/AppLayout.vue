@@ -46,7 +46,7 @@
         <span class="support-icon" v-html="iconLifebuoy"></span>
         <strong>Fragen zur Analyse?</strong>
         <p>Unser Laborteam hilft Ihnen bei Werten und Empfehlungen weiter.</p>
-        <a href="#" class="support-btn">Support kontaktieren</a>
+        <RouterLink to="/support" class="support-btn">Support kontaktieren</RouterLink>
       </div>
 
       <div class="sidebar-version">
