@@ -29,6 +29,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.auth && !auth.isLoggedIn) return { name: 'Login' }
+  if (to.meta.roles && !to.meta.roles.includes(auth.user?.role)) return { name: 'Account' }
   // TEMP (Vorschau): Gäste-Weiterleitung deaktiviert, damit Login/Registrierung
   // während der Entwicklung jederzeit aufrufbar sind – auch bei aktiver Session.
   // Vor Produktiv wieder aktivieren (Ziel dann bewusst /dashboard statt Landing):
