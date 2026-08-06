@@ -135,6 +135,7 @@
                         <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
                         <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
                         <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
+                        <div><span>Laborstatus</span><strong>{{ labStatusLabel(parameter) }}</strong></div>
                       </div>
                       <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
                       <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
