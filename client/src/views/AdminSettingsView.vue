@@ -11,7 +11,7 @@
 
     <nav class="settings-tabs" aria-label="Einstellungsbereiche">
       <button type="button" :class="{ active: activeArea === 'elements' }" @click="activeArea = 'elements'"><span>Elemente</span><small>Messwerte &amp; Empfehlungen</small></button>
-      <button type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
+      <button v-if="recommendationRulesEnabled" type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
       <button type="button" :class="{ active: activeArea === 'support' }" @click="activeArea = 'support'"><span>Hilfe &amp; Support</span><small>FAQs verwalten</small></button>
       <button v-if="canManageUsers" type="button" :class="{ active: activeArea === 'users' }" @click="openUserManagement"><span>Benutzer</span><small>Konten &amp; Berechtigungen</small></button>
     </nav>
@@ -77,7 +77,7 @@
       </div>
     </section>
 
-    <section v-show="activeArea === 'recommendations'" class="editor-shell rule-editor-shell">
+    <section v-if="recommendationRulesEnabled" v-show="activeArea === 'recommendations'" class="editor-shell rule-editor-shell">
       <header class="editor-heading rule-editor-heading">
         <div><span>Empfehlungslogik</span><h2>Regeln statt einzelner Standardtexte</h2><p>Eine Regel bündelt ähnliche Messwerte und erzeugt nur dann eine Empfehlung, wenn ihre Bedingungen erfüllt sind.</p></div>
         <button class="btn btn-primary" type="button" @click="addRecommendationRule">+ Regel hinzufügen</button>
@@ -223,6 +223,8 @@ import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
 import { createRecommendationRule, evaluateRecommendationRules, loadRecommendationRules, RECOMMENDATION_SCOPES, saveRecommendationRules } from '@/services/recommendationRules'
 
 const auth = useAuthStore()
+// Keep the unfinished recommendation editor out of production navigation until it is approved.
+const recommendationRulesEnabled = false
 const content = reactive(loadAnalysisContent())
 const supportContent = reactive(loadSupportContent())
 const recommendationRules = reactive(loadRecommendationRules())
