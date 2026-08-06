@@ -966,6 +966,7 @@ function markPdf() {
 .element-row.group-quantity { border-left-color: #6b9f36; }
 .element-row.group-nutrients { border-left-color: #f59e0b; }
 .element-row.group-trace { border-left-color: #0f9f8f; }
+.element-row.group-pollutants { border-left-color: #d45f72; }
 .element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 72px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
@@ -1038,7 +1039,7 @@ function markPdf() {
 .current-recommendation p,
 .parameter-current-status p,
 .level-recommendations p { margin-top: 5px; }
-.parameter-spec-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.parameter-spec-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .parameter-spec-grid > div { min-width: 0; padding: 11px 12px; border-radius: 12px; background: #eef5fb; }
 .parameter-spec-grid strong { display: block; margin-top: 4px; overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .parameter-current-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; padding: 13px 15px; border: 1px solid #bbf7d0; border-radius: 13px; background: #ecfdf5; }
@@ -1076,6 +1077,7 @@ function markPdf() {
   .score-card { min-width: 0; width: 100%; }
   .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
+  .report-side { position: static; }
   .group-detail-head { align-items: flex-start; flex-direction: column; }
   .explorer-head,
   .explorer-controls,
