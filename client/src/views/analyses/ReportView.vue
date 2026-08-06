@@ -477,6 +477,7 @@ import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
+import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
@@ -484,6 +485,7 @@ const PARAMETER_DETAIL_TABS = [
   { key: 'action', label: 'Empfehlungen', icon: '✦' },
   { key: 'history', label: 'Messverlauf', icon: '↗' },
 ]
+const ISSUE_PREVIEW_LIMIT = 5
 
 const route = useRoute()
 const analyses = useAnalysesStore()
@@ -499,9 +501,11 @@ const expandedParameters = reactive({})
 const parameterDetailPanels = reactive({})
 const expandedCareCards = reactive({})
 const completedActions = reactive({})
+const showAllIssues = ref(false)
 onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
+const visibleIssues = computed(() => showAllIssues.value ? (analysis.value?.issues || []) : (analysis.value?.issues || []).slice(0, ISSUE_PREVIEW_LIMIT))
 const currentRank = computed(() => WORKFLOW_STEPS.find((step) => step.key === analysis.value?.status)?.rank || 0)
 const resultLabel = computed(() => {
   if (!analysis.value || analysis.value.status !== 'completed') return 'Laborprozess läuft'
@@ -559,8 +563,29 @@ const issueParameters = computed(() => (analysis.value?.parameters || []).filter
 const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
-const carePlanGroups = computed(() => parameterGroups.value
-  .map((group) => {
+const evaluatedCareActions = computed(() => (analysis.value?.recommendationGroups || []).map((item) => ({
+  ...item,
+  key: item.key || `rule-${item.ruleId}`,
+  parameters: item.parameters?.length
+    ? item.parameters
+    : (item.parameterKeys || []).map((key) => analysis.value?.parameters?.find((parameter) => parameter.key === key)?.label || key),
+  whys: item.whys?.filter(Boolean).length ? item.whys.filter(Boolean) : [item.why].filter(Boolean),
+  days: item.days || item.recheckDays || 14,
+  recheck: item.recheck || `Kontrolle in ${item.recheckDays || 14} Tagen`,
+})))
+const carePlanGroups = computed(() => {
+  if (analysis.value?.recommendationEngineApplied) {
+    return parameterGroups.value
+      .map((group) => ({
+        ...group,
+        items: evaluatedCareActions.value
+          .filter((item) => item.groupKey === group.key)
+          .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)),
+      }))
+      .filter((group) => group.items.length)
+  }
+
+  return parameterGroups.value.map((group) => {
     const recommendations = new Map()
     for (const action of individualCareActions.value.filter((item) => item.groupKey === group.key)) {
       const recommendationKey = action.summary.trim().toLocaleLowerCase('de-DE')
@@ -591,38 +616,25 @@ const carePlanGroups = computed(() => parameterGroups.value
     const items = [...recommendations.values()].sort((a, b) => toneRank(a.tone) - toneRank(b.tone))
     return { ...group, items }
   })
-  .filter((group) => group.items.length))
+    .filter((group) => group.items.length)
+})
 const carePlan = computed(() => carePlanGroups.value.flatMap((group) => group.items))
-const careProgress = computed(() => carePlan.value.filter((item) => completedActions[item.key]).length)
-const careProgressPercent = computed(() => carePlan.value.length ? Math.round((careProgress.value / carePlan.value.length) * 100) : 100)
 const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
 
-const GROUP_MAP = {
-  salinity: { key: 'basis', label: 'Basiswerte' },
-  kh: { key: 'basis', label: 'Basiswerte' },
-  calcium: { key: 'quantity', label: 'Mengenelemente' },
-  magnesium: { key: 'quantity', label: 'Mengenelemente' },
-  nitrate: { key: 'nutrients', label: 'Nährstoffe' },
-  phosphate: { key: 'nutrients', label: 'Nährstoffe' },
-}
-const SYMBOL_MAP = { salinity: 'PSU', kh: 'KH', calcium: 'Ca', magnesium: 'Mg', nitrate: 'NO₃', phosphate: 'PO₄' }
-const GROUP_DESCRIPTIONS = {
-  basis: 'Grundlage für Dichte, KH und Systemstabilität.',
-  quantity: 'Hauptversorgung für Wachstum und Skelettaufbau.',
-  nutrients: 'NO₃, PO₄ und mögliche Quellen für Algen- oder Mangelstress.',
-  trace: 'Feine Versorgung für Farbe, Enzyme und Stoffwechsel.',
-}
+const GROUP_META = Object.fromEntries(ANALYSIS_GROUPS.map((group) => [group.key, group]))
 function parameterGroup(parameter) {
-  return GROUP_MAP[parameter.key] || { key: 'trace', label: 'Spurenelemente' }
+  const definition = ELEMENT_DEFINITION_MAP[parameter.key]
+  const key = parameter.groupKey || definition?.groupKey || 'trace'
+  return GROUP_META[key] || { key, label: parameter.group || 'Weitere Werte', description: 'Weitere Laborparameter.' }
 }
 function parameterGuide(parameter) {
   return parameterContent[parameter.key] || DEFAULT_PARAMETER_GUIDE
 }
 function parameterSymbol(parameter) {
-  return SYMBOL_MAP[parameter.key] || parameter.label.slice(0, 2)
+  return parameter.symbol || ELEMENT_DEFINITION_MAP[parameter.key]?.symbol || parameter.label.slice(0, 2)
 }
 function groupDescription(key) {
-  return GROUP_DESCRIPTIONS[key] || 'Parameter dieser Laborgruppe gemeinsam betrachten.'
+  return GROUP_META[key]?.description || 'Parameter dieser Laborgruppe gemeinsam betrachten.'
 }
 function groupDialStyle(group) {
   const color = group.tone === 'critical' ? '#e85d4f' : group.tone === 'watch' ? '#f59e0b' : '#10b981'
@@ -634,6 +646,10 @@ function openGroupInExplorer(key) {
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
+}
+function labStatusLabel(parameter) {
+  if (parameter.resultStatus === 'invalid') return 'Ungültig'
+  return { InRange: 'Messbereich OK', UnderRange: 'Unter Messbereich', OverRange: 'Über Messbereich' }[parameter.calibrationStatus] || 'Validiert'
 }
 function toneRank(tone) {
   return { critical: 0, watch: 1, good: 2 }[tone] ?? 3
@@ -666,7 +682,8 @@ function parameterInsight(parameter) {
 }
 function parameterAction(parameter) {
   if (parameter.tone === 'good') return 'Dosierung und Pflege beibehalten. Den Wert beim nächsten Laborbericht als Referenz vergleichen.'
-  return analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+  return analysis.value?.recommendationGroups?.find((item) => item.parameterKeys?.includes(parameter.key))?.summary
+    || analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
     || `${parameter.label} langsam korrigieren, keine starken Einzeländerungen vornehmen und zeitnah kontrollieren.`
 }
 function trendSummary(parameter) {
@@ -687,14 +704,16 @@ function historyChange(parameter) {
   return `${prefix}${percent.toLocaleString('de-DE', { maximumFractionDigits: 1 })}%`
 }
 function buildCareAction(parameter, index) {
-  const recommendation = analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+  const groupedRecommendation = analysis.value?.recommendationGroups?.find((item) => item.parameterKeys?.includes(parameter.key))
+  const recommendation = groupedRecommendation?.summary
+    || analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
     || analysis.value?.recommendations?.[index]
     || `${parameter.label} kontrolliert in den Zielbereich zurückführen.`
   const [minimum, maximum] = targetBounds(parameter.target)
   const isHigh = Number(parameter.value) > maximum
   const direction = isHigh ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'am Rand von'
-  const priority = parameter.tone === 'critical' ? 'Hoch' : 'Mittel'
-  const days = parameter.tone === 'critical' ? 7 : 14
+  const priority = groupedRecommendation?.priority || (parameter.tone === 'critical' ? 'Hoch' : 'Mittel')
+  const days = groupedRecommendation?.recheckDays || (parameter.tone === 'critical' ? 7 : 14)
   return {
     key: parameter.key,
     parameterKey: parameter.key,
@@ -703,10 +722,10 @@ function buildCareAction(parameter, index) {
     tone: parameter.tone,
     priority,
     days,
-    title: `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
+    title: groupedRecommendation?.title || `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
     summary: recommendation,
     why: `${parameter.label} liegt mit ${parameter.value} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
-    steps: careSteps(parameter, isHigh),
+    steps: groupedRecommendation?.steps || careSteps(parameter, isHigh),
     recheck: `Kontrolle in ${days} Tagen`,
   }
 }
@@ -756,8 +775,7 @@ function markPdf() {
 .missing-card { max-width: 620px; padding: 34px; }
 .missing-card span,
 .hero-kicker,
-.section-head span,
-.meta-panel span { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.section-head span { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .missing-card h1 { margin: 8px 0; color: var(--text); font-size: 34px; font-weight: 800; }
 .missing-card p { margin-bottom: 18px; color: var(--text-muted); }
 .report-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: clamp(24px, 4vw, 34px); color: #fff; background: linear-gradient(115deg, rgba(10,27,67,0.98), rgba(0,114,206,0.72)), url('/reef-tank.webp') center / cover; }
@@ -790,9 +808,9 @@ function markPdf() {
 .report-tabs button.active { color: #fff; background: var(--brand-blue); }
 .report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
 .report-tabs button.active b { background: rgba(255,255,255,0.2); }
-.report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
-.report-main,
-.report-side { display: grid; gap: 18px; }
+.report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
+.report-main { display: grid; gap: 18px; }
+.report-side { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); }
 .panel { padding: 22px; }
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .section-head.compact { margin-bottom: 12px; }
@@ -822,6 +840,7 @@ function markPdf() {
 .group-card.group-quantity { border-left: 4px solid #6b9f36; }
 .group-card.group-nutrients { border-left: 4px solid #f59e0b; }
 .group-card.group-trace { border-left: 4px solid #0f9f8f; }
+.group-card.group-pollutants { border-left: 4px solid #d45f72; }
 .group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 50px; height: 50px; border-radius: 50%; }
 .group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
 .group-card.active .group-dial::after { background: var(--teal-50); }
@@ -846,16 +865,12 @@ function markPdf() {
 .group-close:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
 .overview-elements .element-row { background: #fff; }
 .recommendation-list,
-.issue-list,
-.meta-panel { display: grid; gap: 10px; }
+.issue-list { display: grid; gap: 8px; }
 .recommendation-row { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; padding: 13px; border-radius: 16px; background: var(--teal-50); }
 .recommendation-row b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-500); color: #fff; }
 .recommendation-row p,
 .muted { color: var(--text-muted); line-height: 1.55; }
-.issue-list span { padding: 10px 12px; border-radius: 999px; background: #fff7ed; color: #92400e; font-size: 12px; font-weight: 800; }
-.meta-panel div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border); }
-.meta-panel div:last-child { border-bottom: 0; }
-.meta-panel strong { color: var(--text); font-size: 13px; text-align: right; }
+.overview-sidebar { overflow: hidden; padding: 0; }.sidebar-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; background: #0a1b43; color: #fff; }.sidebar-summary span { color: var(--teal-200); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.sidebar-summary h2 { margin-top: 5px; font-size: 23px; line-height: 1.15; }.sidebar-summary > b { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 14px; background: #10b981; font-size: 16px; }.sidebar-summary > b.watch { background: #f59e0b; }.sidebar-summary > b.critical { background: #e85d4f; }.sidebar-issues { display: grid; gap: 12px; padding: 18px 20px; }.sidebar-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.sidebar-section-title strong { color: var(--text); font-size: 13px; }.sidebar-section-title span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.issue-list.expanded { max-height: min(340px, 40vh); padding-right: 4px; overflow-y: auto; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.issue-list span { padding: 10px 11px; border-left: 3px solid #f59e0b; border-radius: 9px; background: #fff7ed; color: #92400e; font-size: 11.5px; font-weight: 800; line-height: 1.4; }.issues-clean { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 11px; background: #ecfdf5; color: #047857; }.issues-clean i { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 50%; background: #10b981; color: #fff; font-style: normal; font-weight: 900; }.issues-clean p { font-size: 11.5px; line-height: 1.5; }.issue-toggle { justify-self: start; padding: 6px 0; border: 0; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }.issue-toggle:hover { text-decoration: underline; }.context-disclosure { border-top: 1px solid var(--border); }.context-disclosure summary { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 9px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; }.context-disclosure summary::-webkit-details-marker { display: none; }.context-disclosure summary > span { color: var(--text); font-size: 12.5px; font-weight: 850; }.context-disclosure summary > small { max-width: 155px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.context-disclosure summary > i { color: var(--brand-blue); font-size: 17px; font-style: normal; transition: transform .2s; }.context-disclosure[open] summary { background: #f8fbfe; }.context-disclosure[open] summary > i { transform: rotate(180deg); }.context-rows { display: grid; gap: 0; padding: 4px 20px 16px; }.context-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e8eff5; }.context-rows span { color: var(--text-muted); font-size: 10.5px; line-height: 1.35; }.context-rows strong { max-width: 195px; color: var(--text); font-size: 11.5px; line-height: 1.4; text-align: right; }.context-rows > p { margin-top: 9px; padding: 11px; border-radius: 10px; background: #f4f9fd; color: var(--text-muted); font-size: 10.5px; line-height: 1.55; }
 .care-plan { display: grid; gap: 18px; }
 .care-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .care-head > div:first-child > span,
@@ -865,8 +880,6 @@ function markPdf() {
 .care-mode { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #eef5fb; }
 .care-mode button { min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
 .care-mode button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 2px 8px rgba(10,27,67,0.08); }
-.care-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e7eef6; }
-.care-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-blue), var(--teal-500)); transition: width 0.25s ease; }
 .care-clean { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 16px; border-radius: 16px; background: #ecfdf5; color: #047857; text-align: left; }
 .care-clean > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 24px; font-weight: 900; }
 .care-clean strong { display: block; color: #065f46; font-size: 18px; }
@@ -876,6 +889,8 @@ function markPdf() {
 .care-group.group-basis { --care-group-color: #1686d9; }
 .care-group.group-quantity { --care-group-color: #6b9f36; }
 .care-group.group-nutrients { --care-group-color: #f59e0b; }
+.care-group.group-trace { --care-group-color: #0f9f8f; }
+.care-group.group-pollutants { --care-group-color: #d45f72; }
 .care-group-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 3px; }
 .care-group-head > div { display: flex; align-items: center; gap: 9px; }
 .care-group-head i { width: 9px; height: 9px; border-radius: 50%; background: var(--care-group-color); box-shadow: 0 0 0 4px color-mix(in srgb, var(--care-group-color) 14%, transparent); }
@@ -940,6 +955,7 @@ function markPdf() {
 .parameter-groups button.group-quantity { border-left-color: #6b9f36; }
 .parameter-groups button.group-nutrients { border-left-color: #f59e0b; }
 .parameter-groups button.group-trace { border-left-color: #0f9f8f; }
+.parameter-groups button.group-pollutants { border-left-color: #d45f72; }
 .parameter-groups span { font-size: 13px; font-weight: 800; }
 .parameter-groups b { color: var(--text-muted); font-size: 11px; }
 .element-list { display: grid; gap: 9px; }
