@@ -178,24 +178,44 @@
         </main>
 
         <aside class="report-side">
-          <section class="panel">
-            <div class="section-head compact">
-              <div>
-                <span>Hinweise</span>
-                <h2>Auffälligkeiten</h2>
-              </div>
-            </div>
-            <div v-if="analysis.issues?.length" class="issue-list">
-              <span v-for="issue in analysis.issues" :key="issue">{{ issue }}</span>
-            </div>
-            <p v-else class="muted">Keine Auffälligkeiten dokumentiert.</p>
-          </section>
+          <section class="panel overview-sidebar">
+            <header class="sidebar-summary">
+              <div><span>Bericht im Blick</span><h2>{{ resultLabel }}</h2></div>
+              <b :class="analysis.severity">{{ analysis.issueCount }}</b>
+            </header>
 
-          <section class="panel meta-panel">
-            <div><span>Status</span><strong>{{ analysis.statusLabel }}</strong></div>
-            <div><span>Wassertyp</span><strong>{{ analysis.waterType }}</strong></div>
-            <div><span>Analysepaket</span><strong>{{ analysis.packageLabel }}</strong></div>
-            <div><span>Abgeschlossen</span><strong>{{ analysis.completedAt ? formatDate(analysis.completedAt) : 'Offen' }}</strong></div>
+            <div class="sidebar-issues">
+              <div class="sidebar-section-title"><strong>Auffälligkeiten</strong><span>{{ analysis.issueCount ? `${analysis.issueCount} Hinweise` : 'Keine Hinweise' }}</span></div>
+              <div v-if="analysis.issues?.length" :class="['issue-list', { expanded: showAllIssues }]">
+                <span v-for="issue in visibleIssues" :key="issue">{{ issue }}</span>
+              </div>
+              <div v-else class="issues-clean"><i>✓</i><p>Alle Werte liegen stabil im vorgesehenen Bereich.</p></div>
+              <button v-if="analysis.issues?.length > ISSUE_PREVIEW_LIMIT" type="button" class="issue-toggle" @click="showAllIssues = !showAllIssues">
+                {{ showAllIssues ? 'Weniger anzeigen' : `Alle ${analysis.issues.length} anzeigen` }}
+              </button>
+            </div>
+
+            <details class="context-disclosure">
+              <summary><span>Berichtsdaten</span><small>{{ analysis.waterType }} · {{ analysis.packageLabel }}</small><i>⌄</i></summary>
+              <div class="context-rows">
+                <div><span>Status</span><strong>{{ analysis.statusLabel }}</strong></div>
+                <div><span>Abgeschlossen</span><strong>{{ analysis.completedAt ? formatDate(analysis.completedAt) : 'Offen' }}</strong></div>
+                <div v-if="analysis.sample?.voucherCode"><span>Proben-ID</span><strong>{{ analysis.sample.voucherCode }}</strong></div>
+                <div v-if="analysis.lab?.method"><span>Methode</span><strong>{{ analysis.lab.method }}</strong></div>
+                <div v-if="analysis.lab?.instrument"><span>Instrument</span><strong>{{ analysis.lab.instrument }}</strong></div>
+                <div v-if="analysis.lab?.replicates"><span>Wiederholungen</span><strong>{{ analysis.lab.replicates }}×</strong></div>
+              </div>
+            </details>
+
+            <details v-if="analysis.aquariumProfile" class="context-disclosure">
+              <summary><span>Bewertungsgrundlage</span><small>{{ analysis.aquariumProfile.aquariumType }}</small><i>⌄</i></summary>
+              <div class="context-rows">
+                <div><span>Volumen</span><strong>{{ analysis.aquariumProfile.volumeLiters }} l</strong></div>
+                <div><span>Besatz</span><strong>{{ analysis.aquariumProfile.livestock }}</strong></div>
+                <div><span>Versorgung</span><strong>{{ analysis.aquariumProfile.supplySystem }}</strong></div>
+                <p>{{ analysis.aquariumProfile.filtration?.join(' · ') }}</p>
+              </div>
+            </details>
           </section>
         </aside>
       </section>
