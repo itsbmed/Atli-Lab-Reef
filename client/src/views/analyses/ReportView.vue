@@ -224,9 +224,9 @@
         <div class="care-head">
           <div>
             <span>Empfehlungen</span>
-            <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : 'Kein Eingriff notwendig' }}</h2>
-            <p v-if="carePlan.length">{{ careProgress }} von {{ carePlan.length }} Aufgaben erledigt · nach Priorität sortiert</p>
-            <p v-else>Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
+            <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : issueParameters.length ? 'Keine passende Regel ausgelöst' : 'Kein Eingriff notwendig' }}</h2>
+            <p v-if="!carePlan.length && !issueParameters.length">Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
+            <p v-else-if="!carePlan.length">Es gibt auffällige Messwerte, aber aktuell keine aktive Empfehlungsregel mit passenden Bedingungen.</p>
           </div>
           <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
             <button type="button" :class="{ active: careMode === 'quick' }" @click="setCareMode('quick')">Schnell</button>
@@ -234,13 +234,9 @@
           </div>
         </div>
 
-        <div v-if="carePlan.length" class="care-progress" aria-label="Fortschritt des Pflegeplans">
-          <span :style="{ width: `${careProgressPercent}%` }"></span>
-        </div>
-
         <div v-if="!carePlan.length" class="care-clean">
-          <span aria-hidden="true">✓</span>
-          <div><strong>System stabil</strong><p>Nutzen Sie diesen Bericht als Referenz für die nächste Messung.</p></div>
+          <span aria-hidden="true">{{ issueParameters.length ? '!' : '✓' }}</span>
+          <div><strong>{{ issueParameters.length ? 'Regelprüfung erforderlich' : 'System stabil' }}</strong><p>{{ issueParameters.length ? 'Prüfen Sie die aktiven Regeln in den Admin-Einstellungen.' : 'Nutzen Sie diesen Bericht als Referenz für die nächste Messung.' }}</p></div>
         </div>
 
         <div v-else class="care-groups">
