@@ -1,0 +1,2 @@
+<template><footer class="footer"><div class="footer-brand"><img src="/ati-logo.png" alt="ATI" /><span>Reefing made simple.</span></div><div class="footer-links"><RouterLink to="/login">Einloggen</RouterLink><RouterLink to="/register">Konto erstellen</RouterLink><a href="#how">Ablauf</a><a href="#report">Bericht</a></div><small>© {{ year }} ATI Aquaristik · Reef Lab</small></footer></template>
+<script setup>const year = new Date().getFullYear()</script>
