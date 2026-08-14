@@ -97,9 +97,9 @@
                   <button type="button" class="group-close" aria-label="Gruppe schließen" title="Schließen" @click="selectedOverviewGroup = ''">×</button>
                 </div>
               </div>
-              <div class="element-list overview-elements">
+              <div v-if="selectedOverviewGroupData.issueParameters.length" class="element-list overview-elements">
                 <article
-                  v-for="parameter in selectedOverviewGroupData.parameters"
+                  v-for="parameter in selectedOverviewGroupData.issueParameters"
                   :key="parameter.key"
                   :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[`overview-${parameter.key}`] }]"
                 >
@@ -160,6 +160,13 @@
                     </div>
                   </div>
                 </article>
+              </div>
+              <div v-else class="group-clean-state">
+                <i aria-hidden="true">✓</i>
+                <div>
+                  <strong>Alles in Ordnung</strong>
+                  <p>Alle Werte dieser Gruppe liegen im vorgesehenen Bereich.</p>
+                </div>
               </div>
             </div>
           </section>
@@ -546,6 +553,7 @@ const parameterGroups = computed(() => {
   return [...groups.values()].map((group) => ({
     ...group,
     total: group.parameters.length,
+    issueParameters: group.parameters.filter((item) => item.tone !== 'good'),
     score: Math.round(((group.parameters.length - group.issueCount) / group.parameters.length) * 100),
     tone: group.parameters.some((item) => item.tone === 'critical') ? 'critical' : group.issueCount ? 'watch' : 'good',
   }))
@@ -877,6 +885,10 @@ function markPdf() {
 .group-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-muted); font-size: 22px; cursor: pointer; }
 .group-close:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
 .overview-elements .element-row { background: #fff; }
+.group-clean-state { display: flex; align-items: center; gap: 12px; min-height: 92px; padding: 16px; border: 1px solid #bbf7d0; border-radius: 14px; background: #ecfdf5; color: #047857; }
+.group-clean-state > i { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: #10b981; color: #fff; font-size: 17px; font-style: normal; font-weight: 900; }
+.group-clean-state strong { display: block; color: #065f46; font-size: 14px; }
+.group-clean-state p { margin-top: 3px; color: #047857; font-size: 12px; line-height: 1.45; }
 .recommendation-list,
 .issue-list { display: grid; gap: 8px; }
 .recommendation-row { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; padding: 13px; border-radius: 16px; background: var(--teal-50); }
