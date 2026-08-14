@@ -65,7 +65,7 @@
               <div>
                 <span>Gruppen</span>
                 <h2>Gruppenstatus im Bericht</h2>
-                <p>Wählen Sie eine Gruppe und öffnen Sie einen Wert für Einordnung, Korrektur und Verlauf.</p>
+                <p>Statusfarben zeigen die Bewertung. Die Elementgruppe wird direkt beim Namen genannt.</p>
               </div>
               <strong>{{ analysis.parameters.length || '—' }} Werte</strong>
             </div>
@@ -81,7 +81,8 @@
                 <span class="group-dial" :style="groupDialStyle(group)"><b>{{ group.score }}</b><em>%</em></span>
                 <span class="group-copy">
                   <strong>{{ group.label }}</strong>
-                  <em>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Stabil' }} · {{ group.total }} Werte</em>
+                  <em :class="['status-chip', group.tone]">{{ parameterStatusLabel(group.tone) }}</em>
+                  <small>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Keine Auffälligkeit' }} · {{ group.total }} Werte</small>
                 </span>
                 <small>{{ groupDescription(group.key) }}</small>
               </button>
@@ -106,7 +107,10 @@
                     <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
                     <span class="element-name">
                       <strong>{{ parameter.label }}</strong>
-                      <em>{{ parameterStatusLabel(parameter.tone) }}</em>
+                      <span class="element-meta">
+                        <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
+                        <small class="element-group">{{ parameterGroup(parameter).label }}</small>
+                      </span>
                     </span>
                     <span class="target-gauge">
                       <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
@@ -242,7 +246,7 @@
         <div v-else class="care-groups">
           <section v-for="group in carePlanGroups" :key="group.key" :class="['care-group', `group-${group.key}`]">
             <header class="care-group-head">
-              <div><i aria-hidden="true"></i><span>{{ group.label }}</span></div>
+              <div><span>{{ group.label }}</span></div>
               <strong>{{ group.items.length }} {{ group.items.length === 1 ? 'Empfehlung' : 'Empfehlungen' }}</strong>
             </header>
             <div class="care-details">
@@ -253,7 +257,7 @@
                   </button>
                   <button type="button" class="care-card-toggle" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
                     <span class="care-card-copy">
-                      <small>Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small>
+                      <small>{{ parameterStatusLabel(item.tone) }} · Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small>
                       <strong>{{ item.title }}</strong>
                       <em>{{ item.summary }}</em>
                       <span class="care-elements"><b v-for="parameter in item.parameters" :key="parameter">{{ parameter }}</b></span>
@@ -302,7 +306,7 @@
 
         <div class="parameter-groups" aria-label="Parametergruppen">
           <button type="button" :class="{ active: !selectedGroup }" @click="selectedGroup = ''">
-            <span>Alle Gruppen</span><b>{{ analysis.parameters.length }}</b>
+            <span>Alle Gruppen</span><b class="group-count">{{ analysis.parameters.length }} Werte</b>
           </button>
           <button
             v-for="group in parameterGroups"
@@ -311,8 +315,9 @@
             :class="[group.tone, `group-${group.key}`, { active: selectedGroup === group.key }]"
             @click="selectedGroup = selectedGroup === group.key ? '' : group.key"
           >
-            <span>{{ group.label }}</span>
-            <b>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Stabil' }}</b>
+            <span class="group-filter-label">{{ group.label }}</span>
+            <b :class="['status-chip', group.tone]">{{ parameterStatusLabel(group.tone) }}</b>
+            <small>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Keine Auffälligkeit' }}</small>
           </button>
         </div>
 
@@ -326,7 +331,10 @@
                   <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
                   <span class="element-name">
                     <strong>{{ parameter.label }}</strong>
-                    <em>{{ parameterStatusLabel(parameter.tone) }}</em>
+                    <span class="element-meta">
+                      <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
+                      <small class="element-group">{{ parameterGroup(parameter).label }}</small>
+                    </span>
                   </span>
                   <span class="target-gauge">
                     <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
@@ -405,7 +413,10 @@
               <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
               <span class="element-name">
                 <strong>{{ parameter.label }}</strong>
-                <em>{{ parameterGroup(parameter).label }} · {{ parameterStatusLabel(parameter.tone) }}</em>
+                <span class="element-meta">
+                  <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
+                  <small class="element-group">{{ parameterGroup(parameter).label }}</small>
+                </span>
               </span>
               <span class="target-gauge">
                 <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
@@ -831,16 +842,14 @@ function markPdf() {
 .group-overview-head { margin-bottom: 0; }
 .group-overview-head p { max-width: 620px; margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
 .group-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-.group-card { min-height: 116px; display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 14px; text-align: left; border: 1px solid var(--border); border-radius: 15px; background: #fff; color: var(--text); cursor: pointer; }
+.group-card { min-height: 116px; display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 14px; text-align: left; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; color: var(--text); cursor: pointer; }
 .group-card:hover { border-color: var(--teal-400); transform: translateY(-1px); }
 .group-card.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 .group-card.critical.active { border-color: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.1); }
 .group-card.watch.active { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
-.group-card.group-basis { border-left: 4px solid #1686d9; }
-.group-card.group-quantity { border-left: 4px solid #6b9f36; }
-.group-card.group-nutrients { border-left: 4px solid #f59e0b; }
-.group-card.group-trace { border-left: 4px solid #0f9f8f; }
-.group-card.group-pollutants { border-left: 4px solid #d45f72; }
+.group-card.good { border-left-color: #10b981; }
+.group-card.watch { border-left-color: #f59e0b; }
+.group-card.critical { border-left-color: #e85d4f; }
 .group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 50px; height: 50px; border-radius: 50%; }
 .group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
 .group-card.active .group-dial::after { background: var(--teal-50); }
@@ -850,8 +859,12 @@ function markPdf() {
 .group-dial em { margin: 4px 0 0 1px; color: var(--text-muted); font-size: 8px; font-style: normal; }
 .group-copy strong,
 .group-copy em { display: block; }
-.group-copy strong { font-size: 14px; }
-.group-copy em { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
+.group-copy strong { display: flex; align-items: center; gap: 7px; font-size: 14px; }
+.group-copy .status-chip { display: inline-flex; margin-top: 7px; }
+.group-copy > small { display: block; margin-top: 5px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.status-chip { display: inline-flex; align-items: center; width: fit-content; padding: 3px 7px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 9px; font-style: normal; font-weight: 850; line-height: 1.25; }
+.status-chip.watch { background: #fff4df; color: #9a4d0a; }
+.status-chip.critical { background: #fdecea; color: #b53a2e; }
 .group-card > small { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .group-detail-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: #f8fbfe; }
 .group-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -885,24 +898,21 @@ function markPdf() {
 .care-clean strong { display: block; color: #065f46; font-size: 18px; }
 .care-clean p { margin-top: 3px; color: #047857; font-size: 13px; }
 .care-groups { display: grid; gap: 22px; }
-.care-group { --care-group-color: #0f9f8f; display: grid; gap: 10px; }
-.care-group.group-basis { --care-group-color: #1686d9; }
-.care-group.group-quantity { --care-group-color: #6b9f36; }
-.care-group.group-nutrients { --care-group-color: #f59e0b; }
-.care-group.group-trace { --care-group-color: #0f9f8f; }
-.care-group.group-pollutants { --care-group-color: #d45f72; }
+.care-group { display: grid; gap: 10px; }
 .care-group-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 3px; }
 .care-group-head > div { display: flex; align-items: center; gap: 9px; }
-.care-group-head i { width: 9px; height: 9px; border-radius: 50%; background: var(--care-group-color); box-shadow: 0 0 0 4px color-mix(in srgb, var(--care-group-color) 14%, transparent); }
 .care-group-head span { color: var(--text); font-size: 14px; font-weight: 850; }
-.care-group-head strong { padding: 5px 9px; border-radius: 999px; background: color-mix(in srgb, var(--care-group-color) 10%, #fff); color: var(--care-group-color); font-size: 10px; font-weight: 850; }
+.care-group-head strong { padding: 5px 9px; border-radius: 999px; background: #eef3f7; color: #526477; font-size: 10px; font-weight: 850; }
 .care-details { display: grid; gap: 10px; }
 .care-card.done { opacity: 0.62; }
 .care-card.done .care-card-copy > strong { text-decoration: line-through; }
 .care-check { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; cursor: pointer; }
 .done .care-check { border-color: #10b981; background: #10b981; color: #fff; }
-.care-card { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid var(--care-group-color); border-radius: 16px; background: #fff; transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
-.care-card:hover { border-color: color-mix(in srgb, var(--care-group-color) 48%, var(--border)); box-shadow: 0 7px 20px rgba(10,27,67,0.07); }
+.care-card { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 16px; background: #fff; transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
+.care-card:hover { border-color: #b9cadd; box-shadow: 0 7px 20px rgba(10,27,67,0.07); }
+.care-card.good { border-left-color: #10b981; }
+.care-card.watch { border-left-color: #f59e0b; }
+.care-card.critical { border-left-color: #e85d4f; }
 .care-card.expanded { box-shadow: 0 9px 24px rgba(10,27,67,0.09); }
 .care-card-head { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 14px; }
 .care-card-toggle { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 3px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -914,10 +924,10 @@ function markPdf() {
 .care-card-copy > strong { margin-top: 3px; color: var(--text); font-size: 17px; font-weight: 850; }
 .care-card-copy > em { margin-top: 4px; color: var(--text-muted); font-size: 12px; font-style: normal; line-height: 1.45; }
 .care-elements { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.care-elements b { padding: 4px 7px; border-radius: 7px; background: color-mix(in srgb, var(--care-group-color) 9%, #fff); color: var(--care-group-color); font-size: 9px; font-weight: 850; }
+.care-elements b { padding: 4px 7px; border-radius: 7px; background: #eef3f7; color: #526477; font-size: 9px; font-weight: 850; }
 .care-card-meta { display: flex; align-items: center; gap: 12px; }
 .care-card-meta em { color: var(--text-muted); font-size: 10px; font-style: normal; font-weight: 800; white-space: nowrap; }
-.care-card-meta i { color: var(--care-group-color); font-size: 20px; font-style: normal; transition: transform 0.25s ease; }
+.care-card-meta i { color: var(--brand-blue); font-size: 20px; font-style: normal; transition: transform 0.25s ease; }
 .care-card.expanded .care-card-meta i { transform: rotate(180deg); }
 .care-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 18px 20px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
 .care-card-grid p,
@@ -945,28 +955,21 @@ function markPdf() {
 .explorer-controls input:focus,
 .explorer-controls select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 .parameter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-.parameter-groups button { min-height: 72px; display: grid; align-content: center; gap: 5px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
+.parameter-groups button { min-height: 84px; display: grid; align-content: center; gap: 6px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
 .parameter-groups button:hover { border-color: var(--teal-400); }
 .parameter-groups button.active { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); background: var(--teal-50); }
 .parameter-groups button.critical { border-left: 4px solid #e85d4f; }
 .parameter-groups button.watch { border-left: 4px solid #f59e0b; }
 .parameter-groups button.good { border-left: 4px solid #10b981; }
-.parameter-groups button.group-basis { border-left-color: #1686d9; }
-.parameter-groups button.group-quantity { border-left-color: #6b9f36; }
-.parameter-groups button.group-nutrients { border-left-color: #f59e0b; }
-.parameter-groups button.group-trace { border-left-color: #0f9f8f; }
-.parameter-groups button.group-pollutants { border-left-color: #d45f72; }
 .parameter-groups span { font-size: 13px; font-weight: 800; }
-.parameter-groups b { color: var(--text-muted); font-size: 11px; }
+.parameter-groups .group-filter-label { display: flex; align-items: center; gap: 7px; }
+.parameter-groups .group-count { color: var(--text-muted); font-size: 11px; }
+.parameter-groups b.status-chip { font-size: 9px; }
+.parameter-groups button > small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .element-list { display: grid; gap: 9px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
-.element-row.group-basis { border-left-color: #1686d9; }
-.element-row.group-quantity { border-left-color: #6b9f36; }
-.element-row.group-nutrients { border-left-color: #f59e0b; }
-.element-row.group-trace { border-left-color: #0f9f8f; }
-.element-row.group-pollutants { border-left-color: #d45f72; }
 .element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 72px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
@@ -975,7 +978,9 @@ function markPdf() {
 .element-reading strong,
 .element-reading small { display: block; }
 .element-name strong { color: var(--text); font-size: 14px; }
-.element-name em { margin-top: 4px; color: var(--text-muted); font-size: 11px; font-style: normal; font-weight: 700; }
+.element-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.element-name .status-chip { display: inline-flex; }
+.element-group { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 9px; font-weight: 750; }
 .target-gauge i {
   position: relative;
   display: block;
