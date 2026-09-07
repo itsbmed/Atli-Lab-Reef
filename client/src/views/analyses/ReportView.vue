@@ -813,9 +813,23 @@ function markPdf() {
 .report-tabs button.active { color: #fff; background: var(--brand-blue); }
 .report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
 .report-tabs button.active b { background: rgba(255,255,255,0.2); }
+.combined-report-flow { display: grid; gap: 20px; min-width: 0; }
+.chapter-heading { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 17px 20px; border: 1px solid rgba(136,193,233,0.3); border-left: 4px solid var(--brand-blue); border-radius: 17px; background: linear-gradient(105deg, #fff, #f3f9fd); box-shadow: 0 8px 24px rgba(10,27,67,0.05); }
+.chapter-heading > b,
+.chapter-number { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 900; box-shadow: 0 6px 15px rgba(0,114,206,0.2); }
+.chapter-heading span,
+.care-title-copy > span { color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+.chapter-heading h2 { margin-top: 2px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
+.chapter-heading p { margin-top: 2px; color: var(--text-muted); font-size: 11px; }
+.chapter-heading > strong { padding: 7px 10px; border-radius: 999px; background: #e6f2fa; color: #536b7d; font-size: 10px; white-space: nowrap; }
 .report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
 .report-main { display: grid; gap: 18px; }
 .report-side { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); }
+.combined-report-flow .report-layout { align-items: stretch; }
+.combined-report-flow .report-main > .panel,
+.combined-report-flow .report-side,
+.combined-report-flow .overview-sidebar { height: 100%; }
+.combined-report-flow .report-side { position: static; }
 .panel { padding: 22px; }
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .section-head.compact { margin-bottom: 12px; }
@@ -875,19 +889,18 @@ function markPdf() {
 .group-clean-state > i { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: #10b981; color: #fff; font-size: 17px; font-style: normal; font-weight: 900; }
 .group-clean-state strong { display: block; color: #065f46; font-size: 14px; }
 .group-clean-state p { margin-top: 3px; color: #047857; font-size: 12px; line-height: 1.45; }
-.recommendation-list,
 .issue-list { display: grid; gap: 8px; }
-.recommendation-row { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; padding: 13px; border-radius: 16px; background: var(--teal-50); }
-.recommendation-row b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--teal-500); color: #fff; }
-.recommendation-row p,
 .muted { color: var(--text-muted); line-height: 1.55; }
 .overview-sidebar { overflow: hidden; padding: 0; }.sidebar-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; background: #0a1b43; color: #fff; }.sidebar-summary span { color: var(--teal-200); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.sidebar-summary h2 { margin-top: 5px; font-size: 23px; line-height: 1.15; }.sidebar-summary > b { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 14px; background: #10b981; font-size: 16px; }.sidebar-summary > b.watch { background: #f59e0b; }.sidebar-summary > b.critical { background: #e85d4f; }.sidebar-issues { display: grid; gap: 12px; padding: 18px 20px; }.sidebar-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.sidebar-section-title strong { color: var(--text); font-size: 13px; }.sidebar-section-title span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.issue-list.expanded { max-height: min(340px, 40vh); padding-right: 4px; overflow-y: auto; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.issue-list span { padding: 10px 11px; border-left: 3px solid #f59e0b; border-radius: 9px; background: #fff7ed; color: #92400e; font-size: 11.5px; font-weight: 800; line-height: 1.4; }.issues-clean { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 11px; background: #ecfdf5; color: #047857; }.issues-clean i { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 50%; background: #10b981; color: #fff; font-style: normal; font-weight: 900; }.issues-clean p { font-size: 11.5px; line-height: 1.5; }.issue-toggle { justify-self: start; padding: 6px 0; border: 0; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }.issue-toggle:hover { text-decoration: underline; }.context-disclosure { border-top: 1px solid var(--border); }.context-disclosure summary { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 9px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; }.context-disclosure summary::-webkit-details-marker { display: none; }.context-disclosure summary > span { color: var(--text); font-size: 12.5px; font-weight: 850; }.context-disclosure summary > small { max-width: 155px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.context-disclosure summary > i { color: var(--brand-blue); font-size: 17px; font-style: normal; transition: transform .2s; }.context-disclosure[open] summary { background: #f8fbfe; }.context-disclosure[open] summary > i { transform: rotate(180deg); }.context-rows { display: grid; gap: 0; padding: 4px 20px 16px; }.context-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e8eff5; }.context-rows span { color: var(--text-muted); font-size: 10.5px; line-height: 1.35; }.context-rows strong { max-width: 195px; color: var(--text); font-size: 11.5px; line-height: 1.4; text-align: right; }.context-rows > p { margin-top: 9px; padding: 11px; border-radius: 10px; background: #f4f9fd; color: var(--text-muted); font-size: 10.5px; line-height: 1.55; }
-.care-plan { display: grid; gap: 18px; }
-.care-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
-.care-head > div:first-child > span,
+.care-plan { display: grid; gap: 20px; min-width: 0; padding: 26px; border-top: 4px solid var(--teal-500); box-shadow: 0 12px 32px rgba(10,27,67,0.07); }
+.care-head { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.care-title { min-width: 0; display: flex; align-items: center; gap: 14px; }
+.care-title-copy { min-width: 0; }
+.care-title-copy > span,
 .care-label { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .care-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 800; }
 .care-head p { margin-top: 6px; color: var(--text-muted); font-size: 13px; }
+.care-head .chapter-number { background: var(--teal-500); box-shadow: 0 6px 15px rgba(15,159,143,0.2); }
 .care-mode { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #eef5fb; }
 .care-mode button { min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
 .care-mode button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 2px 8px rgba(10,27,67,0.08); }
@@ -1081,6 +1094,9 @@ function markPdf() {
   .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
   .report-side { position: static; }
+  .combined-report-flow .report-main > .panel,
+  .combined-report-flow .report-side,
+  .combined-report-flow .overview-sidebar { height: auto; }
   .group-detail-head { align-items: flex-start; flex-direction: column; }
   .explorer-head,
   .explorer-controls,
@@ -1099,6 +1115,13 @@ function markPdf() {
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
 @media (max-width: 600px) {
+  .chapter-heading { grid-template-columns: 40px minmax(0, 1fr); gap: 11px; padding: 14px; }
+  .chapter-heading > b,
+  .chapter-number { width: 38px; height: 38px; }
+  .chapter-heading > strong { grid-column: 2; justify-self: start; }
+  .care-plan { padding: 18px; }
+  .care-title { align-items: flex-start; }
+  .care-head h2 { font-size: 22px; }
   .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
   .parameter-tab-copy strong { font-size: 10px; }
   .parameter-spec-grid { grid-template-columns: 1fr; }
