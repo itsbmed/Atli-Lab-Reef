@@ -47,6 +47,9 @@
         <button type="button" :class="{ active: activeTab === 'recommendations' }" @click="activeTab = 'recommendations'">
           Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
         </button>
+        <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
+          Dosierungsplan <b v-if="lowParameters.length">{{ lowParameters.length }}</b>
+        </button>
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
           Übersicht
         </button>
@@ -292,6 +295,8 @@
         </div>
       </section>
 
+      <DosingPlan v-if="analysis.status === 'completed'" v-show="activeTab === 'dosing'" class="panel" :analysis="analysis" />
+
       <section v-if="analysis.status === 'completed'" v-show="activeTab === 'values'" class="panel element-explorer">
         <div class="explorer-head">
           <div>
@@ -496,7 +501,9 @@ import { useAnalysesStore } from '@/stores/analyses'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
+import { isLowParameter } from '@/services/dosingPlan'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
+import DosingPlan from '@/components/analyses/DosingPlan.vue'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info & Technik', icon: 'i' },
@@ -579,6 +586,7 @@ const explorerSummary = computed(() => {
   return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
 })
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
+const lowParameters = computed(() => (analysis.value?.parameters || []).filter(isLowParameter))
 const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))

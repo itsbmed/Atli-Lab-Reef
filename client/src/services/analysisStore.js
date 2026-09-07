@@ -135,6 +135,7 @@ function enrichAnalysis(analysis) {
   const parameters = (analysis.parameters || []).map((parameter) => ({
     ...parameter,
     unit: configuredContent[parameter.key]?.unit || parameter.unit,
+    precision: configuredContent[parameter.key]?.precision ?? parameter.precision,
     target: configuredContent[parameter.key]
       ? `${configuredContent[parameter.key].targetMin} - ${configuredContent[parameter.key].targetMax}`
       : parameter.target,
@@ -155,6 +156,15 @@ function enrichAnalysis(analysis) {
 
   return {
     ...analysis,
+    aquariumProfile: analysis.aquariumProfile || (aquarium ? {
+      name: aquarium.name,
+      waterType: aquarium.water_type,
+      volumeLiters: Number(aquarium.net_volume) || 0,
+      aquariumType: aquarium.aquarium_type || 'Nicht angegeben',
+      livestock: aquarium.stocking_density || 'Nicht angegeben',
+      supplySystem: aquarium.supply_system || 'Nicht angegeben',
+      filtration: [aquarium.skimmer && 'Eiweißabschäumer', aquarium.refugium && 'Refugium', aquarium.sump && 'Technikbecken'].filter(Boolean),
+    } : null),
     aquariumName: analysis.aquariumName || aquarium?.name || 'Aquarium',
     waterType,
     packageLabel: packageLabel(analysis.package),
