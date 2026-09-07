@@ -35,6 +35,18 @@
           <div><span class="eyebrow">Häufige Fragen</span><h2>Schnelle Antworten</h2></div>
           <strong>{{ filteredFaqs.length }} Themen</strong>
         </div>
+        <div class="category-switch" role="group" aria-label="FAQ-Kategorie auswählen">
+          <button
+            v-for="category in faqCategories"
+            :key="category.value"
+            type="button"
+            :class="{ active: activeCategory === category.value }"
+            :aria-pressed="activeCategory === category.value"
+            @click="selectCategory(category.value)"
+          >
+            {{ category.label }}
+          </button>
+        </div>
         <div v-if="filteredFaqs.length" class="faq-list">
           <article v-for="item in filteredFaqs" :key="item.id" :class="{ open: openFaq === item.id }">
             <button type="button" :aria-expanded="openFaq === item.id" @click="toggleFaq(item.id)">
@@ -67,15 +79,28 @@ import { computed, reactive, ref } from 'vue'
 import { loadSupportContent } from '@/services/supportContent'
 
 const search = ref('')
+const activeCategory = ref('all')
 const openFaq = ref('')
 const requestStatus = ref('')
 const request = reactive({ topic: 'Analysebericht', subject: '', message: '' })
 const faqs = ref(loadSupportContent().faqs)
+const faqCategories = computed(() => [
+  { value: 'all', label: 'Alle' },
+  ...[...new Set(faqs.value.map((item) => item.category).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'de'))
+    .map((category) => ({ value: category, label: category })),
+])
 const filteredFaqs = computed(() => {
   const query = search.value.trim().toLocaleLowerCase('de-DE')
-  return query ? faqs.value.filter((item) => `${item.category} ${item.question} ${item.answer}`.toLocaleLowerCase('de-DE').includes(query)) : faqs.value
+  return faqs.value
+    .filter((item) => activeCategory.value === 'all' || item.category === activeCategory.value)
+    .filter((item) => !query || `${item.category} ${item.question} ${item.answer}`.toLocaleLowerCase('de-DE').includes(query))
 })
 
+function selectCategory(category) {
+  activeCategory.value = category
+  openFaq.value = ''
+}
 function toggleFaq(id) {
   openFaq.value = openFaq.value === id ? '' : id
 }
@@ -109,6 +134,7 @@ function prepareRequest() {
 .support-layout { display: grid; grid-template-columns: minmax(0,1fr) 350px; gap: 18px; align-items: start; }
 .faq-panel,.contact-panel { padding: 22px; border: 1px solid var(--border); border-radius: 22px; background: #fff; box-shadow: var(--shadow); }
 .section-head { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 14px; }.section-head h2,.contact-panel h2 { color: var(--text); font-size: 23px; }.section-head > strong { color: var(--text-muted); font-size: 11px; }
+.category-switch { max-width: 100%; display: flex; gap: 4px; margin-bottom: 14px; padding: 4px; overflow-x: auto; border-radius: 12px; background: #eef5fb; scrollbar-width: none; }.category-switch::-webkit-scrollbar { display: none; }.category-switch button { flex: 0 0 auto; min-height: 35px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 10px; font-weight: 850; cursor: pointer; transition: color .2s ease, background .2s ease, box-shadow .2s ease; }.category-switch button:hover { color: var(--brand-blue); }.category-switch button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 5px 14px rgba(10,27,67,.09); }
 .faq-list { display: grid; gap: 8px; }.faq-list article { overflow: hidden; border: 1px solid var(--border); border-radius: 13px; background: #fff; }.faq-list article.open { border-color: rgba(0,114,206,0.3); background: #f8fbfe; }
 .faq-list button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }.faq-list button small,.faq-list button strong { display: block; }.faq-list button small { color: var(--teal-700); font-size: 9px; font-weight: 800; text-transform: uppercase; }.faq-list button strong { margin-top: 3px; color: var(--text); font-size: 13px; }.faq-list button i { color: var(--brand-blue); font-size: 19px; font-style: normal; transition: transform .2s ease; }.faq-list article.open button i { transform: rotate(180deg); }
 .faq-list article > p { padding: 0 14px 15px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }.faq-slide-enter-active,.faq-slide-leave-active { transition: opacity .2s ease, transform .2s ease; }.faq-slide-enter-from,.faq-slide-leave-to { opacity: 0; transform: translateY(-5px); }
