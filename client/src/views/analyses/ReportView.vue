@@ -44,14 +44,11 @@
       </section>
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
-        <button type="button" :class="{ active: activeTab === 'recommendations' }" @click="activeTab = 'recommendations'">
-          Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
+        <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+          Übersicht &amp; Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
           Dosierungsplan <b v-if="lowParameters.length">{{ lowParameters.length }}</b>
-        </button>
-        <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-          Übersicht
         </button>
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
@@ -61,8 +58,15 @@
         </button>
       </nav>
 
-      <section v-show="activeTab === 'overview'" class="report-layout">
-        <main class="report-main">
+      <section v-show="activeTab === 'overview'" class="combined-report-flow">
+        <header class="chapter-heading">
+          <b>01</b>
+          <div><span>Analyseübersicht</span><h2>Ergebnisse auf einen Blick</h2><p>Zuerst den Zustand und die betroffenen Gruppen verstehen.</p></div>
+          <strong>{{ analysis.parameters.length || '—' }} Messwerte</strong>
+        </header>
+
+        <div class="report-layout">
+          <main class="report-main">
           <section class="panel group-overview">
             <div class="section-head group-overview-head">
               <div>
@@ -174,25 +178,10 @@
             </div>
           </section>
 
-          <section class="panel">
-            <div class="section-head">
-              <div>
-                <span>Empfehlungen</span>
-                <h2>Nächste Maßnahmen</h2>
-              </div>
-            </div>
-            <div v-if="analysis.recommendations.length" class="recommendation-list">
-              <div v-for="(item, index) in analysis.recommendations" :key="item" class="recommendation-row">
-                <b>{{ index + 1 }}</b>
-                <p>{{ item }}</p>
-              </div>
-            </div>
-            <p v-else class="muted">Empfehlungen folgen nach abgeschlossener Laborbewertung.</p>
-          </section>
-        </main>
+          </main>
 
-        <aside class="report-side">
-          <section class="panel overview-sidebar">
+          <aside class="report-side">
+            <section class="panel overview-sidebar">
             <header class="sidebar-summary">
               <div><span>Bericht im Blick</span><h2>{{ resultLabel }}</h2></div>
               <b :class="analysis.severity">{{ analysis.issueCount }}</b>
@@ -230,69 +219,58 @@
                 <p>{{ analysis.aquariumProfile.filtration?.join(' · ') }}</p>
               </div>
             </details>
-          </section>
-        </aside>
-      </section>
-
-      <section v-if="analysis.status === 'completed'" v-show="activeTab === 'recommendations'" class="panel care-plan">
-        <div class="care-head">
-          <div>
-            <span>Empfehlungen</span>
-            <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : issueParameters.length ? 'Keine passende Regel ausgelöst' : 'Kein Eingriff notwendig' }}</h2>
-            <p v-if="!carePlan.length && !issueParameters.length">Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
-            <p v-else-if="!carePlan.length">Es gibt auffällige Messwerte, aber aktuell keine aktive Empfehlungsregel mit passenden Bedingungen.</p>
-          </div>
-          <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
-            <button type="button" :class="{ active: careMode === 'quick' }" @click="setCareMode('quick')">Schnell</button>
-            <button type="button" :class="{ active: careMode === 'detail' }" @click="setCareMode('detail')">Ausführlich</button>
-          </div>
+            </section>
+          </aside>
         </div>
 
-        <div v-if="!carePlan.length" class="care-clean">
-          <span aria-hidden="true">{{ issueParameters.length ? '!' : '✓' }}</span>
-          <div><strong>{{ issueParameters.length ? 'Regelprüfung erforderlich' : 'System stabil' }}</strong><p>{{ issueParameters.length ? 'Prüfen Sie die aktiven Regeln in den Admin-Einstellungen.' : 'Nutzen Sie diesen Bericht als Referenz für die nächste Messung.' }}</p></div>
-        </div>
-
-        <div v-else class="care-groups">
-          <section v-for="group in carePlanGroups" :key="group.key" :class="['care-group', `group-${group.key}`]">
-            <header class="care-group-head">
-              <div><span>{{ group.label }}</span></div>
-              <strong>{{ group.items.length }} {{ group.items.length === 1 ? 'Empfehlung' : 'Empfehlungen' }}</strong>
-            </header>
-            <div class="care-details">
-              <article v-for="(item, index) in group.items" :key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key], expanded: expandedCareCards[item.key] }]">
-                <div class="care-card-head">
-                  <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">
-                    {{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}
-                  </button>
-                  <button type="button" class="care-card-toggle" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
-                    <span class="care-card-copy">
-                      <small>{{ parameterStatusLabel(item.tone) }} · Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small>
-                      <strong>{{ item.title }}</strong>
-                      <em>{{ item.summary }}</em>
-                      <span class="care-elements"><b v-for="parameter in item.parameters" :key="parameter">{{ parameter }}</b></span>
-                    </span>
-                    <span class="care-card-meta"><em>{{ item.recheck }}</em><i aria-hidden="true">⌄</i></span>
-                  </button>
-                </div>
-                <Transition name="care-slide">
-                  <div v-show="expandedCareCards[item.key]" class="care-card-grid">
-                    <div>
-                      <span class="care-label">Warum</span>
-                      <p v-for="reason in item.whys" :key="reason">{{ reason }}</p>
-                    </div>
-                    <div>
-                      <span class="care-label">So gehen Sie vor</span>
-                      <ol>
-                        <li v-for="step in item.steps" :key="step">{{ step }}</li>
-                      </ol>
-                    </div>
-                  </div>
-                </Transition>
-              </article>
+        <section v-if="analysis.status === 'completed'" class="panel care-plan">
+          <div class="care-head">
+            <div class="care-title">
+              <b class="chapter-number">02</b>
+              <div class="care-title-copy">
+                <span>Empfehlungen</span>
+                <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : issueParameters.length ? 'Keine passende Regel ausgelöst' : 'Kein Eingriff notwendig' }}</h2>
+                <p v-if="!carePlan.length && !issueParameters.length">Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
+                <p v-else-if="!carePlan.length">Es gibt auffällige Messwerte, aber aktuell keine aktive Empfehlungsregel mit passenden Bedingungen.</p>
+              </div>
             </div>
-          </section>
-        </div>
+            <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
+              <button type="button" :class="{ active: careMode === 'quick' }" @click="setCareMode('quick')">Schnell</button>
+              <button type="button" :class="{ active: careMode === 'detail' }" @click="setCareMode('detail')">Ausführlich</button>
+            </div>
+          </div>
+
+          <div v-if="!carePlan.length" class="care-clean">
+            <span aria-hidden="true">{{ issueParameters.length ? '!' : '✓' }}</span>
+            <div><strong>{{ issueParameters.length ? 'Regelprüfung erforderlich' : 'System stabil' }}</strong><p>{{ issueParameters.length ? 'Prüfen Sie die aktiven Regeln in den Admin-Einstellungen.' : 'Nutzen Sie diesen Bericht als Referenz für die nächste Messung.' }}</p></div>
+          </div>
+
+          <div v-else class="care-groups">
+            <section v-for="group in carePlanGroups" :key="group.key" :class="['care-group', `group-${group.key}`]">
+              <header class="care-group-head">
+                <div><span>{{ group.label }}</span></div>
+                <strong>{{ group.items.length }} {{ group.items.length === 1 ? 'Empfehlung' : 'Empfehlungen' }}</strong>
+              </header>
+              <div class="care-details">
+                <article v-for="(item, index) in group.items" :key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key], expanded: expandedCareCards[item.key] }]">
+                  <div class="care-card-head">
+                    <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">{{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}</button>
+                    <button type="button" class="care-card-toggle" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
+                      <span class="care-card-copy"><small>{{ parameterStatusLabel(item.tone) }} · Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small><strong>{{ item.title }}</strong><em>{{ item.summary }}</em><span class="care-elements"><b v-for="parameter in item.parameters" :key="parameter">{{ parameter }}</b></span></span>
+                      <span class="care-card-meta"><em>{{ item.recheck }}</em><i aria-hidden="true">⌄</i></span>
+                    </button>
+                  </div>
+                  <Transition name="care-slide">
+                    <div v-show="expandedCareCards[item.key]" class="care-card-grid">
+                      <div><span class="care-label">Warum</span><p v-for="reason in item.whys" :key="reason">{{ reason }}</p></div>
+                      <div><span class="care-label">So gehen Sie vor</span><ol><li v-for="step in item.steps" :key="step">{{ step }}</li></ol></div>
+                    </div>
+                  </Transition>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
       </section>
 
       <DosingPlan v-if="analysis.status === 'completed'" v-show="activeTab === 'dosing'" class="panel" :analysis="analysis" />
