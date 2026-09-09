@@ -134,6 +134,7 @@ function enrichAnalysis(analysis) {
   const waterType = analysis.waterType || aquarium?.water_type || 'Meerwasser'
   const parameters = (analysis.parameters || []).map((parameter) => ({
     ...parameter,
+    dosingRecommendation: parameter.dosingRecommendation || analysis.dosingRecommendations?.[parameter.key] || null,
     unit: configuredContent[parameter.key]?.unit || parameter.unit,
     precision: configuredContent[parameter.key]?.precision ?? parameter.precision,
     target: configuredContent[parameter.key]
