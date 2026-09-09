@@ -1,154 +1,128 @@
 <template>
   <section class="dosing-plan">
-    <header class="plan-hero">
-      <div class="hero-copy">
-        <span class="eyebrow">Persönlicher Dosierungsplan</span>
-        <h2>Niedrige Werte Schritt für Schritt korrigieren</h2>
-        <p>Automatisch aus Analyse und Aquariumprofil erstellt. Keine doppelte Dateneingabe.</p>
-        <div class="context-chips">
-          <span><i>◉</i>{{ analysis.aquariumName }}</span>
-          <span><i>◌</i>{{ volume ? `${formatNumber(volume)} l netto` : 'Volumen fehlt' }}</span>
-          <span><i>✦</i>{{ supplySystem }}</span>
-        </div>
+    <header class="plan-header">
+      <div>
+        <span>Dosierungsplan · {{ analysis.reportNumber }}</span>
+        <h2>Ihr Korrekturplan</h2>
+        <p>In der richtigen Reihenfolge – vom stabilen Grundsystem bis zur gezielten Elementkorrektur.</p>
       </div>
-      <div class="hero-score">
-        <div class="progress-ring" :style="progressStyle"><strong>{{ progressPercent }}</strong><small>%</small></div>
-        <span>Planfortschritt</span><small>{{ completedStageCount }} von {{ totalStageCount }} Etappen</small>
+      <div class="aquarium-context">
+        <small>Berechnungsgrundlage</small>
+        <strong>{{ analysis.aquariumName }}</strong>
+        <span>{{ formatNumber(volume) }} l netto · {{ supplySystem }}</span>
       </div>
     </header>
 
-    <div v-if="!volume" class="profile-warning"><b>Netto-Volumen fehlt</b><span>Bitte das verbundene Aquariumprofil vervollständigen, bevor eine Mengenberechnung verwendet wird.</span></div>
+    <div v-if="!volume" class="blocking-note">
+      <i>!</i><div><strong>Plan noch nicht berechenbar</strong><p>Im verbundenen Aquariumprofil fehlt das Netto-Wasservolumen. Bis es ergänzt ist, werden keine Mengen ausgegeben.</p></div>
+    </div>
 
-    <div v-if="!plan.length" class="plan-clean">
-      <i>✓</i><div><strong>Keine Unterversorgung erkannt</strong><p>Es ist aktuell keine Korrektur durch Dosierung erforderlich.</p></div>
+    <div v-else-if="!plan.length" class="clean-state">
+      <i>✓</i><div><strong>Keine Unterversorgung erkannt</strong><p>Aktuell ist für keinen dosierbaren Messwert eine Anhebung erforderlich.</p></div>
     </div>
 
     <template v-else>
-      <nav class="flow-nav" aria-label="Bereiche des Dosierungsplans">
-        <button v-for="step in views" :key="step.key" type="button" :class="{ active: activeView === step.key, done: viewDone(step.key) }" @click="activeView = step.key">
-          <b>{{ viewDone(step.key) ? '✓' : step.number }}</b>
-          <span><strong>{{ step.label }}</strong><small>{{ step.caption }}</small></span>
-        </button>
-      </nav>
+      <section class="plan-summary" aria-label="Zusammenfassung des Korrekturplans">
+        <div><span>Zu korrigieren</span><strong>{{ plan.length }}</strong><small>{{ plan.length === 1 ? 'Messwert' : 'Messwerte' }}</small></div>
+        <div><span>Zuerst stabilisieren</span><strong>{{ foundationCount }}</strong><small>Basis- oder Wasserwerte</small></div>
+        <div><span>Gezielte Ergänzung</span><strong>{{ productCount }}</strong><small>Elemente</small></div>
+        <div :class="{ ready: verifiedDoseCount === doseCandidateCount && doseCandidateCount > 0 }"><span>Exakt freigegeben</span><strong>{{ verifiedDoseCount }}/{{ doseCandidateCount }}</strong><small>mögliche Produktpläne</small></div>
+      </section>
 
-      <Transition name="plan-swap" mode="out-in">
-        <section v-if="activeView === 'overview'" key="overview" class="view-panel">
-          <header class="view-head">
-            <div><span>01 · Überblick</span><h3>{{ plan.length }} {{ plan.length === 1 ? 'Wert braucht' : 'Werte brauchen' }} Aufmerksamkeit</h3><p>Beginnen Sie mit kritischen Werten und verändern Sie möglichst nur eine Versorgung gleichzeitig.</p></div>
-            <div class="priority-badge"><b>{{ urgentCount }}</b><span>kritisch</span></div>
+      <div class="sequence-note"><i>i</i><p><strong>Reihenfolge beachten:</strong> Erst Salinität und Ionengleichgewicht stabilisieren. Danach Mengen- und zuletzt Spurenelemente korrigieren.</p></div>
+
+      <section class="plan-workspace">
+        <aside class="action-queue">
+          <header><span>Empfohlene Reihenfolge</span><strong>{{ plan.length }} Schritte</strong></header>
+          <button v-for="(item, index) in plan" :key="item.key" type="button" :class="['queue-item', item.tone, { active: selectedItem?.key === item.key }]" @click="selectedKey = item.key">
+            <b>{{ String(index + 1).padStart(2, '0') }}</b>
+            <span><small>{{ item.modeLabel }}</small><strong>{{ item.label }}</strong><em>{{ item.value }} {{ item.unit }} · zu niedrig</em></span>
+            <i>›</i>
+          </button>
+        </aside>
+
+        <article v-if="selectedItem" class="action-detail">
+          <header class="detail-header">
+            <div class="element-symbol">{{ selectedItem.symbol }}</div>
+            <div>
+              <span>Schritt {{ selectedIndex + 1 }} von {{ plan.length }} · Priorität {{ selectedItem.priority }}</span>
+              <h3>{{ selectedItem.title }}</h3>
+              <p>{{ selectedItem.summary }}</p>
+            </div>
+            <em :class="selectedItem.mode">{{ selectedItem.modeLabel }}</em>
           </header>
-          <div class="issue-grid">
-            <button v-for="item in plan" :key="item.key" type="button" :class="['issue-card', item.tone]" @click="openCorrection(item.key)">
-              <span class="element-mark">{{ item.symbol }}</span>
-              <span class="issue-copy"><small>{{ item.tone === 'critical' ? 'Hohe Priorität' : 'Beobachten' }}</small><strong>{{ item.label }}</strong><em>{{ item.value }} → {{ item.targetValue }} {{ item.unit }}</em></span>
-              <span class="mini-progress"><i :style="{ width: `${correctionPosition(item)}%` }"></i></span>
-              <span class="issue-action">Plan öffnen <b>→</b></span>
-            </button>
-          </div>
-          <button class="primary-action" type="button" @click="openCorrection(plan[0].key)">Mit wichtigster Korrektur beginnen <span>→</span></button>
-        </section>
 
-        <section v-else-if="activeView === 'correction'" key="correction" class="view-panel correction-view">
-          <aside class="element-switcher">
-            <span>Korrekturen</span>
-            <button v-for="item in plan" :key="item.key" type="button" :class="[{ active: selectedItem?.key === item.key }, item.tone]" @click="selectedKey = item.key">
-              <i>{{ item.symbol }}</i><span><strong>{{ item.label }}</strong><small>{{ item.value }} {{ item.unit }}</small></span><b v-if="itemProgress(item) === 100">✓</b><em v-else>{{ itemProgress(item) }}%</em>
-            </button>
-          </aside>
+          <section class="value-journey">
+            <div><span>Aktuell</span><strong>{{ selectedItem.value }}</strong><small>{{ selectedItem.unit }}</small></div>
+            <div class="journey-line"><i></i><b>+ {{ formatNumber(selectedItem.deficit) }}</b></div>
+            <div class="target"><span>Sicheres erstes Ziel</span><strong>{{ selectedItem.targetValue }}</strong><small>{{ selectedItem.unit }}</small></div>
+            <div class="range"><span>Gesamter Zielbereich</span><strong>{{ selectedItem.targetRange.min }}–{{ selectedItem.targetRange.max }}</strong><small>{{ selectedItem.unit }}</small></div>
+          </section>
 
-          <article v-if="selectedItem" class="correction-card">
-            <header><div class="element-large">{{ selectedItem.symbol }}</div><div><span>{{ selectedItem.tone === 'critical' ? 'Hohe Priorität' : 'Kontrollierte Korrektur' }}</span><h3>{{ selectedItem.action }}</h3><p>{{ selectedItem.note }}</p></div></header>
-            <div class="metric-row">
-              <div><span>Gemessen</span><strong>{{ selectedItem.value }}</strong><small>{{ selectedItem.unit }}</small></div><i>→</i>
-              <div class="target"><span>Zielwert</span><strong>{{ selectedItem.targetValue }}</strong><small>{{ selectedItem.unit }}</small></div>
-              <div><span>Elementbedarf</span><strong>{{ formatMass(selectedItem.requiredMassMg) }}</strong><small>für {{ formatNumber(volume) }} Liter</small></div>
+          <section v-if="selectedItem.dose" class="verified-dose">
+            <header><div><span>Laborgeprüfte Produktdosierung</span><h4>{{ selectedItem.dose.productName }}</h4></div><b>Verifiziert</b></header>
+            <div class="dose-metrics">
+              <div><span>Pro Tag</span><strong>{{ formatNumber(selectedItem.dose.dailyMl) }} ml</strong></div>
+              <div><span>Dauer</span><strong>{{ selectedItem.dose.days }} {{ selectedItem.dose.days === 1 ? 'Tag' : 'Tage' }}</strong></div>
+              <div><span>Gesamt</span><strong>{{ formatNumber(selectedItem.dose.totalMl) }} ml</strong></div>
             </div>
-            <div class="source-note"><span>Versorgungssystem</span><strong>{{ supplySystem }}</strong><p>Eine konkrete Produktmenge wird erst ausgegeben, wenn eine geprüfte Konzentration im Produktkatalog hinterlegt ist.</p></div>
-            <div class="timeline-head"><div><span>Etappenplan</span><h4>Langsam statt auf einmal</h4></div><small>Etappen der Reihe nach abschließen</small></div>
-            <div class="stage-timeline">
-              <button v-for="(share, index) in selectedItem.stageShares" :key="share" type="button" :disabled="stageLocked(selectedItem, index)" :class="{ done: stageDone[stageKey(selectedItem, index)], locked: stageLocked(selectedItem, index) }" :aria-pressed="Boolean(stageDone[stageKey(selectedItem, index)])" @click="toggleStage(selectedItem, index)">
-                <span class="stage-number">{{ stageDone[stageKey(selectedItem, index)] ? '✓' : index + 1 }}</span>
-                <span class="stage-copy"><small>Etappe {{ index + 1 }} · {{ share }} %</small><strong>{{ stageRequirement(selectedItem, share) }}</strong><em>Wert um {{ stageIncrease(selectedItem, share) }} {{ selectedItem.unit }} anheben</em></span>
-                <span class="stage-state">{{ stageDone[stageKey(selectedItem, index)] ? 'Erledigt' : stageLocked(selectedItem, index) ? 'Gesperrt' : 'Als erledigt markieren' }}</span>
-              </button>
-            </div>
-            <footer><button type="button" class="secondary-action" @click="activeView = 'overview'">← Übersicht</button><button type="button" class="primary-action compact" @click="activeView = 'followup'">Zur Nachkontrolle <span>→</span></button></footer>
-          </article>
-        </section>
+            <p v-if="selectedItem.dose.instructions">{{ selectedItem.dose.instructions }}</p>
+          </section>
 
-        <section v-else key="followup" class="view-panel followup-view">
-          <header class="view-head"><div><span>03 · Nachkontrolle</span><h3>Wirkung prüfen und dokumentieren</h3><p>Der Plan endet nicht mit der Dosierung. Beobachtung und erneute Messung gehören zur Korrektur.</p></div><div class="completion-orb" :class="{ complete: followupComplete }">{{ followupComplete ? '✓' : completedCheckCount }}</div></header>
-          <div class="check-list">
-            <label v-for="step in safetySteps" :key="step.key" :class="{ done: checks[step.key] }"><input v-model="checks[step.key]" type="checkbox" /><i>{{ checks[step.key] ? '✓' : '' }}</i><span><b>{{ step.title }}</b><small>{{ step.text }}</small></span></label>
-          </div>
-          <div class="recheck-card"><div class="calendar-icon"><b>{{ recheckDays }}</b><small>Tage</small></div><div><span>Empfohlene Nachkontrolle</span><strong>In {{ recheckDays }} Tagen erneut messen</strong><p>Kritische Elemente früher kontrollieren. Das neue Ergebnis anschließend mit diesem Bericht vergleichen.</p></div></div>
-          <aside class="safety-note"><b>Wichtiger Sicherheitshinweis</b><p>Der Dosierungsplan ist eine Rechenhilfe. Bei kranken Tieren, starken Abweichungen oder unklaren Produktangaben zuerst fachlich Rücksprache halten.</p></aside>
-        </section>
-      </Transition>
+          <section v-else :class="['dose-status', selectedItem.mode]">
+            <div class="dose-icon">{{ selectedItem.mode === 'water' ? '≈' : 'ml' }}</div>
+            <div v-if="selectedItem.mode === 'water'"><span>Keine Einzeldosierung</span><strong>Über Wasserchemie korrigieren</strong><p>Für diesen Wert ist bewusst keine Produktmenge vorgesehen.</p></div>
+            <div v-else><span>Produktmenge nicht freigegeben</span><strong>{{ formatMass(selectedItem.requiredMassMg) }} rechnerischer Elementbedarf</strong><p>Eine ml-Angabe erscheint erst mit einer laborgeprüften Produktkonzentration. So vermeiden wir Scheingenauigkeit.</p></div>
+          </section>
+
+          <section class="procedure">
+            <header><span>So gehen Sie vor</span><strong>{{ selectedItem.recheckDays }} Tage bis zur Kontrolle</strong></header>
+            <ol>
+              <li v-for="(step, index) in selectedItem.steps" :key="step"><b>{{ index + 1 }}</b><p>{{ step }}</p></li>
+            </ol>
+          </section>
+
+          <aside class="caution"><i>!</i><div><strong>Bitte beachten</strong><p>{{ selectedItem.caution }}</p></div></aside>
+
+          <footer class="detail-footer">
+            <button type="button" :disabled="selectedIndex === 0" @click="selectOffset(-1)">← Vorheriger Schritt</button>
+            <div><span>Nachkontrolle</span><strong>In {{ selectedItem.recheckDays }} Tagen erneut messen</strong></div>
+            <button type="button" :disabled="selectedIndex === plan.length - 1" @click="selectOffset(1)">Nächster Schritt →</button>
+          </footer>
+        </article>
+      </section>
     </template>
   </section>
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { buildDosingPlan, formatMass } from '@/services/dosingPlan'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
-const views = [
-  { key: 'overview', number: '1', label: 'Überblick', caption: 'Bedarf verstehen' },
-  { key: 'correction', number: '2', label: 'Korrektur', caption: 'Etappen durchführen' },
-  { key: 'followup', number: '3', label: 'Nachkontrolle', caption: 'Wirkung bestätigen' },
-]
-const safetySteps = [
-  { key: 'verify', title: 'Grundlage geprüft', text: 'Messwert, Zielbereich und automatisch verwendetes Netto-Volumen stimmen.' },
-  { key: 'observe', title: 'Tiere beobachtet', text: 'Nach jeder Etappe wurden Korallen und Tiere auf Reaktionen kontrolliert.' },
-  { key: 'separate', title: 'Korrekturen getrennt', text: 'Unterschiedliche Elemente wurden nicht unkontrolliert parallel korrigiert.' },
-  { key: 'recheck', title: 'Nachmessung eingeplant', text: 'Der nächste Kontrolltermin wurde vorgemerkt.' },
-]
-const activeView = ref('overview')
 const selectedKey = ref('')
-const saved = loadProgress()
-const stageDone = reactive(saved.stages || {})
-const checks = reactive(saved.checks || {})
 const volume = computed(() => Number(props.analysis.aquariumProfile?.volumeLiters || props.analysis.aquariumProfile?.net_volume || 0))
-const supplySystem = computed(() => props.analysis.aquariumProfile?.supplySystem || 'Keine Versorgung hinterlegt')
-const plan = computed(() => buildDosingPlan(props.analysis.parameters, volume.value).sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
+const supplySystem = computed(() => props.analysis.aquariumProfile?.supplySystem || 'Versorgung nicht hinterlegt')
+const plan = computed(() => buildDosingPlan(props.analysis.parameters, volume.value))
 const selectedItem = computed(() => plan.value.find((item) => item.key === selectedKey.value) || plan.value[0] || null)
-const urgentCount = computed(() => plan.value.filter((item) => item.tone === 'critical').length)
-const totalStageCount = computed(() => plan.value.reduce((sum, item) => sum + item.stageShares.length, 0))
-const completedStageCount = computed(() => plan.value.reduce((sum, item) => sum + item.stageShares.filter((_, index) => stageDone[stageKey(item, index)]).length, 0))
-const progressPercent = computed(() => totalStageCount.value ? Math.round(completedStageCount.value / totalStageCount.value * 100) : 100)
-const progressStyle = computed(() => ({ background: `conic-gradient(#19bca5 ${progressPercent.value * 3.6}deg, rgba(255,255,255,.14) 0deg)` }))
-const completedCheckCount = computed(() => safetySteps.filter((item) => checks[item.key]).length)
-const followupComplete = computed(() => completedCheckCount.value === safetySteps.length)
-const recheckDays = computed(() => urgentCount.value ? 7 : 14)
+const selectedIndex = computed(() => Math.max(0, plan.value.findIndex((item) => item.key === selectedItem.value?.key)))
+const foundationCount = computed(() => plan.value.filter((item) => ['water', 'supply'].includes(item.mode)).length)
+const productCount = computed(() => plan.value.filter((item) => item.mode === 'product').length)
+const doseCandidateCount = computed(() => plan.value.filter((item) => item.mode !== 'water').length)
+const verifiedDoseCount = computed(() => plan.value.filter((item) => item.dose).length)
 
-watch([stageDone, checks], () => {
-  try { localStorage.setItem(progressKey(), JSON.stringify({ stages: { ...stageDone }, checks: { ...checks } })) } catch { /* local progress is optional */ }
-}, { deep: true })
-
-function progressKey() { return `reef-pilot:dosing-plan:${props.analysis.id}` }
-function loadProgress() { try { return JSON.parse(localStorage.getItem(progressKey()) || '{}') } catch { return {} } }
-function toneRank(tone) { return tone === 'critical' ? 0 : tone === 'watch' ? 1 : 2 }
-function formatNumber(value) { return Number(value || 0).toLocaleString('de-DE') }
-function openCorrection(key) { selectedKey.value = key; activeView.value = 'correction' }
-function stageKey(item, index) { return `${item.key}-${index}` }
-function stageLocked(item, index) { return index > 0 && !stageDone[stageKey(item, index - 1)] }
-function toggleStage(item, index) {
-  if (stageLocked(item, index)) return
-  const nextState = !stageDone[stageKey(item, index)]
-  stageDone[stageKey(item, index)] = nextState
-  if (!nextState) item.stageShares.slice(index + 1).forEach((_, offset) => { stageDone[stageKey(item, index + offset + 1)] = false })
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('de-DE', { maximumFractionDigits: 3 })
 }
-function itemProgress(item) { return Math.round(item.stageShares.filter((_, index) => stageDone[stageKey(item, index)]).length / item.stageShares.length * 100) }
-function viewDone(view) { return view === 'overview' ? activeView.value !== 'overview' : view === 'correction' ? progressPercent.value === 100 : followupComplete.value }
-function correctionPosition(item) { return Math.max(8, Math.min(100, Number(item.value) / Number(item.targetValue || 1) * 100)) }
-function stageIncrease(item, share) { return Number((item.deficit * share / 100).toFixed(Math.max(2, item.precision || 0))).toLocaleString('de-DE') }
-function stageRequirement(item, share) { return item.requiredMassMg === null ? `+ ${stageIncrease(item, share)} ${item.unit}` : formatMass(item.requiredMassMg * share / 100) }
+
+function selectOffset(offset) {
+  const item = plan.value[selectedIndex.value + offset]
+  if (item) selectedKey.value = item.key
+}
 </script>
 
 <style scoped>
-.dosing-plan{display:grid;gap:20px}.plan-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:26px;border-radius:20px;background:linear-gradient(125deg,#071c40 0%,#0a3e74 58%,#087f91 100%);color:#fff}.plan-hero:after{position:absolute;right:-90px;bottom:-120px;width:300px;height:300px;border:55px solid rgba(255,255,255,.05);border-radius:50%;content:""}.hero-copy,.hero-score{position:relative;z-index:1}.eyebrow,.view-head>div>span,.timeline-head>div>span{color:#8de6dc;font-size:10px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}.hero-copy h2{max-width:670px;margin-top:6px;font-size:clamp(25px,3vw,36px);line-height:1.08;letter-spacing:-.035em}.hero-copy>p{max-width:650px;margin-top:7px;color:rgba(255,255,255,.68);font-size:13px}.context-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:17px}.context-chips span{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(255,255,255,.13);border-radius:999px;background:rgba(255,255,255,.08);font-size:10px;font-weight:750}.context-chips i{color:#73e0d3;font-style:normal}.hero-score{display:grid;justify-items:center;min-width:130px}.progress-ring{position:relative;display:grid;place-items:center;width:94px;height:94px;border-radius:50%}.progress-ring:after{position:absolute;inset:9px;border-radius:50%;background:#0a315f;content:""}.progress-ring strong,.progress-ring small{position:relative;z-index:1}.progress-ring strong{font-size:29px}.progress-ring small{position:absolute;margin:25px 0 0 42px;color:#8de6dc;font-size:10px}.hero-score>span{margin-top:8px;font-size:11px;font-weight:850}.hero-score>small{margin-top:2px;color:rgba(255,255,255,.58);font-size:9px}.profile-warning{display:flex;gap:8px;padding:11px 14px;border:1px solid #fed7aa;border-radius:12px;background:#fff7ed;color:#9a4d0a;font-size:11px}.plan-clean{min-height:180px;display:flex;align-items:center;justify-content:center;gap:15px;border-radius:18px;background:#ecfdf5;color:#047857}.plan-clean i{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#10b981;color:#fff;font-size:22px;font-style:normal;font-weight:900}.plan-clean strong{display:block;font-size:17px}.plan-clean p{margin-top:3px;font-size:12px}.flow-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:5px;border:1px solid var(--border);border-radius:16px;background:#f1f6fa}.flow-nav button{display:flex;align-items:center;gap:10px;min-height:58px;padding:9px 12px;border:0;border-radius:12px;background:transparent;color:var(--text-muted);text-align:left;cursor:pointer}.flow-nav button>b{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:9px;background:#dfe9f1;color:#63778a;font-size:11px}.flow-nav button span,.flow-nav button strong,.flow-nav button small{display:block}.flow-nav button strong{color:inherit;font-size:12px}.flow-nav button small{margin-top:2px;font-size:9px}.flow-nav button.active{background:#fff;color:var(--brand-blue);box-shadow:0 4px 14px rgba(10,27,67,.08)}.flow-nav button.active>b{background:var(--brand-blue);color:#fff}.flow-nav button.done>b{background:#10b981;color:#fff}.view-panel{display:grid;gap:18px}.view-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}.view-head>div>span,.timeline-head>div>span{color:var(--teal-700)}.view-head h3{margin-top:4px;color:var(--text);font-size:23px;letter-spacing:-.02em}.view-head p{max-width:700px;margin-top:5px;color:var(--text-muted);font-size:12px}.priority-badge{display:flex;align-items:baseline;gap:5px;padding:10px 13px;border-radius:12px;background:#fff1ef;color:#b53a2e}.priority-badge b{font-size:21px}.priority-badge span{font-size:10px;font-weight:850}.issue-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:10px}.issue-card{display:grid;grid-template-columns:42px 1fr;gap:10px;padding:14px;border:1px solid var(--border);border-top:3px solid #f59e0b;border-radius:15px;background:#fff;color:inherit;text-align:left;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}.issue-card.critical{border-top-color:#e85d4f}.issue-card:hover{transform:translateY(-2px);border-color:#9cc4df;box-shadow:0 10px 25px rgba(10,27,67,.08)}.element-mark,.element-large{display:grid;place-items:center;border-radius:12px;background:var(--teal-50);color:var(--brand-blue);font-weight:900}.element-mark{width:40px;height:40px;font-size:11px}.issue-copy,.issue-copy>*{display:block}.issue-copy small{color:#b45309;font-size:8px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.critical .issue-copy small{color:#c24135}.issue-copy strong{margin-top:2px;color:var(--text);font-size:14px}.issue-copy em{margin-top:3px;color:var(--text-muted);font-size:10px;font-style:normal}.mini-progress{grid-column:1/-1;height:5px;overflow:hidden;border-radius:999px;background:#edf2f6}.mini-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#f59e0b,#19bca5)}.issue-action{grid-column:1/-1;display:flex;justify-content:space-between;padding-top:2px;color:var(--brand-blue);font-size:10px;font-weight:850}.primary-action,.secondary-action{display:flex;align-items:center;justify-content:center;gap:12px;min-height:46px;padding:0 17px;border:0;border-radius:13px;font-size:12px;font-weight:850;cursor:pointer}.primary-action{justify-self:end;background:var(--brand-blue);color:#fff;box-shadow:0 7px 18px rgba(0,114,206,.2)}.primary-action:hover{background:#0565b3}.primary-action.compact{min-height:40px}.secondary-action{background:#edf4f9;color:var(--brand-blue)}.correction-view{grid-template-columns:225px minmax(0,1fr);align-items:start}.element-switcher{display:grid;gap:7px;padding:10px;border:1px solid var(--border);border-radius:16px;background:#f5f9fc}.element-switcher>span{padding:4px 5px;color:var(--text-muted);font-size:9px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}.element-switcher button{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;padding:9px;border:1px solid transparent;border-radius:11px;background:transparent;color:inherit;text-align:left;cursor:pointer}.element-switcher button:hover{background:#fff}.element-switcher button.active{border-color:#bdd8ea;background:#fff;box-shadow:0 4px 12px rgba(10,27,67,.07)}.element-switcher button>i{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#e7f3fb;color:var(--brand-blue);font-size:9px;font-style:normal;font-weight:900}.element-switcher button span,.element-switcher button strong,.element-switcher button small{display:block}.element-switcher button strong{color:var(--text);font-size:11px}.element-switcher button small{margin-top:2px;color:var(--text-muted);font-size:9px}.element-switcher button>b{color:#10b981}.element-switcher button>em{color:var(--text-muted);font-size:8px;font-style:normal}.correction-card{overflow:hidden;border:1px solid var(--border);border-radius:18px;background:#fff}.correction-card>header{display:grid;grid-template-columns:58px 1fr;gap:13px;padding:20px}.element-large{width:56px;height:56px;font-size:15px}.correction-card>header span{color:#c24135;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.correction-card>header h3{margin-top:2px;color:var(--text);font-size:20px}.correction-card>header p{margin-top:4px;color:var(--text-muted);font-size:11px;line-height:1.5}.metric-row{display:grid;grid-template-columns:1fr auto 1fr 1.25fr;align-items:center;gap:10px;padding:14px 20px;border-block:1px solid var(--border);background:#f8fbfe}.metric-row>div{display:grid;grid-template-columns:1fr auto;gap:2px 5px;padding:10px 12px;border-radius:11px;background:#fff}.metric-row>div>span{grid-column:1/-1;color:var(--text-muted);font-size:8px;font-weight:800;text-transform:uppercase}.metric-row strong{color:var(--text);font-size:18px}.metric-row small{align-self:end;color:var(--text-muted);font-size:8px}.metric-row>i{color:var(--teal-500);font-style:normal}.metric-row .target{background:#ecfdf5}.metric-row .target strong{color:#047857}.source-note{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:10px;padding:11px 20px;border-bottom:1px solid var(--border)}.source-note span{color:var(--teal-700);font-size:8px;font-weight:850;text-transform:uppercase}.source-note strong{color:var(--text);font-size:10px}.source-note p{color:var(--text-muted);font-size:9px}.timeline-head{display:flex;align-items:flex-end;justify-content:space-between;padding:18px 20px 10px}.timeline-head h4{margin-top:2px;color:var(--text);font-size:15px}.timeline-head>small{color:var(--text-muted);font-size:9px}.stage-timeline{display:grid;gap:8px;padding:0 20px 20px}.stage-timeline button{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-radius:13px;background:#fff;color:inherit;text-align:left;cursor:pointer}.stage-timeline button:not(.locked):hover{border-color:#8bcbbb;background:#f5fdfb}.stage-timeline button.done{border-color:#86efac;background:#ecfdf5}.stage-timeline button.locked{opacity:.48;cursor:not-allowed}.stage-number{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e8f1f7;color:var(--brand-blue);font-size:11px;font-weight:900}.done .stage-number{background:#10b981;color:#fff}.stage-copy,.stage-copy>*{display:block}.stage-copy small{color:var(--teal-700);font-size:8px;font-weight:850;text-transform:uppercase}.stage-copy strong{margin-top:2px;color:var(--text);font-size:14px}.stage-copy em{margin-top:2px;color:var(--text-muted);font-size:9px;font-style:normal}.stage-state{color:var(--brand-blue);font-size:9px;font-weight:850}.done .stage-state{color:#047857}.correction-card>footer{display:flex;justify-content:space-between;gap:10px;padding:13px 20px;border-top:1px solid var(--border);background:#f8fbfe}.completion-orb{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#edf3f7;color:var(--brand-blue);font-size:18px;font-weight:900}.completion-orb.complete{background:#10b981;color:#fff}.check-list{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.check-list label{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:14px;border:1px solid var(--border);border-radius:13px;cursor:pointer}.check-list label.done{border-color:#86efac;background:#ecfdf5}.check-list input{position:absolute;opacity:0;pointer-events:none}.check-list i{display:grid;place-items:center;width:20px;height:20px;border:2px solid #c8d6e2;border-radius:6px;color:#fff;font-size:10px;font-style:normal}.check-list .done i{border-color:#10b981;background:#10b981}.check-list b,.check-list small{display:block}.check-list b{color:var(--text);font-size:12px}.check-list small{margin-top:3px;color:var(--text-muted);font-size:10px;line-height:1.45}.recheck-card{display:flex;align-items:center;gap:15px;padding:17px;border-radius:15px;background:linear-gradient(110deg,#eef8ff,#eafcf8)}.calendar-icon{display:grid;place-items:center;flex:none;width:58px;height:58px;border-radius:14px;background:var(--brand-blue);color:#fff}.calendar-icon b{font-size:20px}.calendar-icon small{margin-top:-7px;color:#bce5ff;font-size:8px;text-transform:uppercase}.recheck-card span{color:var(--teal-700);font-size:8px;font-weight:850;text-transform:uppercase}.recheck-card strong{display:block;margin-top:2px;color:var(--text);font-size:14px}.recheck-card p{margin-top:3px;color:var(--text-muted);font-size:10px}.safety-note{padding:12px 14px;border-left:4px solid #f59e0b;border-radius:11px;background:#fff7ed}.safety-note b{color:#92400e;font-size:10px}.safety-note p{margin-top:3px;color:#9a4d0a;font-size:10px;line-height:1.45}.plan-swap-enter-active,.plan-swap-leave-active{transition:opacity .16s ease,transform .16s ease}.plan-swap-enter-from{opacity:0;transform:translateX(8px)}.plan-swap-leave-to{opacity:0;transform:translateX(-8px)}
-@media(max-width:900px){.plan-hero{align-items:flex-start}.correction-view{grid-template-columns:1fr}.element-switcher{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.element-switcher>span{grid-column:1/-1}.metric-row{grid-template-columns:1fr 1fr}.metric-row>i{display:none}.source-note{grid-template-columns:1fr}.source-note p{grid-column:1}.check-list{grid-template-columns:1fr}}
-@media(max-width:620px){.plan-hero{align-items:stretch;flex-direction:column;padding:20px}.hero-score{grid-template-columns:auto 1fr;justify-items:start;gap:0 10px}.progress-ring{grid-row:1/3;width:70px;height:70px}.progress-ring strong{font-size:22px}.progress-ring small{margin:19px 0 0 32px}.hero-score>span{align-self:end}.flow-nav{grid-template-columns:1fr}.flow-nav button{min-height:48px}.view-head{align-items:flex-start}.issue-grid{grid-template-columns:1fr}.primary-action{width:100%;justify-self:stretch}.metric-row{grid-template-columns:1fr}.correction-card>header{grid-template-columns:46px 1fr;padding:16px}.element-large{width:44px;height:44px}.stage-timeline,.timeline-head{padding-inline:14px}.stage-timeline button{grid-template-columns:34px 1fr}.stage-state{grid-column:2}.correction-card>footer{flex-direction:column}.recheck-card{align-items:flex-start}}
+.dosing-plan{display:grid;gap:18px}.plan-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:4px 2px 18px;border-bottom:1px solid var(--border)}.plan-header>div:first-child>span{color:var(--teal-700);font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}.plan-header h2{margin-top:4px;color:var(--text);font-size:30px;letter-spacing:-.03em}.plan-header p{max-width:680px;margin-top:5px;color:var(--text-muted);font-size:12px}.aquarium-context{min-width:245px;padding:12px 14px;border:1px solid var(--border);border-radius:13px;background:#f6fafc}.aquarium-context small,.aquarium-context strong,.aquarium-context span{display:block}.aquarium-context small{color:var(--teal-700);font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.aquarium-context strong{margin-top:3px;color:var(--text);font-size:13px}.aquarium-context span{margin-top:2px;color:var(--text-muted);font-size:9px}.blocking-note,.clean-state{display:flex;align-items:center;gap:13px;padding:18px;border-radius:15px}.blocking-note{border:1px solid #fed7aa;background:#fff7ed;color:#9a4d0a}.clean-state{min-height:150px;justify-content:center;background:#ecfdf5;color:#047857}.blocking-note>i,.clean-state>i{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:11px;background:#f59e0b;color:#fff;font-style:normal;font-weight:900}.clean-state>i{background:#10b981}.blocking-note strong,.clean-state strong{display:block;font-size:15px}.blocking-note p,.clean-state p{margin-top:3px;font-size:11px}.plan-summary{display:grid;grid-template-columns:repeat(4,1fr);overflow:hidden;border:1px solid var(--border);border-radius:15px;background:#f8fbfe}.plan-summary>div{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:14px 16px;border-right:1px solid var(--border)}.plan-summary>div:last-child{border:0}.plan-summary span{grid-column:1/-1;color:var(--text-muted);font-size:8px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.plan-summary strong{color:var(--text);font-size:22px}.plan-summary small{align-self:end;padding-bottom:3px;color:var(--text-muted);font-size:8px}.plan-summary .ready{background:#ecfdf5}.plan-summary .ready strong{color:#047857}.sequence-note{display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:11px;background:#eef7fd;color:#456378;font-size:10px}.sequence-note>i{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--brand-blue);color:#fff;font-style:normal;font-weight:900}.plan-workspace{display:grid;grid-template-columns:245px minmax(0,1fr);gap:16px;align-items:start}.action-queue{position:sticky;top:calc(var(--topbar-height,68px) + 18px);display:grid;gap:6px;padding:9px;border:1px solid var(--border);border-radius:16px;background:#f4f8fb}.action-queue>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 5px 9px}.action-queue>header span{color:var(--text-muted);font-size:8px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.action-queue>header strong{color:var(--text);font-size:9px}.queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px;border:1px solid transparent;border-radius:11px;background:transparent;color:inherit;text-align:left;cursor:pointer}.queue-item:hover{background:#fff}.queue-item.active{border-color:#afd0e5;background:#fff;box-shadow:0 5px 14px rgba(10,27,67,.07)}.queue-item>b{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#e6eef4;color:#60758a;font-size:9px}.queue-item.critical>b{background:#fdecea;color:#b53a2e}.queue-item span,.queue-item span>*{display:block;min-width:0}.queue-item small{color:var(--teal-700);font-size:7px;font-weight:850;text-transform:uppercase}.queue-item strong{margin-top:1px;overflow:hidden;color:var(--text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}.queue-item em{margin-top:2px;color:var(--text-muted);font-size:8px;font-style:normal}.queue-item>i{color:var(--brand-blue);font-size:17px;font-style:normal}.action-detail{overflow:hidden;border:1px solid var(--border);border-radius:18px;background:#fff}.detail-header{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:14px;padding:20px}.element-symbol{display:grid;place-items:center;width:56px;height:56px;border-radius:15px;background:linear-gradient(145deg,#e9f8f6,#e8f3fc);color:var(--brand-blue);font-size:15px;font-weight:900}.detail-header>div:nth-child(2)>span{color:#b53a2e;font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.detail-header h3{margin-top:3px;color:var(--text);font-size:21px}.detail-header p{max-width:680px;margin-top:4px;color:var(--text-muted);font-size:10px;line-height:1.5}.detail-header>em{padding:6px 9px;border-radius:999px;background:#eef5fb;color:var(--brand-blue);font-size:8px;font-style:normal;font-weight:850}.detail-header>em.water{background:#e9f8ff;color:#03698b}.detail-header>em.nutrient{background:#fff7df;color:#9a5b0a}.value-journey{display:grid;grid-template-columns:1fr minmax(90px,.6fr) 1fr 1.1fr;align-items:center;gap:10px;padding:16px 20px;border-block:1px solid var(--border);background:#f8fbfe}.value-journey>div:not(.journey-line){display:grid;grid-template-columns:1fr auto;gap:2px 5px;padding:10px 12px;border-radius:11px;background:#fff}.value-journey span{grid-column:1/-1;color:var(--text-muted);font-size:7px;font-weight:850;text-transform:uppercase}.value-journey strong{color:var(--text);font-size:19px}.value-journey small{align-self:end;color:var(--text-muted);font-size:8px}.value-journey .target{background:#ecfdf5}.value-journey .target strong{color:#047857}.journey-line{position:relative;text-align:center}.journey-line:before{position:absolute;top:50%;right:0;left:0;height:2px;background:#b8d6e8;content:""}.journey-line i{position:relative;display:block;width:10px;height:10px;margin:auto;border:3px solid #fff;border-radius:50%;background:var(--brand-blue);box-shadow:0 0 0 1px #9dc7df}.journey-line b{position:relative;display:inline-block;margin-top:8px;padding:2px 5px;border-radius:5px;background:#f8fbfe;color:var(--brand-blue);font-size:8px}.verified-dose,.dose-status,.procedure{margin:18px 20px 0}.verified-dose{overflow:hidden;border:1px solid #86efac;border-radius:14px;background:#f5fff9}.verified-dose>header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #bbf7d0}.verified-dose>header span{color:#047857;font-size:8px;font-weight:850;text-transform:uppercase}.verified-dose h4{margin-top:2px;color:#064e3b;font-size:15px}.verified-dose>header>b{padding:5px 8px;border-radius:999px;background:#10b981;color:#fff;font-size:8px}.dose-metrics{display:grid;grid-template-columns:repeat(3,1fr)}.dose-metrics>div{padding:13px 14px;border-right:1px solid #bbf7d0}.dose-metrics>div:last-child{border:0}.dose-metrics span,.dose-metrics strong{display:block}.dose-metrics span{color:#047857;font-size:8px}.dose-metrics strong{margin-top:2px;color:#064e3b;font-size:17px}.verified-dose>p{padding:10px 14px;border-top:1px solid #bbf7d0;color:#047857;font-size:9px}.dose-status{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:12px;padding:13px 14px;border:1px solid #cfe0ec;border-radius:14px;background:#f7fbfd}.dose-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#e7f2f9;color:var(--brand-blue);font-size:10px;font-weight:900}.dose-status span,.dose-status strong{display:block}.dose-status span{color:var(--teal-700);font-size:8px;font-weight:850;text-transform:uppercase}.dose-status strong{margin-top:2px;color:var(--text);font-size:13px}.dose-status p{margin-top:3px;color:var(--text-muted);font-size:9px;line-height:1.45}.dose-status.water{border-color:#bde7f2;background:#f2fcff}.procedure{border-top:1px solid var(--border);padding-top:16px}.procedure>header{display:flex;justify-content:space-between;gap:12px}.procedure>header span{color:var(--teal-700);font-size:9px;font-weight:850;text-transform:uppercase}.procedure>header strong{color:var(--text-muted);font-size:9px}.procedure ol{display:grid;gap:7px;margin-top:10px;padding:0;list-style:none}.procedure li{display:grid;grid-template-columns:30px 1fr;align-items:center;gap:9px;padding:10px 11px;border-radius:11px;background:#f7fafc}.procedure li>b{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#e3f1f9;color:var(--brand-blue);font-size:9px}.procedure li>p{color:var(--text);font-size:10px;line-height:1.45}.caution{display:grid;grid-template-columns:30px 1fr;align-items:center;gap:9px;margin:14px 20px;padding:11px 12px;border-left:3px solid #f59e0b;border-radius:10px;background:#fff8e8}.caution>i{display:grid;place-items:center;width:27px;height:27px;border-radius:8px;background:#f59e0b;color:#fff;font-style:normal;font-weight:900}.caution strong{color:#92400e;font-size:9px}.caution p{margin-top:2px;color:#9a5b0a;font-size:9px;line-height:1.4}.detail-footer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:13px 20px;border-top:1px solid var(--border);background:#f7fafc}.detail-footer button{min-height:36px;padding:0 11px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--brand-blue);font-size:9px;font-weight:850;cursor:pointer}.detail-footer button:disabled{opacity:.35;cursor:default}.detail-footer>div{text-align:center}.detail-footer span,.detail-footer strong{display:block}.detail-footer span{color:var(--text-muted);font-size:7px;text-transform:uppercase}.detail-footer strong{margin-top:2px;color:var(--text);font-size:10px}
+@media(max-width:900px){.plan-header{align-items:stretch;flex-direction:column}.aquarium-context{min-width:0}.plan-summary{grid-template-columns:repeat(2,1fr)}.plan-summary>div:nth-child(2){border-right:0}.plan-summary>div:nth-child(-n+2){border-bottom:1px solid var(--border)}.plan-workspace{grid-template-columns:1fr}.action-queue{position:static;grid-template-columns:repeat(auto-fit,minmax(155px,1fr))}.action-queue>header{grid-column:1/-1}.value-journey{grid-template-columns:1fr 1fr}.journey-line{display:none}}
+@media(max-width:600px){.plan-header h2{font-size:26px}.plan-summary{grid-template-columns:1fr}.plan-summary>div{border-right:0;border-bottom:1px solid var(--border)}.detail-header{grid-template-columns:46px 1fr;padding:15px}.element-symbol{width:44px;height:44px}.detail-header>em{grid-column:2;justify-self:start}.value-journey{grid-template-columns:1fr;padding:13px}.verified-dose,.dose-status,.procedure{margin-inline:14px}.dose-metrics{grid-template-columns:1fr}.dose-metrics>div{border-right:0;border-bottom:1px solid #bbf7d0}.detail-footer{grid-template-columns:1fr}.detail-footer>div{grid-row:1}.caution{margin-inline:14px}}
 </style>
