@@ -11,7 +11,7 @@
       <ul class="hero-trust"><li><b>&lt;24h</b><span>Berichte digital</span></li><li><b>40+</b><span>Parameter im Blick</span></li><li><b>1 QR</b><span>Probe zuordnen</span></li></ul>
     </div>
     <div class="hero-stage" data-reveal data-reveal-delay="120">
-      <figure class="reef-frame"><img src="/tanks/reef-mixed.png" alt="Riffaquarium" loading="eager" /><figcaption>Live-Becken · Mischriff</figcaption></figure>
+      <figure ref="reefFrame" class="reef-frame"><img ref="reefImage" src="/tanks/reef-mixed.png" alt="Riffaquarium" loading="eager" /><figcaption>Live-Becken · Mischriff</figcaption></figure>
       <div class="float-card report-mini">
         <header><span>Wasserbericht</span><strong>ATI-2026-418</strong></header>
         <div v-for="g in heroGauges" :key="g.name" class="mini-gauge" :class="'is-' + g.status">
@@ -23,4 +23,23 @@
     </div>
   </section>
 </template>
-<script setup>import { heroGauges } from '@/services/atiLandingContent'</script>
+<script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { heroGauges } from '@/services/atiLandingContent'
+import { mountHeroWaterEffect } from '@/services/heroWaterEffect'
+
+const reefFrame = ref(null)
+const reefImage = ref(null)
+let destroyWaterEffect = () => {}
+
+onMounted(async () => {
+  try {
+    await reefImage.value?.decode()
+  } catch {
+    // The original image remains visible if decoding or WebGL is unavailable.
+  }
+  destroyWaterEffect = mountHeroWaterEffect(reefFrame.value, reefImage.value)
+})
+
+onBeforeUnmount(() => destroyWaterEffect())
+</script>
