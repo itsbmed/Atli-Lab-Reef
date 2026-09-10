@@ -9,6 +9,7 @@
     <AtiLandingLab />
     <AtiLandingReport />
     <AtiLandingSystems />
+    <AtiLandingTests />
     <AtiLandingFooter />
   </main>
 </template>
@@ -24,6 +25,7 @@ import AtiLandingTrustStrip from '@/components/landing/AtiLandingTrustStrip.vue'
 import AtiLandingWorkflow from '@/components/landing/AtiLandingWorkflow.vue'
 import AtiLandingReport from '@/components/landing/AtiLandingReport.vue'
 import AtiLandingSystems from '@/components/landing/AtiLandingSystems.vue'
+import AtiLandingTests from '@/components/landing/AtiLandingTests.vue'
 import '@/assets/styles/ati-landing.css'
 
 const scrolled = ref(false)
