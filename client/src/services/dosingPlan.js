@@ -1,3 +1,5 @@
+import { loadDosingConfig } from '@/services/dosingConfig'
+
 const EXCLUDED_GROUPS = new Set(['pollutants'])
 
 const CORRECTION_PROFILES = Object.freeze({
@@ -77,8 +79,9 @@ function fallbackProfile(parameter) {
   }
 }
 
-function verifiedDose(parameter, deficit, volume) {
-  const dosing = parameter.dosingRecommendation || parameter.dosing
+function verifiedDose(parameter, deficit, volume, dosingConfig) {
+  const centralDosing = dosingConfig[parameter.key]
+  const dosing = centralDosing?.enabled ? centralDosing : parameter.dosingRecommendation || parameter.dosing
   if (!dosing?.verified || !dosing.productName || !(Number(dosing.raisesBy) > 0) || !(Number(dosing.mlPer100Liters) > 0) || !(volume > 0)) return null
   const totalMl = round((deficit / Number(dosing.raisesBy)) * Number(dosing.mlPer100Liters) * volume / 100, 2)
   const maxIncrease = Number(dosing.maxDailyIncrease)
@@ -99,6 +102,7 @@ export function isLowParameter(parameter) {
 
 export function buildDosingPlan(parameters = [], volumeLiters = 0) {
   const volume = Math.max(0, Number(volumeLiters) || 0)
+  const dosingConfig = loadDosingConfig()
   return parameters.filter(isLowParameter).map((parameter) => {
     const range = numericRange(parameter)
     const precision = Math.max(0, Number(parameter.precision ?? 2))
@@ -114,7 +118,7 @@ export function buildDosingPlan(parameters = [], volumeLiters = 0) {
       targetRange: range,
       deficit,
       requiredMassMg,
-      dose: verifiedDose(parameter, deficit, volume),
+      dose: verifiedDose(parameter, deficit, volume, dosingConfig),
       priority: parameter.tone === 'critical' ? 'Hoch' : 'Mittel',
       sequence: profile.order * 10 + (parameter.tone === 'critical' ? 0 : 1),
     }
