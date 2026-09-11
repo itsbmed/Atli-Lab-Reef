@@ -40,6 +40,7 @@ import AtiLandingSystems from '@/components/landing/AtiLandingSystems.vue'
 import AtiLandingTests from '@/components/landing/AtiLandingTests.vue'
 import AtiLandingRoles from '@/components/landing/AtiLandingRoles.vue'
 import AtiLandingStart from '@/components/landing/AtiLandingStart.vue'
+import { playAppPreloader } from '@/services/appPreloader'
 import '@/assets/styles/ati-landing.css'
 
 const scrolled = ref(false)
@@ -56,6 +57,7 @@ function scrollTop() {
 }
 
 onMounted(() => {
+  playAppPreloader('landing')
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true })
   const elements = document.querySelectorAll('[data-reveal]')
