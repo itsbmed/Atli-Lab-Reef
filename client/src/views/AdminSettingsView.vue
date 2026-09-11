@@ -11,6 +11,7 @@
 
     <nav class="settings-tabs" aria-label="Einstellungsbereiche">
       <button type="button" :class="{ active: activeArea === 'elements' }" @click="activeArea = 'elements'"><span>Elemente</span><small>Messwerte &amp; Empfehlungen</small></button>
+      <button type="button" :class="{ active: activeArea === 'dosing' }" @click="activeArea = 'dosing'"><span>Dosierungsplan</span><small>Produkte &amp; Berechnung</small></button>
       <button v-if="recommendationRulesEnabled" type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
       <button type="button" :class="{ active: activeArea === 'support' }" @click="activeArea = 'support'"><span>Hilfe &amp; Support</span><small>FAQs verwalten</small></button>
       <button v-if="canManageUsers" type="button" :class="{ active: activeArea === 'users' }" @click="openUserManagement"><span>Benutzer</span><small>Konten &amp; Berechtigungen</small></button>
@@ -73,6 +74,84 @@
             <p :class="['save-message', saveState.type]" role="status">{{ saveState.message }}</p>
             <button class="btn btn-primary" type="button" @click="save">Inhalte speichern</button>
           </footer>
+        </main>
+      </div>
+    </section>
+
+    <section v-show="activeArea === 'dosing'" class="editor-shell dosing-editor-shell">
+      <header class="editor-heading dosing-editor-heading">
+        <div><span>Dosierungslogik</span><h2>Produktpläne verwalten</h2><p>Hinterlegen Sie freigegebene Produktformeln. Daraus berechnet der Kundenbericht die Gesamtmenge, Tagesdosis und Dauer passend zum Aquariumvolumen.</p></div>
+        <div class="dosing-summary">
+          <span><b>{{ activeDosingCount }}</b>aktiv</span>
+          <span><b>{{ verifiedDosingCount }}</b>verifiziert</span>
+          <span><b>{{ DOSING_PARAMETERS.length }}</b>dosierbar</span>
+        </div>
+      </header>
+
+      <div class="dosing-workspace">
+        <aside class="dosing-browser">
+          <label><span>Element suchen · {{ filteredDosingParameters.length }} Treffer</span><input v-model="dosingSearch" type="search" placeholder="Name, Symbol, Produkt…" /></label>
+          <nav aria-label="Dosierungsparameter auswählen">
+            <button v-for="parameter in filteredDosingParameters" :key="parameter.key" type="button" :class="{ active: selectedDosingKey === parameter.key }" @click="selectDosingParameter(parameter.key)">
+              <span>{{ parameter.symbol }}</span>
+              <div><strong>{{ parameter.label }}</strong><small>{{ dosingConfig[parameter.key].enabled ? dosingConfig[parameter.key].productName || 'Produkt fehlt' : 'Nicht konfiguriert' }}</small></div>
+              <i :class="{ configured: dosingConfig[parameter.key].enabled, verified: dosingConfig[parameter.key].verified && dosingConfig[parameter.key].enabled }"></i>
+            </button>
+          </nav>
+        </aside>
+
+        <main class="dosing-form">
+          <header>
+            <div class="dosing-identity"><span>{{ selectedDosingMeta.symbol }}</span><div><small>{{ selectedDosingMeta.group }}</small><h3>{{ selectedDosingMeta.label }}</h3></div></div>
+            <div class="dosing-header-actions">
+              <button type="button" class="reset-button" @click="resetSelectedDosing">Eintrag zurücksetzen</button>
+              <label class="dosing-switch"><input v-model="selectedDosing.enabled" type="checkbox" /><span>{{ selectedDosing.enabled ? 'Plan aktiv' : 'Plan inaktiv' }}</span></label>
+            </div>
+          </header>
+
+          <div :class="['dosing-form-body', { disabled: !selectedDosing.enabled }]">
+            <section class="dosing-form-section">
+              <div class="section-label"><span>01</span><div><strong>Produkt und Freigabe</strong><small>Diese Angaben erscheinen direkt im Korrekturplan</small></div></div>
+              <div class="dosing-fields product-fields">
+                <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="z. B. ATI Essentials · Calcium" /></label>
+                <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Laborgeprüfte Formel</b><small>Nur verifizierte Formeln erzeugen eine konkrete ml-Empfehlung.</small></span></label>
+              </div>
+            </section>
+
+            <section class="dosing-form-section">
+              <div class="section-label"><span>02</span><div><strong>Dosierformel</strong><small>Produktwirkung bezogen auf 100 Liter Aquarienwasser</small></div></div>
+              <div class="formula-builder">
+                <label><span>Produktmenge</span><div><input v-model.number="selectedDosing.mlPer100Liters" type="number" min="0" step="any" /><b>ml / 100 l</b></div></label>
+                <i>erhöht</i>
+                <label><span>{{ selectedDosingMeta.label }}</span><div><input v-model.number="selectedDosing.raisesBy" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }}</b></div></label>
+                <i>maximal</i>
+                <label><span>Tagesanstieg</span><div><input v-model.number="selectedDosing.maxDailyIncrease" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }} / Tag</b></div></label>
+              </div>
+              <p class="formula-explanation">{{ dosingFormulaExplanation }}</p>
+            </section>
+
+            <section class="dosing-form-section">
+              <div class="section-label"><span>03</span><div><strong>Anwendungshinweis</strong><small>Zusätzlicher Hinweis unter der berechneten Dosierung</small></div></div>
+              <label class="dosing-instructions"><span>Hinweis für Kunden</span><textarea v-model="selectedDosing.instructions" rows="4" placeholder="z. B. Tagesmenge auf mehrere Dosierzeitpunkte verteilen."></textarea></label>
+            </section>
+
+            <section class="dosing-preview">
+              <header><div><span>Live-Prüfung</span><h4>Formel mit Beispielwert testen</h4></div><b :class="{ ready: dosingPreview.ready }">{{ dosingPreview.ready ? 'Berechenbar' : 'Unvollständig' }}</b></header>
+              <div class="preview-inputs">
+                <label><span>Aquariumvolumen</span><div><input v-model.number="previewVolume" type="number" min="1" /><b>Liter</b></div></label>
+                <label><span>Aktueller Wert</span><div><input v-model.number="previewValue" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }}</b></div></label>
+                <div><span>Zielwert</span><strong>{{ selectedDosingTarget }} {{ selectedDosingMeta.unit }}</strong></div>
+              </div>
+              <div v-if="dosingPreview.ready" class="preview-result">
+                <div><span>Gesamtmenge</span><strong>{{ formatDosingNumber(dosingPreview.totalMl) }} ml</strong></div>
+                <div><span>Dauer</span><strong>{{ dosingPreview.days }} {{ dosingPreview.days === 1 ? 'Tag' : 'Tage' }}</strong></div>
+                <div><span>Pro Tag</span><strong>{{ formatDosingNumber(dosingPreview.dailyMl) }} ml</strong></div>
+              </div>
+              <p v-else>Aktivieren und vervollständigen Sie die Formel. Der aktuelle Wert muss unter dem Zielwert liegen.</p>
+            </section>
+          </div>
+
+          <footer><p :class="['save-message', dosingSaveState.type]" role="status">{{ dosingSaveState.message }}</p><button class="btn btn-primary" type="button" @click="saveDosing">Dosierungspläne speichern</button></footer>
         </main>
       </div>
     </section>
@@ -221,22 +300,31 @@ import { createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSupportFaq, loadSupportContent, saveSupportContent } from '@/services/supportContent'
 import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
 import { createRecommendationRule, evaluateRecommendationRules, loadRecommendationRules, RECOMMENDATION_SCOPES, saveRecommendationRules } from '@/services/recommendationRules'
+import { DOSING_PARAMETERS, loadDosingConfig, resetDosingEntry, saveDosingConfig } from '@/services/dosingConfig'
 
 const auth = useAuthStore()
 // Keep the unfinished recommendation editor out of production navigation until it is approved.
 const recommendationRulesEnabled = false
 const content = reactive(loadAnalysisContent())
+const dosingConfig = reactive(loadDosingConfig())
 const supportContent = reactive(loadSupportContent())
 const recommendationRules = reactive(loadRecommendationRules())
 const activeArea = ref('elements')
 const selectedKey = ref(ANALYSIS_PARAMETERS[0].key)
 const search = ref('')
 const saveState = reactive({ message: '', type: '' })
+const dosingSaveState = reactive({ message: '', type: '' })
 const supportSaveState = reactive({ message: '', type: '' })
 const recommendationSaveState = reactive({ message: '', type: '' })
 const selectedRecommendationRuleId = ref(recommendationRules[0]?.id || '')
 const recommendationSearch = ref('')
 const simulatorScenario = ref('medium')
+const selectedDosingKey = ref(DOSING_PARAMETERS[0].key)
+const dosingSearch = ref('')
+const previewVolume = ref(420)
+const initialDosingTarget = Number(content[DOSING_PARAMETERS[0].key].targetMin) || 0
+const initialDosingMaximum = Number(content[DOSING_PARAMETERS[0].key].targetMax) || initialDosingTarget
+const previewValue = ref(Math.max(0, initialDosingTarget - Math.max(initialDosingMaximum - initialDosingTarget, Math.abs(initialDosingTarget) * .08, .01)))
 const adminUsers = ref(auth.user?.role === 'admin' ? getAdminUsers() : [])
 const pendingRoles = reactive(Object.fromEntries(adminUsers.value.map((user) => [user.id, user.role])))
 const userSearch = ref('')
@@ -267,6 +355,30 @@ const simulatorResults = computed(() => evaluateRecommendationRules(simulatorAna
 const simulatorIssueCount = computed(() => simulatorAnalysis.value.parameters.filter((parameter) => parameter.tone !== 'good').length)
 const selectedMeta = computed(() => ANALYSIS_PARAMETERS.find((item) => item.key === selectedKey.value) || ANALYSIS_PARAMETERS[0])
 const selectedContent = computed(() => content[selectedKey.value])
+const selectedDosingMeta = computed(() => DOSING_PARAMETERS.find((item) => item.key === selectedDosingKey.value) || DOSING_PARAMETERS[0])
+const selectedDosing = computed(() => dosingConfig[selectedDosingKey.value])
+const selectedDosingTarget = computed(() => Number(content[selectedDosingKey.value]?.targetMin) || 0)
+const activeDosingCount = computed(() => Object.values(dosingConfig).filter((entry) => entry.enabled).length)
+const verifiedDosingCount = computed(() => Object.values(dosingConfig).filter((entry) => entry.enabled && entry.verified).length)
+const filteredDosingParameters = computed(() => {
+  const query = dosingSearch.value.trim().toLocaleLowerCase('de-DE')
+  return DOSING_PARAMETERS.filter((parameter) => !query || `${parameter.label} ${parameter.symbol} ${parameter.group} ${dosingConfig[parameter.key].productName}`.toLocaleLowerCase('de-DE').includes(query))
+})
+const dosingFormulaExplanation = computed(() => {
+  const dosing = selectedDosing.value
+  if (!(Number(dosing.mlPer100Liters) > 0) || !(Number(dosing.raisesBy) > 0)) return 'Vervollständigen Sie die Werte, um die Produktwirkung eindeutig zu definieren.'
+  return `${formatDosingNumber(dosing.mlPer100Liters)} ml pro 100 Liter erhöhen ${selectedDosingMeta.value.label} um ${formatDosingNumber(dosing.raisesBy)} ${selectedDosingMeta.value.unit}. Der Plan begrenzt die Korrektur auf ${formatDosingNumber(dosing.maxDailyIncrease)} ${selectedDosingMeta.value.unit} pro Tag.`
+})
+const dosingPreview = computed(() => {
+  const dosing = selectedDosing.value
+  const deficit = Math.max(0, selectedDosingTarget.value - (Number(previewValue.value) || 0))
+  const volume = Math.max(0, Number(previewVolume.value) || 0)
+  const ready = dosing.enabled && dosing.productName.trim() && Number(dosing.mlPer100Liters) > 0 && Number(dosing.raisesBy) > 0 && Number(dosing.maxDailyIncrease) > 0 && deficit > 0 && volume > 0
+  if (!ready) return { ready: false, totalMl: 0, dailyMl: 0, days: 0 }
+  const totalMl = (deficit / Number(dosing.raisesBy)) * Number(dosing.mlPer100Liters) * volume / 100
+  const days = Math.max(1, Math.ceil(deficit / Number(dosing.maxDailyIncrease)))
+  return { ready: true, totalMl, dailyMl: totalMl / days, days }
+})
 
 function resetSelected() {
   Object.assign(content[selectedKey.value], DEFAULT_PARAMETER_CONTENT[selectedKey.value])
@@ -283,6 +395,43 @@ function save() {
   for (const parameter of ANALYSIS_PARAMETERS) Object.assign(content[parameter.key], saved[parameter.key])
   saveState.message = 'Analyse-Inhalte wurden gespeichert.'
   saveState.type = 'success'
+}
+function selectDosingParameter(key) {
+  selectedDosingKey.value = key
+  const target = Number(content[key]?.targetMin) || 0
+  const maximum = Number(content[key]?.targetMax) || target
+  previewValue.value = Math.max(0, target - Math.max(maximum - target, Math.abs(target) * .08, .01))
+  dosingSaveState.message = ''
+  dosingSaveState.type = ''
+}
+function resetSelectedDosing() {
+  Object.assign(dosingConfig[selectedDosingKey.value], resetDosingEntry())
+  dosingSaveState.message = 'Eintrag zurückgesetzt. Speichern Sie, um die Änderung zu veröffentlichen.'
+  dosingSaveState.type = ''
+}
+function formatDosingNumber(value) {
+  return Number(Number(value || 0).toFixed(2)).toLocaleString('de-DE')
+}
+function saveDosing() {
+  if (!['admin', 'subadmin'].includes(auth.user?.role)) {
+    dosingSaveState.message = 'Keine Berechtigung zum Bearbeiten der Dosierungspläne.'
+    dosingSaveState.type = 'error'
+    return
+  }
+  const incompleteKey = DOSING_PARAMETERS.find(({ key }) => {
+    const entry = dosingConfig[key]
+    return entry.enabled && (!entry.productName.trim() || !(Number(entry.mlPer100Liters) > 0) || !(Number(entry.raisesBy) > 0) || !(Number(entry.maxDailyIncrease) > 0))
+  })?.key
+  if (incompleteKey) {
+    selectDosingParameter(incompleteKey)
+    dosingSaveState.message = 'Bitte Produktname, Produktmenge, Wirkung und maximalen Tagesanstieg für alle aktiven Pläne ausfüllen.'
+    dosingSaveState.type = 'error'
+    return
+  }
+  const saved = saveDosingConfig(dosingConfig)
+  for (const parameter of DOSING_PARAMETERS) Object.assign(dosingConfig[parameter.key], saved[parameter.key])
+  dosingSaveState.message = 'Dosierungspläne wurden gespeichert und werden in Kundenberichten verwendet.'
+  dosingSaveState.type = 'success'
 }
 function addRecommendationRule() {
   const rule = createRecommendationRule()
@@ -426,12 +575,16 @@ function formatAdminDate(value) {
 .technical-fields { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }.technical-fields label { display: grid; gap: 5px; }.technical-fields span { color: var(--text); font-size: 10px; font-weight: 850; }.technical-fields input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; outline: 0; }.technical-fields input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.technical-note { color: var(--text-muted); font-size: 10px; }.technical-note b { color: var(--teal-700); }
 .content-preview { display: grid; gap: 9px; padding: 15px; border-radius: 14px; background: #0a1b43; color: #fff; }.content-preview > div:first-child { display: flex; align-items: center; justify-content: space-between; }.content-preview span { color: var(--teal-200); font-size: 9px; font-weight: 800; text-transform: uppercase; }.content-preview > p { color: rgba(255,255,255,.7); font-size: 11px; line-height: 1.5; }.preview-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.preview-actions article { padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.07); }.preview-actions p { margin-top: 4px; color: rgba(255,255,255,.64); font-size: 9px; line-height: 1.45; }
 .content-editor > footer { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }.save-message { margin-right: auto; color: var(--text-muted); font-size: 11px; }.save-message.success { color: #047857; }.save-message.error { color: #b53a2e; }
+.dosing-editor-shell { display: grid; gap: 16px; }.dosing-editor-heading { align-items: center; margin-bottom: 0; }.dosing-summary { display: flex; gap: 7px; }.dosing-summary span { min-width: 86px; display: grid; gap: 1px; padding: 9px 11px; border-radius: 11px; background: #f4f9fd; color: var(--text-muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }.dosing-summary b { color: var(--brand-blue); font-size: 18px; }.dosing-workspace { display: grid; grid-template-columns: 270px minmax(0,1fr); gap: 16px; align-items: start; }.dosing-browser { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); display: grid; grid-template-rows: auto minmax(0,1fr); gap: 9px; max-height: calc(100vh - var(--topbar-height, 68px) - 36px); min-height: 0; }.dosing-browser > label { display: grid; gap: 5px; }.dosing-browser > label span { color: var(--text-muted); font-size: 9px; font-weight: 800; }.dosing-browser > label input { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); outline: 0; }.dosing-browser > label input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.dosing-browser nav { display: grid; align-content: start; gap: 6px; min-height: 0; padding-right: 4px; overflow-y: auto; overscroll-behavior: contain; }.dosing-browser nav button { display: grid; grid-template-columns: 38px minmax(0,1fr) 10px; align-items: center; gap: 9px; padding: 9px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); text-align: left; cursor: pointer; }.dosing-browser nav button:hover { border-color: var(--teal-400); }.dosing-browser nav button.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: inset 3px 0 var(--brand-blue); }.dosing-browser nav button > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: #f2f7fa; color: var(--brand-blue); font-size: 10px; font-weight: 900; }.dosing-browser nav button div,.dosing-browser nav button strong,.dosing-browser nav button small { min-width: 0; display: block; }.dosing-browser nav button strong,.dosing-browser nav button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.dosing-browser nav button strong { font-size: 11px; }.dosing-browser nav button small { margin-top: 2px; color: var(--text-muted); font-size: 8px; }.dosing-browser nav button > i { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; }.dosing-browser nav button > i.configured { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.12); }.dosing-browser nav button > i.verified { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+.dosing-form { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: #f8fbfe; }.dosing-form > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 18px; border-bottom: 1px solid var(--border); background: #fff; }.dosing-identity { display: flex; align-items: center; gap: 11px; }.dosing-identity > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; font-weight: 900; }.dosing-identity small,.dosing-identity h3 { display: block; }.dosing-identity small { color: var(--teal-700); font-size: 9px; font-weight: 800; text-transform: uppercase; }.dosing-identity h3 { margin-top: 2px; color: var(--text); font-size: 21px; }.dosing-header-actions { display: flex; align-items: center; gap: 8px; }.dosing-switch { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 9px; font-weight: 850; cursor: pointer; }.dosing-switch:has(input:not(:checked)) { background: #eef2f6; color: #64748b; }.dosing-switch input { accent-color: #10b981; }.dosing-form-body { display: grid; gap: 12px; padding: 16px; }.dosing-form-body.disabled > * { opacity: .56; }.dosing-form-body.disabled input,.dosing-form-body.disabled textarea { pointer-events: none; }.dosing-form-section { display: grid; gap: 12px; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }.dosing-fields { display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 10px; }.dosing-fields label:not(.verification-field),.dosing-instructions { display: grid; gap: 5px; }.dosing-fields label > span,.dosing-instructions > span,.formula-builder label > span,.preview-inputs label > span,.preview-inputs > div > span { color: var(--text); font-size: 9px; font-weight: 850; }.dosing-fields input[type=text],.dosing-instructions textarea,.formula-builder input,.preview-inputs input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; color: var(--text); font: inherit; font-size: 11px; outline: 0; }.dosing-fields input:focus,.dosing-instructions textarea:focus,.formula-builder input:focus,.preview-inputs input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.dosing-instructions textarea { resize: vertical; line-height: 1.5; }.verification-field { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid #bbf7d0; border-radius: 10px; background: #f0fdf4; cursor: pointer; }.verification-field input { accent-color: #10b981; }.verification-field span,.verification-field b,.verification-field small { display: block; }.verification-field b { color: #047857; font-size: 10px; }.verification-field small { margin-top: 2px; color: #4f806b; font-size: 8px; line-height: 1.35; }.formula-builder { display: grid; grid-template-columns: minmax(130px,1fr) auto minmax(130px,1fr) auto minmax(150px,1fr); align-items: end; gap: 9px; }.formula-builder label { display: grid; gap: 5px; }.formula-builder label > div,.preview-inputs label > div { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; }.formula-builder input,.preview-inputs input { border: 0; border-radius: 0; background: transparent; }.formula-builder label > div > b,.preview-inputs label > div > b { padding-right: 9px; color: var(--text-muted); font-size: 8px; white-space: nowrap; }.formula-builder > i { align-self:center; margin-top:15px; color: var(--teal-700); font-size: 9px; font-style: normal; font-weight: 850; text-transform: uppercase; }.formula-explanation { padding: 10px 12px; border-left: 3px solid var(--brand-blue); border-radius: 8px; background: #eef7ff; color: #47627a; font-size: 10px; line-height: 1.5; }
+.dosing-preview { overflow: hidden; border-radius: 15px; background: #0a1b43; color: #fff; }.dosing-preview > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }.dosing-preview > header span { color: var(--teal-200); font-size: 8px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.dosing-preview h4 { margin-top: 2px; font-size: 16px; }.dosing-preview > header > b { padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.1); color: rgba(255,255,255,.55); font-size: 8px; text-transform: uppercase; }.dosing-preview > header > b.ready { background: #047857; color: #fff; }.preview-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; padding: 14px 16px; }.preview-inputs label { display: grid; gap: 5px; }.preview-inputs label > span,.preview-inputs > div > span { color: rgba(255,255,255,.55); }.preview-inputs label > div { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.07); }.preview-inputs input { color: #fff; }.preview-inputs label > div > b { color: rgba(255,255,255,.48); }.preview-inputs > div { display: grid; align-content: center; gap: 5px; padding: 0 12px; border-left: 1px solid rgba(255,255,255,.12); }.preview-inputs > div strong { font-size: 14px; }.preview-result { display: grid; grid-template-columns: repeat(3,1fr); margin: 0 16px 16px; overflow: hidden; border: 1px solid rgba(136,225,239,.22); border-radius: 11px; background: rgba(0,190,208,.08); }.preview-result > div { padding: 12px; border-right: 1px solid rgba(136,225,239,.18); }.preview-result > div:last-child { border: 0; }.preview-result span,.preview-result strong { display: block; }.preview-result span { color: var(--teal-200); font-size: 8px; text-transform: uppercase; }.preview-result strong { margin-top: 3px; font-size: 16px; }.dosing-preview > p { margin: 0 16px 16px; color: rgba(255,255,255,.58); font-size: 9px; }.dosing-form > footer { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 14px 17px; border-top: 1px solid var(--border); background: #fff; }
 .support-editor-shell { display: grid; gap: 16px; }.support-editor-heading { margin-bottom: 0; }.faq-admin-list { display: grid; gap: 11px; }.faq-admin-card { overflow: hidden; border: 1px solid var(--border); border-radius: 15px; background: #f8fbfe; }.faq-admin-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-bottom: 1px solid var(--border); background: #fff; }.faq-admin-card > header > div:first-child { min-width: 0; display: flex; align-items: center; gap: 9px; }.faq-admin-card > header > div:first-child span { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--teal-50); color: var(--brand-blue); font-size: 9px; font-weight: 900; }.faq-admin-card > header strong { overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.faq-card-actions { display: flex; gap: 5px; }.faq-card-actions button { min-height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 850; cursor: pointer; }.faq-card-actions button:disabled { opacity: .35; cursor: default; }.faq-card-actions .remove-faq { color: #b53a2e; }.faq-card-actions .remove-faq:hover { border-color: #e85d4f; background: #fff7f5; }.faq-fields { display: grid; grid-template-columns: 180px minmax(0,1fr); gap: 10px; padding: 13px; }.faq-fields label { display: grid; gap: 5px; }.faq-fields label > span { color: var(--text); font-size: 10px; font-weight: 850; }.faq-fields input,.faq-fields textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); font: inherit; font-size: 11px; outline: 0; }.faq-fields input:focus,.faq-fields textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.faq-fields textarea { resize: vertical; }.faq-fields .faq-answer { grid-column: 1 / -1; }.faq-admin-empty { min-height: 260px; display: grid; place-content: center; justify-items: center; gap: 7px; border: 1px dashed var(--border); border-radius: 15px; background: #f8fbfe; text-align: center; }.faq-admin-empty strong { color: var(--text); }.faq-admin-empty p { margin-bottom: 5px; color: var(--text-muted); font-size: 11px; }.support-editor-footer { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding-top: 14px; border-top: 1px solid var(--border); }.support-editor-footer > span { color: var(--text-muted); font-size: 10px; font-weight: 800; }
 .rule-editor-shell { display: grid; gap: 18px; }.rule-editor-heading { margin-bottom: 0; }.rule-workspace { display: grid; grid-template-columns: 255px minmax(0,1fr); gap: 16px; align-items: start; }.rule-browser { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); display: grid; grid-template-rows: auto minmax(0,1fr); gap: 9px; max-height: calc(100vh - var(--topbar-height, 68px) - 36px); min-height: 0; }.rule-browser > label { display: grid; gap: 5px; }.rule-browser > label span { color: var(--text-muted); font-size: 9px; font-weight: 800; }.rule-browser input { width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; color: var(--text); outline: 0; }.rule-browser input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.rule-browser nav { min-height: 0; display: grid; align-content: start; gap: 6px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }.rule-browser nav button { width: 100%; display: grid; grid-template-columns: 8px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 11px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text); text-align: left; cursor: pointer; }.rule-browser nav button:hover { border-color: #b8ccdf; background: #f8fbfe; }.rule-browser nav button.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: inset 3px 0 var(--brand-blue); }.rule-browser nav i { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.12); }.rule-browser nav i.off { background: #94a3b8; box-shadow: none; }.rule-browser nav span,.rule-browser nav strong,.rule-browser nav small { min-width: 0; display: block; }.rule-browser nav strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }.rule-browser nav small { margin-top: 2px; color: var(--text-muted); font-size: 8px; }.rule-browser nav b { color: var(--brand-blue); }
 .rule-form { overflow: hidden; border: 1px solid var(--border); border-radius: 17px; background: #f8fbfe; }.rule-form > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--border); background: #fff; }.rule-form > header small { color: var(--text-muted); font-size: 8px; font-weight: 850; text-transform: uppercase; }.rule-form > header h3 { margin-top: 2px; color: var(--text); font-size: 19px; }.rule-active { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 9px; font-weight: 850; cursor: pointer; }.rule-active:has(input:not(:checked)) { background: #eef2f6; color: #64748b; }.rule-active input { accent-color: #10b981; }.rule-form-section { display: grid; gap: 12px; padding: 17px; border-bottom: 1px solid var(--border); }.rule-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }.rule-fields label { display: grid; align-content: start; gap: 5px; }.rule-fields label.wide { grid-column: 1 / -1; }.rule-fields label > span { color: var(--text); font-size: 9px; font-weight: 850; }.rule-fields input,.rule-fields select,.rule-fields textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); font: inherit; font-size: 11px; outline: 0; }.rule-fields input,.rule-fields select { min-height: 38px; }.rule-fields textarea { resize: vertical; line-height: 1.5; }.rule-fields input:focus,.rule-fields select:focus,.rule-fields textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.rule-explanation { padding: 10px 12px; border-left: 3px solid #1686d9; border-radius: 8px; background: #eef7ff; color: #47627a; font-size: 10px; line-height: 1.5; }.rule-explanation b { color: var(--brand-blue); }.rule-form-footer { display: flex; justify-content: flex-end; padding: 12px 17px; background: #fff; }.remove-rule { padding: 8px 10px; border: 1px solid #f1b9b2; border-radius: 8px; background: #fff7f5; color: #b53a2e; font-size: 9px; font-weight: 850; cursor: pointer; }
 .rule-simulator { display: grid; gap: 13px; padding: 17px; border-radius: 18px; background: #0a1b43; color: #fff; }.rule-simulator > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }.rule-simulator > header span { color: var(--teal-200); font-size: 8px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.rule-simulator h3 { margin-top: 2px; font-size: 20px; }.rule-simulator > header p { max-width: 620px; margin-top: 3px; color: rgba(255,255,255,.6); font-size: 10px; }.scenario-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; background: rgba(255,255,255,.07); }.scenario-switch button { min-width: 62px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,.62); font-size: 9px; font-weight: 850; cursor: pointer; }.scenario-switch button.active { background: #fff; color: var(--brand-blue); }.simulator-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.simulator-summary > * { padding: 6px 9px; border-radius: 999px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.72); font-size: 9px; }.simulator-summary span { color: #fff; font-weight: 900; }.simulator-summary span.tone-good { background: #047857; }.simulator-summary span.tone-watch { background: #b66a06; }.simulator-summary span.tone-critical { background: #b53a2e; }.simulator-summary b { color: var(--teal-200); }.simulator-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 8px; }.simulator-results article { padding: 12px; border: 1px solid rgba(255,255,255,.11); border-radius: 11px; background: rgba(255,255,255,.07); }.simulator-results article > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }.simulator-results article span { padding: 3px 6px; border-radius: 5px; background: #f59e0b; color: #271700; font-size: 7px; font-weight: 900; text-transform: uppercase; }.simulator-results article small { overflow: hidden; color: var(--teal-200); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }.simulator-results h4 { margin-top: 9px; font-size: 12px; }.simulator-results p { margin-top: 5px; color: rgba(255,255,255,.58); font-size: 9px; line-height: 1.45; }.simulator-results p b { color: rgba(255,255,255,.82); }.simulator-empty { padding: 18px; border: 1px dashed rgba(255,255,255,.18); border-radius: 11px; text-align: center; }.simulator-empty strong { font-size: 12px; }.simulator-empty p { margin-top: 3px; color: rgba(255,255,255,.55); font-size: 9px; }.rule-save-footer { display: flex; align-items: center; justify-content: flex-end; gap: 13px; padding-top: 15px; border-top: 1px solid var(--border); }.rule-save-footer > span { color: var(--text-muted); font-size: 9px; font-weight: 800; }
 .user-editor-shell { display: grid; gap: 16px; }.user-editor-heading { align-items: center; margin-bottom: 0; }.user-summary { display: flex; gap: 7px; }.user-summary span { min-width: 72px; display: grid; gap: 1px; padding: 9px 11px; border-radius: 11px; background: #f4f9fd; color: var(--text-muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }.user-summary b { color: var(--brand-blue); font-size: 18px; }.user-controls { display: grid; grid-template-columns: minmax(260px,1fr) 220px; gap: 10px; padding: 12px; border-radius: 14px; background: #f8fbfe; }.user-controls label { display: grid; gap: 5px; }.user-controls span { color: var(--text-muted); font-size: 9px; font-weight: 800; }.user-controls input,.user-controls select { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); outline: 0; }.user-controls input:focus,.user-controls select:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.user-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 15px; }.user-table { width: 100%; min-width: 940px; border-collapse: collapse; }.user-table th { padding: 10px 12px; background: #f4f9fd; color: var(--text-muted); font-size: 9px; text-align: left; text-transform: uppercase; }.user-table td { padding: 12px; border-top: 1px solid var(--border); vertical-align: middle; }.user-table td > strong,.user-table td > small { display: block; }.user-table td > strong { color: var(--text); font-size: 11px; }.user-table td > small { margin-top: 3px; color: var(--text-muted); font-size: 9px; }.user-identity { display: flex; align-items: center; gap: 9px; }.user-identity > span { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 10px; font-weight: 900; }.user-identity strong,.user-identity small { display: block; }.user-identity strong { color: var(--text); font-size: 12px; }.user-identity small { max-width: 210px; margin-top: 2px; overflow: hidden; color: var(--text-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }.permission-control { display: flex; gap: 6px; }.permission-control select { min-width: 125px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 10px; }.permission-control button { padding: 7px 9px; border: 1px solid var(--brand-blue); border-radius: 8px; background: var(--brand-blue); color: #fff; font-size: 9px; font-weight: 850; cursor: pointer; }.permission-control button:disabled,.permission-control select:disabled { opacity: .45; cursor: default; }.self-role-note { display: block; margin-top: 4px; color: var(--teal-700); font-size: 8px; }.user-action-message { min-height: 16px; color: var(--text-muted); font-size: 10px; }.user-action-message.success { color: #047857; }.user-action-message.error { color: #b53a2e; }
-@media (max-width: 980px) { .editor-layout,.rule-workspace { grid-template-columns: 1fr; }.element-browser,.rule-browser { position: static; max-height: min(430px, 52vh); }.element-browser nav { grid-template-columns: repeat(3,minmax(0,1fr)); }.rule-browser nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media (max-width: 700px) { .admin-hero { flex-direction: column; }.admin-role { min-width: 0; }.settings-tabs,.user-controls { grid-template-columns: 1fr; }.editor-heading,.content-editor > header,.content-editor > footer,.faq-admin-card > header,.support-editor-footer,.rule-simulator > header,.rule-save-footer { align-items: stretch; flex-direction: column; }.user-summary { display: grid; grid-template-columns: repeat(3,1fr); }.element-browser nav,.rule-browser nav { grid-template-columns: 1fr 1fr; }.recommendation-fields,.preview-actions,.technical-fields,.faq-fields,.rule-fields { grid-template-columns: 1fr; }.faq-fields .faq-answer,.rule-fields label.wide { grid-column: auto; }.faq-card-actions button { flex: 1; }.save-message { margin: 0; }.scenario-switch button { flex: 1; min-width: 0; } }
-@media (max-width: 480px) { .rule-browser nav,.element-browser nav { grid-template-columns: 1fr; }.rule-form > header { align-items: flex-start; }.simulator-results { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .formula-builder { grid-template-columns: 1fr; }.formula-builder > i { margin: 0; text-align: center; }.dosing-fields { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .editor-layout,.rule-workspace,.dosing-workspace { grid-template-columns: 1fr; }.element-browser,.rule-browser,.dosing-browser { position: static; max-height: min(430px, 52vh); }.element-browser nav { grid-template-columns: repeat(3,minmax(0,1fr)); }.rule-browser nav,.dosing-browser nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 700px) { .admin-hero { flex-direction: column; }.admin-role { min-width: 0; }.settings-tabs,.user-controls { grid-template-columns: 1fr; }.editor-heading,.content-editor > header,.content-editor > footer,.faq-admin-card > header,.support-editor-footer,.rule-simulator > header,.rule-save-footer,.dosing-form > header,.dosing-form > footer { align-items: stretch; flex-direction: column; }.user-summary,.dosing-summary { display: grid; grid-template-columns: repeat(3,1fr); }.dosing-header-actions { justify-content: space-between; }.element-browser nav,.rule-browser nav,.dosing-browser nav { grid-template-columns: 1fr 1fr; }.recommendation-fields,.preview-actions,.technical-fields,.faq-fields,.rule-fields,.preview-inputs,.preview-result { grid-template-columns: 1fr; }.preview-inputs > div { padding: 10px 0 0; border-top: 1px solid rgba(255,255,255,.12); border-left: 0; }.preview-result > div { border-right: 0; border-bottom: 1px solid rgba(136,225,239,.18); }.faq-fields .faq-answer,.rule-fields label.wide { grid-column: auto; }.faq-card-actions button { flex: 1; }.save-message { margin: 0; }.scenario-switch button { flex: 1; min-width: 0; } }
+@media (max-width: 480px) { .rule-browser nav,.element-browser nav,.dosing-browser nav { grid-template-columns: 1fr; }.rule-form > header { align-items: flex-start; }.simulator-results { grid-template-columns: 1fr; }.dosing-header-actions { align-items: stretch; flex-direction: column; }.dosing-summary span { min-width: 0; } }
 </style>
