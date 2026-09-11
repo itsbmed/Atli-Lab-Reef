@@ -72,6 +72,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
+import { playAppPreloader } from '@/services/appPreloader'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -85,6 +86,7 @@ async function submit() {
   error.value = ''
   try {
     await auth.login({ login: form.value.login, password: form.value.password })
+    playAppPreloader('login')
     router.push('/dashboard')
   } catch (e) {
     error.value = e.error || 'Anmeldung fehlgeschlagen'
