@@ -222,6 +222,50 @@
       </div>
     </section>
 
+    <!-- ============ TRENDS ============ -->
+    <section v-else-if="activeTool === 'trends'" class="tool-layout">
+      <div class="card tool-panel">
+        <div class="panel-kicker">Verlauf</div>
+        <h2>Verlaufsdiagramme</h2>
+        <p class="panel-copy">Zeigt die Entwicklung eines oder mehrerer Parameter über die Zeit. Y-Achse passt sich an Wert und Einheit an.</p>
+        <div class="form-group">
+          <label>Aquarium-Profil</label>
+          <select v-model="selectedProfileId">
+            <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Parameter-Gruppe</label>
+          <select v-model="trendGroup">
+            <option>Basiswerte</option>
+            <option>Mengenelemente</option>
+            <option>Nährstoffe</option>
+            <option>Schadstoffe</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Zeitraum</label>
+          <select v-model="trendRange">
+            <option value="3">Letzte 3 Monate</option>
+            <option value="6">Letzte 6 Monate</option>
+            <option value="12">Letzte 12 Monate</option>
+            <option value="0">Alle Analysen</option>
+          </select>
+        </div>
+        <RouterLink to="/tools/trends" class="btn btn-primary btn-block">Detailansicht öffnen</RouterLink>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-heading">
+          <h3>{{ trendGroup }} im Verlauf</h3>
+          <span class="badge badge-created">{{ trendRange === '0' ? 'alle' : trendRange + ' Monate' }}</span>
+        </div>
+        <div class="chart-wrap">
+          <Line :data="trendChartData" :options="lineOptions" />
+        </div>
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -240,6 +284,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const tools = [
   { key: 'waterchange', label: 'Wasserwechsel', caption: 'Simulator' },
   { key: 'consumption', label: 'Rezeptfinder', caption: 'Verbrauch + Dosis' },
+  { key: 'trends', label: 'Verläufe', caption: 'Diagramme' },
 ]
 
 const activeTool = ref('waterchange')
@@ -261,6 +306,8 @@ const rangeEnd = ref('2024-04-17')
 const dosingMode = ref('none')
 
 /* trends / dosing inputs */
+const trendGroup = ref('Mengenelemente')
+const trendRange = ref('12')
 
 const fallbackProfiles = [
   { id: 1, name: 'Riffbecken', net_volume: 500 },
@@ -423,6 +470,33 @@ const consumptionReliability = computed(() => {
   if (recipeRows.value.some(r => r.zero)) base = Math.max(30, base - 18)
   if (dosingMode.value === 'none') base = Math.min(99, base + 4)
   return base
+})
+
+/* ---------- Trends ---------- */
+const trendSets = {
+  Basiswerte: { label: 'pH', data: [8.18, 8.22, 8.2, 8.25, 8.27, 8.28] },
+  Mengenelemente: { label: 'Calcium', data: [415, 422, 431, 425, 428, 430] },
+  Nährstoffe: { label: 'Nitrat', data: [6, 6.5, 12.5, 7.5, 6.8, 6.1] },
+  Schadstoffe: { label: 'Kupfer', data: [0.001, 0.001, 0.002, 0.001, 0.001, 0.001] },
+}
+const trendChartData = computed(() => {
+  const set = trendSets[trendGroup.value]
+  return {
+    labels: ['Nov', 'Dez', 'Feb', 'Apr', 'Jun', 'Aug'],
+    datasets: [
+      {
+        label: set.label,
+        data: set.data,
+        borderColor: '#0072CE',
+        backgroundColor: 'rgba(136,193,233,0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 5,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#0072CE',
+      },
+    ],
+  }
 })
 
 /* ---------- Workbench readout ---------- */
