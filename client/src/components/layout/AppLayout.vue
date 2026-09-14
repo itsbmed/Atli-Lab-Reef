@@ -197,6 +197,8 @@ const routeMeta = {
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
   '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
+  '/tools': { title: 'Tools', sub: () => 'Wasserwechsel, Verbrauch und Dosierung planen' },
+  '/tools/trends': { title: 'Trenddiagramme', sub: () => 'Analysewerte im Verlauf vergleichen' },
   '/settings': { title: 'Admin-Einstellungen', sub: () => 'Elementinformationen und Berichtsinhalte verwalten' },
 }
 const pageTitle = computed(() => {
@@ -222,6 +224,8 @@ const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" str
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
 const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.2"/><path d="M5.3 5.3l3.4 3.4M13.3 13.3l3.4 3.4M16.7 5.3l-3.4 3.4M8.7 13.3l-3.4 3.4"/></svg>`
 
+const iconTools  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
+
 // Navigation – Aktiv-Zustand wird aus der aktuellen Route abgeleitet.
 // Einträge ohne `to` sind Platzhalter bis die jeweiligen Seiten existieren.
 const mainNav = [
@@ -230,6 +234,7 @@ const mainNav = [
   { label: 'Analysen', icon: iconChart, to: '/analyses' },
   { label: 'Empfehlungen', icon: iconBulb, to: null },
   { label: 'Chronik', icon: iconClock, to: null },
+  { label: 'Tools', icon: iconTools, to: '/tools' },
 ]
 const canManageSettings = computed(() => ['admin', 'subadmin'].includes(auth.user?.role))
 const accountNav = computed(() => [
