@@ -145,6 +145,83 @@
       </div>
     </section>
 
+    <!-- ============ VERBRAUCH / REZEPTFINDER ============ -->
+    <section v-else-if="activeTool === 'consumption'" class="tool-layout">
+      <div class="card tool-panel">
+        <div class="panel-kicker">Verbrauch &amp; Rezept</div>
+        <h2>Rezeptfinder</h2>
+        <p class="panel-copy">Ermittelt aus mindestens zwei Analysen den Verbrauch je Element und berechnet die nötige Tages- bzw. Wochendosis zur Stabilisierung.</p>
+        <div class="form-group">
+          <label>Aquarium-Profil</label>
+          <select v-model="selectedProfileId">
+            <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Analyse A (älter)</label>
+            <select v-model="rangeStart">
+              <option value="2024-02-15">15.02.2024</option>
+              <option value="2024-04-17">17.04.2024</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Analyse B (neuer)</label>
+            <select v-model="rangeEnd">
+              <option value="2024-04-17">17.04.2024</option>
+              <option value="2026-05-10">10.05.2026</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Wurde zwischen den Analysen dosiert?</label>
+          <div class="seg-toggle">
+            <button type="button" :class="{ active: dosingMode === 'none' }" @click="dosingMode = 'none'">Nein</button>
+            <button type="button" :class="{ active: dosingMode === 'once' }" @click="dosingMode = 'once'">Einmalig</button>
+            <button type="button" :class="{ active: dosingMode === 'regular' }" @click="dosingMode = 'regular'">Regelmäßig</button>
+          </div>
+          <small class="field-hint">{{ dosingHint }}</small>
+        </div>
+
+        <div :class="['alert', intervalDays > 120 ? 'alert-warning' : 'alert-info']">
+          <span>{{ intervalDays > 120 ? 'Hinweis' : 'Intervall' }}</span>
+          <span>{{ intervalDays }} Tage zwischen den Analysen. {{ intervalDays > 120 ? 'Für Spurenelemente ist das Intervall zu lang.' : 'Das Intervall ist für die Berechnung gut nutzbar.' }}</span>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-heading">
+          <h3>Empfohlene Dosierung</h3>
+          <span class="badge badge-ok">Verlässlichkeit {{ consumptionReliability }} %</span>
+        </div>
+
+        <div class="recipe">
+          <div class="recipe-row head">
+            <span>Element</span>
+            <span>Verbrauch / Tag</span>
+            <span>Empf. Zugabe</span>
+            <span>ATI Produkt</span>
+          </div>
+          <div v-for="row in recipeRows" :key="row.name" class="recipe-row" :class="{ flagged: row.zero }">
+            <div>
+              <strong>{{ row.name }}</strong>
+              <span v-if="row.zero" class="r-flag">Wert nahe 0 — ungenau</span>
+            </div>
+            <div class="r-val">{{ row.consumption }}</div>
+            <div class="r-dose">{{ row.dose }}<small>{{ row.weekly }}</small></div>
+            <div class="r-prod">{{ row.product }}</div>
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          Die Stabilisierungsmenge entspricht dem ermittelten Verbrauch. Wird ein Element bereits
+          regelmäßig dosiert, ist die bisherige Dosis um den angezeigten Wert zu erhöhen. Keine
+          Gewähr für die Richtigkeit.
+        </p>
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -162,6 +239,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 
 const tools = [
   { key: 'waterchange', label: 'Wasserwechsel', caption: 'Simulator' },
+  { key: 'consumption', label: 'Rezeptfinder', caption: 'Verbrauch + Dosis' },
 ]
 
 const activeTool = ref('waterchange')
@@ -176,6 +254,11 @@ const saltAnalysisId = ref('')
 const waterChanges = ref(2)
 const changeAmount = ref(20)
 const changeUnit = ref('pct')
+
+/* consumption inputs */
+const rangeStart = ref('2024-02-15')
+const rangeEnd = ref('2024-04-17')
+const dosingMode = ref('none')
 
 /* trends / dosing inputs */
 
@@ -293,10 +376,60 @@ const optimizationSuggestion = computed(() => {
   return `Auch mit mehreren Wechseln bei ${pct} % bleibt die Qualität unter 90 %. Höheres Ausmaß je Wechsel oder die Ausgangswerte prüfen.`
 })
 
+/* ---------- Rezeptfinder ---------- */
+const intervalDays = computed(() => Math.max(1, Math.round((new Date(rangeEnd.value) - new Date(rangeStart.value)) / 86400000)))
+
+const dosingHint = computed(() => {
+  if (dosingMode.value === 'once') return 'Die einmalige Ausgleichsdosierung wird als neuer Startwert berücksichtigt.'
+  if (dosingMode.value === 'regular') return 'Die berechnete Menge wird zusätzlich zur bisherigen Dosierung empfohlen.'
+  return 'Der Verbrauch wird direkt aus der Differenz beider Analysen berechnet.'
+})
+
+const elementData = [
+  { name: 'Calcium', unit: 'mg/l', a: 432, b: 414, product: 'ATI Essentials Pro' },
+  { name: 'Magnesium', unit: 'mg/l', a: 1325, b: 1292, product: 'ATI Magnesium' },
+  { name: 'Alkalinität', unit: 'dKH', a: 8.4, b: 7.7, product: 'ATI Essentials Pro' },
+  { name: 'Jod', unit: 'µg/l', a: 58, b: 2, product: 'ATI ICP Elements Jod' },
+  { name: 'Eisen', unit: 'µg/l', a: 11.5, b: 4.2, product: 'ATI Daily Traces' },
+]
+
+function smartRound(n) {
+  const abs = Math.abs(n)
+  if (abs >= 10) return n.toFixed(0)
+  if (abs >= 1) return n.toFixed(1)
+  if (abs >= 0.1) return n.toFixed(2)
+  return n.toFixed(3)
+}
+
+const recipeRows = computed(() =>
+  elementData.map((e) => {
+    const perDay = (e.a - e.b) / intervalDays.value
+    const zeroLimit = e.unit === 'µg/l' ? 3 : e.unit === 'dKH' ? 0.2 : 5
+    const zero = e.b <= zeroLimit
+    const prefix = dosingMode.value === 'regular' ? '+' : ''
+    return {
+      name: e.name,
+      consumption: `${smartRound(perDay)} ${e.unit}`,
+      dose: `${prefix}${smartRound(perDay)} ${e.unit}/Tag`,
+      weekly: `${prefix}${smartRound(perDay * 7)} ${e.unit}/Woche`,
+      product: e.product,
+      zero,
+    }
+  }),
+)
+
+const consumptionReliability = computed(() => {
+  let base = Math.max(34, Math.min(98, 108 - Math.round(intervalDays.value / 3)))
+  if (recipeRows.value.some(r => r.zero)) base = Math.max(30, base - 18)
+  if (dosingMode.value === 'none') base = Math.min(99, base + 4)
+  return base
+})
+
 /* ---------- Workbench readout ---------- */
 const activeToolLabel = computed(() => tools.find(t => t.key === activeTool.value)?.label || 'Tools')
 const workbenchScore = computed(() => {
   if (activeTool.value === 'waterchange') return qualityAfter.value
+  if (activeTool.value === 'consumption') return consumptionReliability.value
   return 91
 })
 const workbenchRingStyle = computed(() => {
@@ -623,6 +756,35 @@ onMounted(async () => {
 }
 .optimizer-note strong { color: var(--brand-navy); }
 .disclaimer { margin-top: 12px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+.recipe { display: grid; gap: 10px; margin-bottom: 4px; }
+.recipe-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1.1fr 1.2fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.7);
+}
+.recipe-row.head {
+  background: rgba(234,249,252,0.9);
+  border: 0;
+  padding: 8px 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: var(--fw-label);
+}
+.recipe-row.flagged { border-color: #fde68a; background: var(--amber-bg); }
+.recipe-row strong { display: block; font-size: 14px; }
+.r-flag { display: block; margin-top: 2px; font-size: 10.5px; color: var(--amber); font-weight: var(--fw-bold); }
+.r-val { font-size: 13px; color: var(--text); }
+.r-dose { font-size: 14px; color: var(--teal-700); font-weight: var(--fw-extra-bold); }
+.r-dose small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--text-muted); font-weight: var(--fw-ui); }
+.r-prod { font-size: 12px; color: var(--text-muted); }
 
 @media (max-width: 980px) {
   .tools-hero { grid-template-columns: 1fr; }
