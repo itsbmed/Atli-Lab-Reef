@@ -266,6 +266,40 @@
       </div>
     </section>
 
+    <!-- ============ DOSIERPLAN ============ -->
+    <section v-else class="tool-layout">
+      <div class="card tool-panel">
+        <div class="panel-kicker">Planung</div>
+        <h2>Dosierplan</h2>
+        <p class="panel-copy">Wöchentlicher Plan für ICP-Elemente mit erledigten Dosen und Fortschritt.</p>
+        <div class="form-group">
+          <label>Woche</label>
+          <input v-model="doseWeek" type="week" />
+        </div>
+        <div class="tool-summary">
+          <div><strong>{{ completedDoses }}/{{ totalDoses }}</strong><span>erledigt</span></div>
+          <div><strong>{{ doseCompletion }}%</strong><span>Wochenfortschritt</span></div>
+        </div>
+      </div>
+
+      <div class="card dosing-card">
+        <div class="chart-heading">
+          <h3>Wochendosierung</h3>
+          <span class="badge badge-created">{{ doseCompletion }}% erledigt</span>
+        </div>
+        <div class="dosing-grid">
+          <div class="dosing-head">Element</div>
+          <div v-for="day in days" :key="day" class="dosing-head">{{ day }}</div>
+          <template v-for="row in dosingRows" :key="row.element">
+            <div class="dosing-element">{{ row.element }} <span>{{ row.amount }}</span></div>
+            <label v-for="day in days" :key="`${row.element}-${day}`" class="dose-check">
+              <input v-model="row.done[day]" type="checkbox" />
+              <span></span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -285,6 +319,7 @@ const tools = [
   { key: 'waterchange', label: 'Wasserwechsel', caption: 'Simulator' },
   { key: 'consumption', label: 'Rezeptfinder', caption: 'Verbrauch + Dosis' },
   { key: 'trends', label: 'Verläufe', caption: 'Diagramme' },
+  { key: 'dosing', label: 'Dosierplan', caption: 'Wochenplan' },
 ]
 
 const activeTool = ref('waterchange')
@@ -308,6 +343,7 @@ const dosingMode = ref('none')
 /* trends / dosing inputs */
 const trendGroup = ref('Mengenelemente')
 const trendRange = ref('12')
+const doseWeek = ref('2026-W21')
 
 const fallbackProfiles = [
   { id: 1, name: 'Riffbecken', net_volume: 500 },
@@ -499,11 +535,23 @@ const trendChartData = computed(() => {
   }
 })
 
+/* ---------- Dosierplan ---------- */
+const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+const dosingRows = ref([
+  { element: 'Jod', amount: '2 ml', done: { Mo: true, Di: true, Mi: false, Do: false, Fr: false, Sa: false, So: false } },
+  { element: 'Mangan', amount: '1 ml', done: { Mo: true, Di: false, Mi: false, Do: false, Fr: false, Sa: false, So: false } },
+  { element: 'Eisen', amount: '1 ml', done: { Mo: true, Di: true, Mi: true, Do: false, Fr: false, Sa: false, So: false } },
+])
+const totalDoses = computed(() => dosingRows.value.length * days.length)
+const completedDoses = computed(() => dosingRows.value.reduce((sum, row) => sum + days.filter(day => row.done[day]).length, 0))
+const doseCompletion = computed(() => Math.round((completedDoses.value / totalDoses.value) * 100))
+
 /* ---------- Workbench readout ---------- */
 const activeToolLabel = computed(() => tools.find(t => t.key === activeTool.value)?.label || 'Tools')
 const workbenchScore = computed(() => {
   if (activeTool.value === 'waterchange') return qualityAfter.value
   if (activeTool.value === 'consumption') return consumptionReliability.value
+  if (activeTool.value === 'dosing') return doseCompletion.value
   return 91
 })
 const workbenchRingStyle = computed(() => {
@@ -859,6 +907,33 @@ onMounted(async () => {
 .r-dose { font-size: 14px; color: var(--teal-700); font-weight: var(--fw-extra-bold); }
 .r-dose small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--text-muted); font-weight: var(--fw-ui); }
 .r-prod { font-size: 12px; color: var(--text-muted); }
+
+.dosing-card { overflow-x: auto; padding: 28px; }
+.dosing-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) repeat(7, minmax(54px, 1fr));
+  min-width: 620px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.dosing-head,
+.dosing-element,
+.dose-check {
+  min-height: 54px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.84);
+}
+.dosing-head { background: rgba(234,249,252,0.9); color: var(--text-muted); font-size: 11px; font-weight: var(--fw-label); text-transform: uppercase; }
+.dosing-element { flex-direction: column; align-items: flex-start; padding: 10px 14px; font-weight: var(--fw-label); }
+.dosing-element span { font-size: 11px; color: var(--text-muted); font-weight: var(--fw-ui); }
+.dose-check input { position: absolute; opacity: 0; }
+.dose-check span { width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--border-strong); }
+.dose-check input:checked + span { border-color: var(--teal-500); background: var(--teal-500); box-shadow: inset 0 0 0 5px #fff; }
 
 @media (max-width: 980px) {
   .tools-hero { grid-template-columns: 1fr; }
