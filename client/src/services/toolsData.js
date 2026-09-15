@@ -10,6 +10,15 @@ export const profileApi = {
     store.load()
     return store.items
   },
+  async aquariums() {
+    return (await this.list()).filter((profile) => !['Osmosewasser', 'Meersalz'].includes(profile.water_type))
+  },
+  async osmosisSources() {
+    return (await this.list()).filter((profile) => profile.water_type === 'Osmosewasser')
+  },
+  async saltSources() {
+    return (await this.list()).filter((profile) => profile.water_type === 'Meersalz')
+  },
 }
 
 export const analysisApi = {

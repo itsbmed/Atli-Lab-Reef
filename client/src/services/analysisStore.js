@@ -1,4 +1,4 @@
-import { getAquarium } from '@/services/aquariumStore'
+import { getAquarium, getAquariums } from '@/services/aquariumStore'
 import { daysAgoDate } from '@/services/dashboardDemo'
 import { createDemoAnalysis } from '@/services/analysisCatalog'
 import { loadAnalysisContent } from '@/services/analysisContent'
@@ -197,16 +197,23 @@ const DEMO_ANALYSES = [
 export function syncDemoAnalyses(ownerId) {
   if (ownerId !== DEMO_OWNER) return
   const retained = read(ANALYSES_KEY, [])
+  const demoAquariums = getAquariums(DEMO_OWNER).filter((aquarium) => aquarium.water_type !== 'Osmosewasser')
+  const aquariumForScenario = {
+    good: demoAquariums.find((aquarium) => aquarium.name === 'Wohnzimmer Reef'),
+    medium: demoAquariums.find((aquarium) => aquarium.name === 'Wohnzimmer Reef'),
+    bad: demoAquariums.find((aquarium) => aquarium.name === 'Nano SPS Cube'),
+  }
   const liveExamples = DEMO_ANALYSES.filter((analysis) =>
     analysis.status !== 'completed' || approvedCompletedAnalysisIds.has(analysis.id)
   )
 
   for (const analysis of liveExamples) {
+    const aquarium = aquariumForScenario[analysis.scenario]
     const seededAnalysis = {
       addons: ['sak254'],
-      aquariumId: '',
       osmoseAquariumId: '',
       ...analysis,
+      aquariumId: aquarium?.id || '',
       ownerId: DEMO_OWNER,
     }
     const existingIndex = retained.findIndex((item) => item.id === analysis.id)
