@@ -1,5 +1,5 @@
 <template>
-  <div class="tools-page">
+  <div class="report-page">
     <section class="tools-hero">
       <div>
         <span class="hero-kicker">ATI Workbench</span>
@@ -311,7 +311,7 @@ import {
   BarElement, Tooltip, Legend, Filler
 } from 'chart.js'
 import { profileApi } from '@/services/toolsData'
-import '@/assets/styles/tools-base.css'
+import '@/assets/styles/report-base.css'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler)
 

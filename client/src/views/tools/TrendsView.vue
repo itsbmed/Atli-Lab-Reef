@@ -1,5 +1,5 @@
 <template>
-  <div class="tools-page">
+  <div class="report-page">
     <div class="page-header">
       <div style="display:flex;align-items:center;gap:12px">
         <RouterLink to="/tools" class="btn btn-secondary btn-sm">← Tools</RouterLink>
@@ -58,7 +58,7 @@ import {
   LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js'
 import { profileApi, analysisApi } from '@/services/toolsData'
-import '@/assets/styles/tools-base.css'
+import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
