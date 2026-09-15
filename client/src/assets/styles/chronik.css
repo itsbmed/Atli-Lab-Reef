@@ -13,3 +13,14 @@
     linear-gradient(0deg, rgba(10,27,67,0.24), transparent 54%);
 }
 
+
+:where(.chronik-page) .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 20px; }
+
+@media (max-width: 760px) {
+  .chronik-page { font-size: 13px; }
+  :where(.chronik-page) .page-header { align-items: stretch; }
+  :where(.chronik-page) .page-header > * { max-width: 100%; }
+  :where(.chronik-page) .page-header h1 { font-size: 19px; line-height: 1.25; }
+  :where(.chronik-page) .btn { white-space: normal; justify-content: center; }
+  :where(.chronik-page) .card { padding: 16px; }
+}
