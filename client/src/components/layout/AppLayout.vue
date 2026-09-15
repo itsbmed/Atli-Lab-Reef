@@ -198,6 +198,7 @@ const routeMeta = {
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
   '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
   '/tools': { title: 'Tools', sub: () => 'Wasserwechsel, Verbrauch und Dosierung planen' },
+  '/chronik': { title: 'Chronik', sub: () => 'Entwicklung Ihrer Wasserwerte' },
   '/tools/trends': { title: 'Trenddiagramme', sub: () => 'Analysewerte im Verlauf vergleichen' },
   '/settings': { title: 'Admin-Einstellungen', sub: () => 'Elementinformationen und Berichtsinhalte verwalten' },
 }
@@ -233,7 +234,7 @@ const mainNav = [
   { label: 'Aquarien', icon: iconTank, to: '/aquariums' },
   { label: 'Analysen', icon: iconChart, to: '/analyses' },
   { label: 'Empfehlungen', icon: iconBulb, to: null },
-  { label: 'Chronik', icon: iconClock, to: null },
+  { label: 'Chronik', icon: iconClock, to: '/chronik' },
   { label: 'Tools', icon: iconTools, to: '/tools' },
 ]
 const canManageSettings = computed(() => ['admin', 'subadmin'].includes(auth.user?.role))

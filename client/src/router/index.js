@@ -16,6 +16,7 @@ const routes = [
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { public: true, shell: true } },
   { path: '/support', name: 'Support', component: () => import('@/views/SupportView.vue'), meta: { public: true, shell: true } },
   { path: '/tools', name: 'Tools', component: () => import('@/views/tools/ToolsView.vue'), meta: { public: true, shell: true } },
+  { path: '/chronik', name: 'Chronik', component: () => import('@/views/ChronikView.vue'), meta: { public: true, shell: true } },
   { path: '/tools/trends', name: 'TrendTools', component: () => import('@/views/tools/TrendsView.vue'), meta: { public: true, shell: true } },
   { path: '/settings', name: 'Settings', component: () => import('@/views/AdminSettingsView.vue'), meta: { auth: true, shell: true, roles: ['admin', 'subadmin'] } },
 
