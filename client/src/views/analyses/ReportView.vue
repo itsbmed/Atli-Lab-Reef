@@ -266,6 +266,7 @@
                       <div><span class="care-label">So gehen Sie vor</span><ol><li v-for="step in item.steps" :key="step">{{ step }}</li></ol></div>
                     </div>
                   </Transition>
+                  <ProductSuggestions v-if="careItemProducts(item).length" class="care-product-section" :products="careItemProducts(item)" />
                 </article>
               </div>
             </section>
@@ -482,8 +483,10 @@ import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysi
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import { isLowParameter } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
+import { recommendedProductsForKeys } from '@/services/dosingConfig'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
+import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info & Technik', icon: 'i' },
@@ -575,6 +578,9 @@ const lowParameters = computed(() => (analysis.value?.parameters || []).filter(i
 const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
+function careItemProducts(item) {
+  return recommendedProductsForKeys(item.parameterKeys || (item.parameterKey ? [item.parameterKey] : []), analysis.value?.parameters || [])
+}
 const evaluatedCareActions = computed(() => (analysis.value?.recommendationGroups || []).map((item) => ({
   ...item,
   key: item.key || `rule-${item.ruleId}`,
@@ -606,6 +612,7 @@ const carePlanGroups = computed(() => {
           ...action,
           key: `${group.key}-${action.parameterKey}`,
           parameters: [action.parameterLabel],
+          parameterKeys: [action.parameterKey],
           whys: [action.why],
         })
         continue
@@ -613,6 +620,7 @@ const carePlanGroups = computed(() => {
       const merged = recommendations.get(recommendationKey)
       merged.key += `-${action.parameterKey}`
       merged.parameters.push(action.parameterLabel)
+      merged.parameterKeys.push(action.parameterKey)
       merged.whys.push(action.why)
       merged.steps = [...new Set([...merged.steps, ...action.steps])]
       if (toneRank(action.tone) < toneRank(merged.tone)) {
@@ -954,6 +962,11 @@ function markPdf() {
 .care-card-grid p + p { padding-top: 8px; border-top: 1px solid var(--border); }
 .care-card-grid ol { padding-left: 18px; }
 .care-card-grid li + li { margin-top: 5px; }
+.care-product-section { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface-soft); }
+.product-shop-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px 6px 6px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 850; text-decoration: none; transition: background 0.15s, color 0.15s; }
+.product-shop-link img { width: 26px; height: 26px; object-fit: contain; border-radius: 999px; background: var(--teal-50); flex-shrink: 0; }
+.product-shop-link:hover { background: var(--brand-blue); color: #fff; }
+.product-plain { padding: 7px 13px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; font-weight: 850; }
 .care-slide-enter-active,
 .care-slide-leave-active { overflow: hidden; transition: max-height 0.3s ease, opacity 0.22s ease, transform 0.3s ease; }
 .care-slide-enter-from,

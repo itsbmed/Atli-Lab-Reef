@@ -37,6 +37,8 @@ export function buildRecommendationItems(analyses = []) {
       priority: recommendation.priority || 'Mittel',
       tone: recommendation.tone || (recommendation.priority === 'Hoch' ? 'critical' : 'watch'),
       groupKey: recommendation.groupKey || 'other',
+      parameterKeys: recommendation.parameterKeys || [],
+      sourceParameters: analysis.parameters || [],
       parameters: recommendation.parameters?.length
         ? recommendation.parameters
         : (recommendation.parameterKeys || []),

@@ -114,6 +114,7 @@
               <div class="section-label"><span>01</span><div><strong>Produkt und Freigabe</strong><small>Diese Angaben erscheinen direkt im Korrekturplan</small></div></div>
               <div class="dosing-fields product-fields">
                 <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="z. B. ATI Essentials · Calcium" /></label>
+                <label class="wide"><span>Shop-Link</span><input v-model="selectedDosing.productUrl" type="url" placeholder="shop.atiaquaristik.com/…" /></label>
                 <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Laborgeprüfte Formel</b><small>Nur verifizierte Formeln erzeugen eine konkrete ml-Empfehlung.</small></span></label>
               </div>
             </section>

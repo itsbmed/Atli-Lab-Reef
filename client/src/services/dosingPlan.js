@@ -1,6 +1,5 @@
 import { loadDosingConfig } from '@/services/dosingConfig'
-
-const EXCLUDED_GROUPS = new Set(['pollutants'])
+import { eligibleProductKeys } from '@/services/productEligibility'
 
 const CORRECTION_PROFILES = Object.freeze({
   salinity: {
@@ -88,6 +87,7 @@ function verifiedDose(parameter, deficit, volume, dosingConfig) {
   const days = maxIncrease > 0 ? Math.max(1, Math.ceil(deficit / maxIncrease)) : 1
   return {
     productName: String(dosing.productName),
+    productUrl: String(dosing.productUrl || ''),
     totalMl,
     days,
     dailyMl: round(totalMl / days, 2),
@@ -96,8 +96,7 @@ function verifiedDose(parameter, deficit, volume, dosingConfig) {
 }
 
 export function isLowParameter(parameter) {
-  const { min } = numericRange(parameter)
-  return parameter.resultStatus !== 'invalid' && !EXCLUDED_GROUPS.has(parameter.groupKey) && Number(parameter.value) < min
+  return eligibleProductKeys([parameter.key], [parameter]).length > 0
 }
 
 export function buildDosingPlan(parameters = [], volumeLiters = 0) {

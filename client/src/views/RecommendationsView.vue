@@ -157,6 +157,7 @@
                   </div>
                 </div>
               </Transition>
+              <ProductSuggestions v-if="productsFor(item).length" class="recommendation-product-section" :products="productsFor(item)" />
 
               <footer class="recommendation-actions">
                 <RouterLink :to="`/analyses/${item.analysisId}`" class="btn btn-ghost btn-sm">Quellbericht öffnen</RouterLink>
@@ -192,8 +193,10 @@ import { useAquariumsStore } from '@/stores/aquariums'
 import { useAuthStore } from '@/stores/auth'
 import { buildRecommendationItems, latestCompletedByAquarium } from '@/services/recommendationsHub'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
+import { recommendedProductsForKeys } from '@/services/dosingConfig'
 import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 
 const analyses = useAnalysesStore()
 const aquariums = useAquariumsStore()
@@ -250,6 +253,10 @@ function syncProgress() {
 
 function isCompleted(item) {
   return Boolean(progressByAnalysis[item.analysisId]?.[item.key])
+}
+
+function productsFor(item) {
+  return recommendedProductsForKeys(item.parameterKeys, item.sourceParameters)
 }
 
 function toggleCompleted(item) {
@@ -368,7 +375,9 @@ onMounted(() => {
 .recommendation-toggle > strong { display: block; margin-top: 8px; color: var(--brand-navy); font-size: 16px; line-height: 1.25; }.recommendation-summary { display: block; margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.55; }.parameter-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }.parameter-list b { padding: 4px 7px; border-radius: 7px; background: var(--teal-50); color: var(--teal-700); font-size: 9px; }
 .recommendation-due { padding: 9px 10px; border-radius: 11px; background: #f4f8fb; text-align: right; }.recommendation-due span,.recommendation-due small { display: block; }.recommendation-due span { color: var(--text); font-size: 10px; font-weight: 850; }.recommendation-due small { margin-top: 3px; color: var(--text-muted); font-size: 9px; }.recommendation-due.overdue { background: var(--coral-bg); }.recommendation-due.overdue span { color: #bd3d34; }.recommendation-due.soon { background: var(--amber-bg); }.recommendation-due.done { background: #e9f8f3; }.recommendation-due.done span { color: #087f5b; }
 .recommendation-detail { display: grid; grid-template-columns: .85fr 1.15fr; gap: 22px; padding: 18px 70px; border-top: 1px solid var(--border); background: #f8fbfd; }.recommendation-detail span { display: block; margin-bottom: 8px; color: var(--brand-blue); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }.recommendation-detail p,.recommendation-detail li { color: var(--text-muted); font-size: 12px; line-height: 1.6; }.recommendation-detail ol { display: grid; gap: 5px; margin: 0; padding-left: 18px; }
+.recommendation-products { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }.recommendation-products > span { flex-basis: 100%; margin-bottom: 0; }.product-shop-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px 6px 6px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 850; text-decoration: none; transition: background .15s, color .15s; }.product-shop-link img { width: 26px; height: 26px; object-fit: contain; border-radius: 999px; background: var(--teal-50); flex-shrink: 0; }.product-shop-link:hover { background: var(--brand-blue); color: #fff; }.product-plain { padding: 7px 13px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; font-weight: 850; }
 .recommendation-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 11px 18px; border-top: 1px solid var(--border); }.recommendation-detail-enter-active,.recommendation-detail-leave-active { transition: .2s ease; }.recommendation-detail-enter-from,.recommendation-detail-leave-to { opacity: 0; transform: translateY(-5px); }
+.recommendation-product-section { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--surface-soft); }
 @media (max-width: 1000px) { .recommendation-workspace { grid-template-columns: 1fr; }.recommendation-sidebar { position: static; grid-template-columns: 1fr 1fr; }.source-card { max-height: 300px; overflow: auto; } }
 @media (max-width: 760px) { .recommendations-hero { grid-template-columns: 1fr; padding: 28px 24px; }.hero-status { min-width: 0; }.recommendation-stats { grid-template-columns: 1fr 1fr; }.recommendation-sidebar { grid-template-columns: 1fr; }.recommendation-card-main { grid-template-columns: 36px minmax(0,1fr); }.recommendation-due { grid-column: 2; text-align: left; }.recommendation-detail { grid-template-columns: 1fr; padding: 18px; }.recommendation-actions { align-items: stretch; flex-direction: column; }.recommendation-actions .btn { justify-content: center; } }
 @media (max-width: 430px) { .recommendation-stats { grid-template-columns: 1fr; }.recommendations-hero h1 { font-size: 36px; } }

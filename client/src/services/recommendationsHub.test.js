@@ -18,7 +18,7 @@ test('recommendations include report context and calculated control dates', () =
     id: 'analysis-1', aquariumId: 'aquarium-1', aquariumName: 'Riff', reportNumber: 'ICP-1',
     completedAt: '2026-09-01T12:00:00Z', recommendationGroups: [{
       key: 'nutrients', title: 'Nährstoffe prüfen', summary: 'Langsam korrigieren.',
-      priority: 'Hoch', recheckDays: 7, parameters: ['Nitrat'], steps: ['Filter prüfen.'],
+      priority: 'Hoch', recheckDays: 7, parameters: ['Nitrat'], parameterKeys: ['nitrate'], steps: ['Filter prüfen.'],
     }],
   }])
 
@@ -26,4 +26,6 @@ test('recommendations include report context and calculated control dates', () =
   assert.equal(item.aquariumName, 'Riff')
   assert.equal(item.dueDate.toISOString(), '2026-09-08T12:00:00.000Z')
   assert.deepEqual(item.parameters, ['Nitrat'])
+  assert.deepEqual(item.parameterKeys, ['nitrate'])
+  assert.deepEqual(item.sourceParameters, [])
 })
