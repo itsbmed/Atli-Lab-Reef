@@ -425,6 +425,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Bar, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
@@ -464,6 +465,7 @@ const allAnalyses = ref([])
 const loading = ref(true)
 const selectedProfileId = ref('')
 const auth = useAuthStore()
+const route = useRoute()
 
 /* water change inputs */
 const osmosisProfileId = ref('')
@@ -890,10 +892,14 @@ onMounted(async () => {
     profiles.value = loadedProfiles
     osmosisProfiles.value = loadedOsmosisProfiles
     allAnalyses.value = loadedAnalyses
-    selectedProfileId.value = profiles.value[0]?.id || ''
+    const requestedProfile = profiles.value.find((profile) => String(profile.id) === String(route.query.aquarium))
+    selectedProfileId.value = requestedProfile?.id || profiles.value[0]?.id || ''
     syncRecipeSelection()
+    const requestedAnalysis = selectedProfileAnalyses.value.find((analysis) => String(analysis.id) === String(route.query.analysis))
+    dosingAnalysisId.value = requestedAnalysis?.id || ''
     syncDosingAnalysis()
     syncDosingRows()
+    if (tools.some((tool) => tool.key === route.query.tool)) activeTool.value = route.query.tool
   } catch {
     profiles.value = []
   } finally {

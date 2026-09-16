@@ -473,13 +473,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
+import { useAuthStore } from '@/stores/auth'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import { isLowParameter } from '@/services/dosingPlan'
+import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
 
@@ -492,6 +494,7 @@ const ISSUE_PREVIEW_LIMIT = 5
 
 const route = useRoute()
 const analyses = useAnalysesStore()
+const auth = useAuthStore()
 const parameterContent = loadAnalysisContent()
 const actionMsg = ref('')
 const activeTab = ref('overview')
@@ -508,6 +511,10 @@ const showAllIssues = ref(false)
 onMounted(() => analyses.load())
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
+watch(analysis, (current) => {
+  for (const key of Object.keys(completedActions)) delete completedActions[key]
+  if (current) Object.assign(completedActions, loadRecommendationProgress(auth.user?.id, current.id))
+}, { immediate: true })
 const visibleIssues = computed(() => showAllIssues.value ? (analysis.value?.issues || []) : (analysis.value?.issues || []).slice(0, ISSUE_PREVIEW_LIMIT))
 const currentRank = computed(() => WORKFLOW_STEPS.find((step) => step.key === analysis.value?.status)?.rank || 0)
 const resultLabel = computed(() => {
@@ -742,6 +749,7 @@ function careSteps(parameter, isHigh) {
 }
 function toggleCareAction(key) {
   completedActions[key] = !completedActions[key]
+  saveRecommendationProgress(auth.user?.id, analysis.value?.id, completedActions)
 }
 function setCareMode(mode) {
   careMode.value = mode
