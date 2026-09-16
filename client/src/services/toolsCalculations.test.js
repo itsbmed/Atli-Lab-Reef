@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  buildDoseWeekSchedule,
   buildAnalysisSeries,
   calculateConsumption,
   isoWeekValue,
@@ -48,4 +49,16 @@ test('documented dosing is included in calculated consumption', () => {
 
 test('ISO week defaults can be derived from the current date', () => {
   assert.equal(isoWeekValue(new Date('2026-09-15T12:00:00')), '2026-W38')
+})
+
+test('weekly dosing only schedules the approved number of course days', () => {
+  const schedule = buildDoseWeekSchedule(3, ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'])
+  assert.deepEqual(schedule.scheduledDays, ['Mo', 'Di', 'Mi'])
+  assert.equal(schedule.remainingDays, 0)
+})
+
+test('courses longer than a week report their remaining days', () => {
+  const schedule = buildDoseWeekSchedule(10, ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'])
+  assert.equal(schedule.scheduledDays.length, 7)
+  assert.equal(schedule.remainingDays, 3)
 })

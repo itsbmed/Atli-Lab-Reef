@@ -93,3 +93,13 @@ export function isoWeekValue(date = new Date()) {
   const week = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7)
   return `${utcDate.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
+
+export function buildDoseWeekSchedule(courseDays, dayLabels) {
+  const labels = Array.isArray(dayLabels) ? dayLabels : []
+  const safeDays = Math.max(0, Math.ceil(Number(courseDays) || 0))
+  const scheduledDays = labels.slice(0, Math.min(labels.length, safeDays))
+  return {
+    scheduledDays,
+    remainingDays: Math.max(0, safeDays - scheduledDays.length),
+  }
+}
