@@ -1,5 +1,5 @@
 <template>
-  <div class="recommendations-page">
+  <div class="report-page recommendations-page">
     <section class="recommendations-hero">
       <div>
         <span class="hero-kicker">Pflegeplan</span>
@@ -192,6 +192,7 @@ import { useAquariumsStore } from '@/stores/aquariums'
 import { useAuthStore } from '@/stores/auth'
 import { buildRecommendationItems, latestCompletedByAquarium } from '@/services/recommendationsHub'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
+import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 const analyses = useAnalysesStore()
