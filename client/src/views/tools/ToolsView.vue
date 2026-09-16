@@ -1,10 +1,26 @@
 <template>
   <div class="report-page">
+    <div v-if="loading" class="loading" role="status">Werkzeuge werden geladen…</div>
+
+    <EmptyState
+      v-else-if="!profiles.length"
+      kicker="Noch kein Aquarium"
+      title="Werkzeuge benötigen ein Aquarium"
+      message="Legen Sie zuerst ein Aquarium an. Danach können Wasserwechsel, Verbräuche, Verläufe und Dosierungen mit Ihren Daten berechnet werden."
+      mark="TLS"
+      tone="compact"
+    >
+      <template #actions>
+        <RouterLink to="/aquariums/new" class="btn btn-primary">Aquarium anlegen</RouterLink>
+      </template>
+    </EmptyState>
+
+    <template v-else>
     <section class="tools-hero">
       <div>
         <span class="hero-kicker">ATI Workbench</span>
         <h1>Laborwerte in Entscheidungen verwandeln</h1>
-        <p>Wasserwechsel simulieren, Verbrauch bestimmen und Verläufe vergleichen. Mit Beispiel-Daten, aber echter Produktlogik zum Testen.</p>
+        <p>Wasserwechsel simulieren, Verbrauch bestimmen und Verläufe anhand Ihrer abgeschlossenen Laborberichte vergleichen.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" @click="activeTool = 'waterchange'">Wasserwechsel simulieren</button>
           <RouterLink to="/tools/trends" class="btn btn-ghost">Trenddiagramme öffnen</RouterLink>
@@ -16,15 +32,25 @@
           <span>%</span>
         </div>
         <div>
-          <span>Workbench readiness</span>
+          <span>{{ workbenchMetricLabel }}</span>
           <strong>{{ selectedProfile.name }}</strong>
           <em>{{ selectedProfile.net_volume }} L · {{ activeToolLabel }}</em>
         </div>
       </div>
     </section>
 
-    <div class="tool-tabs">
-      <button v-for="tool in tools" :key="tool.key" :class="['tool-tab', { active: activeTool === tool.key }]" @click="activeTool = tool.key">
+    <div class="tool-tabs" role="tablist" aria-label="Werkzeuge">
+      <button
+        v-for="tool in tools"
+        :id="`tool-tab-${tool.key}`"
+        :key="tool.key"
+        type="button"
+        role="tab"
+        :aria-selected="activeTool === tool.key"
+        :aria-controls="`tool-panel-${tool.key}`"
+        :class="['tool-tab', { active: activeTool === tool.key }]"
+        @click="activeTool = tool.key"
+      >
         <span class="tool-tab-icon">
           <svg v-if="tool.key === 'waterchange'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7l5.7 7.6a7 7 0 1 1-11.4 0z"/><path d="M9 14.5a3 3 0 0 0 3 3"/></svg>
           <svg v-else-if="tool.key === 'consumption'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a9 9 0 1 1 14 0"/><path d="M12 13l3.5-3.5"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/></svg>
@@ -37,71 +63,84 @@
     </div>
 
     <!-- ============ WASSERWECHSEL-SIMULATOR ============ -->
-    <section v-if="activeTool === 'waterchange'" class="tool-layout">
+    <section
+      v-if="activeTool === 'waterchange'"
+      id="tool-panel-waterchange"
+      class="tool-layout"
+      role="tabpanel"
+      aria-labelledby="tool-tab-waterchange"
+    >
       <div class="card tool-panel">
         <div class="panel-kicker">Simulation</div>
         <h2>Wasserwechsel-Simulator</h2>
         <p class="panel-copy">Berechnet aus Aquarium, Osmosewasser und Salzquelle, wie sich die Werte nach mehreren Wasserwechseln verändern.</p>
 
         <div class="form-group">
-          <label>Aquarium-Profil</label>
-          <select v-model="selectedProfileId">
+          <label for="waterchange-profile">Aquarium-Profil</label>
+          <select id="waterchange-profile" v-model="selectedProfileId">
             <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }} · {{ p.net_volume }} L</option>
           </select>
-          <small class="field-hint">Es wird automatisch die neueste Auswertung geladen.</small>
+          <small class="field-hint">{{ latestAnalysisLabel }}</small>
         </div>
 
         <div class="form-group">
-          <label>Osmosewasser-Profil <em>(optional)</em></label>
-          <select v-model="osmosisProfile">
-            <option value="">Kein Osmosewasser</option>
-            <option v-for="o in osmosisProfiles" :key="o.name" :value="o.name">{{ o.name }}</option>
+          <label for="waterchange-osmosis">Osmosewasser-Profil <em>(optional)</em></label>
+          <select id="waterchange-osmosis" v-model="osmosisProfileId">
+            <option value="">Keine gemessenen Restwerte</option>
+            <option v-for="profile in osmosisProfiles" :key="profile.id" :value="profile.id">{{ profile.name }}</option>
           </select>
+          <small v-if="osmosisProfileId" class="field-hint">{{ osmosisAnalysisLabel }}</small>
         </div>
 
         <div class="form-group">
-          <label>Salzquelle</label>
-          <select v-model="saltSource">
-            <option v-for="salt in saltSources" :key="salt.name" :value="salt.name" :disabled="salt.soon">
-              {{ salt.name }}{{ salt.soon ? ' (bald verfügbar)' : '' }}
+          <label for="waterchange-salt">Salzquelle</label>
+          <select id="waterchange-salt" v-model="saltSource">
+            <option v-for="salt in saltSources" :key="salt.name" :value="salt.name" :disabled="salt.disabled">
+              {{ salt.name }}{{ salt.disabled ? ` (${salt.disabledReason})` : '' }}
             </option>
           </select>
         </div>
         <div v-if="activeSalt.input === 'charge'" class="form-group">
-          <label>Chargen-ID</label>
-          <input v-model="saltCharge" type="text" placeholder="z. B. 20042025" />
+          <label for="waterchange-charge">Chargen-ID</label>
+          <input id="waterchange-charge" v-model.trim="saltCharge" type="text" placeholder="z. B. 20042025" aria-describedby="waterchange-salt-status" />
         </div>
         <div v-else-if="activeSalt.input === 'analysis'" class="form-group">
-          <label>Analyse-ID der Salzanalyse</label>
-          <input v-model="saltAnalysisId" type="text" placeholder="z. B. AN-10421" />
+          <label for="waterchange-salt-analysis">Analyse-ID der Salzanalyse</label>
+          <select id="waterchange-salt-analysis" v-model="saltAnalysisId" aria-describedby="waterchange-salt-status">
+            <option value="">Analyse auswählen</option>
+            <option v-for="analysis in saltAnalyses" :key="analysis.id" :value="analysis.id">{{ analysisOptionLabel(analysis) }}</option>
+          </select>
         </div>
+        <small id="waterchange-salt-status" class="field-hint" :class="{ 'field-error': saltValidationMessage }">
+          {{ saltValidationMessage || activeSalt.description }}
+        </small>
 
         <div class="form-grid">
           <div class="form-group">
-            <label>Anzahl Wasserwechsel</label>
-            <input v-model.number="waterChanges" type="number" min="1" max="12" />
+            <label for="waterchange-count">Anzahl Wasserwechsel</label>
+            <input id="waterchange-count" v-model.number="waterChanges" type="number" min="1" max="12" @change="normalizeWaterInputs" />
           </div>
           <div class="form-group">
-            <label>Ausmaß je Wechsel</label>
+            <label for="waterchange-amount">Ausmaß je Wechsel</label>
             <div class="input-unit">
-              <input v-model.number="changeAmount" type="number" min="1" :max="changeUnit === 'pct' ? 90 : selectedProfile.net_volume" />
-              <div class="unit-toggle">
-                <button type="button" :class="{ active: changeUnit === 'pct' }" @click="changeUnit = 'pct'">%</button>
-                <button type="button" :class="{ active: changeUnit === 'l' }" @click="changeUnit = 'l'">L</button>
+              <input id="waterchange-amount" v-model.number="changeAmount" type="number" min="1" :max="changeUnit === 'pct' ? 90 : maxChangeLitres" @change="normalizeWaterInputs" />
+              <div class="unit-toggle" role="group" aria-label="Einheit des Wasserwechsels">
+                <button type="button" :class="{ active: changeUnit === 'pct' }" :aria-pressed="changeUnit === 'pct'" @click="setChangeUnit('pct')">%</button>
+                <button type="button" :class="{ active: changeUnit === 'l' }" :aria-pressed="changeUnit === 'l'" @click="setChangeUnit('l')">L</button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="tool-summary">
-          <div><strong>{{ litresPerChange }} L</strong><span>je Wechsel ({{ pctPerChange }} %)</span></div>
-          <div><strong>{{ totalLitres }} L</strong><span>gesamt über {{ waterChanges }} Wechsel</span></div>
+          <div><strong>{{ formatNumber(litresPerChange, 1) }} L</strong><span>je Wechsel ({{ formatNumber(pctPerChange, 1) }} %)</span></div>
+          <div><strong>{{ formatNumber(totalLitres, 1) }} L</strong><span>gesamt über {{ safeWaterChanges }} Wechsel</span></div>
         </div>
       </div>
 
-      <div class="card chart-card">
+      <div v-if="waterChangeReady" class="card chart-card">
         <div class="chart-heading">
-          <h3>Ergebnis nach {{ waterChanges }} Wechsel</h3>
+          <h3>Ergebnis nach {{ safeWaterChanges }} Wechsel</h3>
           <span class="badge badge-created">{{ saltSource }}</span>
         </div>
 
@@ -130,7 +169,7 @@
           </div>
         </div>
 
-        <div class="chart-wrap">
+        <div class="chart-wrap" role="img" :aria-label="`Vergleich der Wasserwerte vor und nach ${safeWaterChanges} Wasserwechseln`">
           <Bar :data="waterChangeChartData" :options="barOptions" />
         </div>
 
@@ -143,54 +182,77 @@
           Gewähr für die Richtigkeit übernommen.
         </p>
       </div>
+      <EmptyState
+        v-else
+        kicker="Simulation nicht verfügbar"
+        title="Analyse- oder Salzdaten fehlen"
+        :message="waterChangeUnavailableMessage"
+        mark="H₂O"
+        tone="compact"
+      >
+        <template #actions>
+          <RouterLink to="/analyses/activate" class="btn btn-primary">Analyse registrieren</RouterLink>
+        </template>
+      </EmptyState>
     </section>
 
     <!-- ============ VERBRAUCH / REZEPTFINDER ============ -->
-    <section v-else-if="activeTool === 'consumption'" class="tool-layout">
+    <section
+      v-else-if="activeTool === 'consumption'"
+      id="tool-panel-consumption"
+      class="tool-layout"
+      role="tabpanel"
+      aria-labelledby="tool-tab-consumption"
+    >
       <div class="card tool-panel">
         <div class="panel-kicker">Verbrauch &amp; Rezept</div>
         <h2>Rezeptfinder</h2>
         <p class="panel-copy">Ermittelt aus mindestens zwei Analysen den Verbrauch je Element und berechnet die nötige Tages- bzw. Wochendosis zur Stabilisierung.</p>
         <div class="form-group">
-          <label>Aquarium-Profil</label>
-          <select v-model="selectedProfileId">
+          <label for="recipe-profile">Aquarium-Profil</label>
+          <select id="recipe-profile" v-model="selectedProfileId">
             <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Analyse A (älter)</label>
-            <select v-model="rangeStart">
-              <option value="2024-02-15">15.02.2024</option>
-              <option value="2024-04-17">17.04.2024</option>
+            <label for="recipe-analysis-start">Analyse A (älter)</label>
+            <select id="recipe-analysis-start" v-model="rangeStart" :disabled="selectedProfileAnalyses.length < 2">
+              <option v-for="analysis in selectedProfileAnalyses" :key="analysis.id" :value="analysis.id">{{ analysisOptionLabel(analysis) }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Analyse B (neuer)</label>
-            <select v-model="rangeEnd">
-              <option value="2024-04-17">17.04.2024</option>
-              <option value="2026-05-10">10.05.2026</option>
+            <label for="recipe-analysis-end">Analyse B (neuer)</label>
+            <select id="recipe-analysis-end" v-model="rangeEnd" :disabled="selectedProfileAnalyses.length < 2">
+              <option v-for="analysis in selectedProfileAnalyses" :key="analysis.id" :value="analysis.id">{{ analysisOptionLabel(analysis) }}</option>
             </select>
           </div>
         </div>
 
         <div class="form-group">
-          <label>Wurde zwischen den Analysen dosiert?</label>
-          <div class="seg-toggle">
-            <button type="button" :class="{ active: dosingMode === 'none' }" @click="dosingMode = 'none'">Nein</button>
-            <button type="button" :class="{ active: dosingMode === 'once' }" @click="dosingMode = 'once'">Einmalig</button>
-            <button type="button" :class="{ active: dosingMode === 'regular' }" @click="dosingMode = 'regular'">Regelmäßig</button>
+          <span class="group-label" id="recipe-dosing-label">Wurde zwischen den Analysen dosiert?</span>
+          <div class="seg-toggle" role="group" aria-labelledby="recipe-dosing-label">
+            <button type="button" :class="{ active: dosingMode === 'none' }" :aria-pressed="dosingMode === 'none'" @click="dosingMode = 'none'">Nein</button>
+            <button type="button" :class="{ active: dosingMode === 'once' }" :aria-pressed="dosingMode === 'once'" @click="dosingMode = 'once'">Einmalig</button>
+            <button type="button" :class="{ active: dosingMode === 'regular' }" :aria-pressed="dosingMode === 'regular'" @click="dosingMode = 'regular'">Regelmäßig</button>
           </div>
           <small class="field-hint">{{ dosingHint }}</small>
         </div>
 
-        <div :class="['alert', intervalDays > 120 ? 'alert-warning' : 'alert-info']">
+        <div v-if="dosingMode !== 'none' && recipeInputs.length" class="dose-adjustments">
+          <div v-for="item in recipeInputs" :key="item.key" class="form-group">
+            <label :for="`recipe-dose-${item.key}`">{{ item.label }} <em>({{ item.unit }}{{ dosingMode === 'regular' ? '/Tag' : ' gesamt' }})</em></label>
+            <input :id="`recipe-dose-${item.key}`" v-model.number="dosingAdjustments[item.key]" type="number" min="0" step="any" />
+          </div>
+        </div>
+
+        <div v-if="canCalculateRecipe" :class="['alert', intervalDays > 120 ? 'alert-warning' : 'alert-info']">
           <span>{{ intervalDays > 120 ? 'Hinweis' : 'Intervall' }}</span>
           <span>{{ intervalDays }} Tage zwischen den Analysen. {{ intervalDays > 120 ? 'Für Spurenelemente ist das Intervall zu lang.' : 'Das Intervall ist für die Berechnung gut nutzbar.' }}</span>
         </div>
       </div>
 
-      <div class="card chart-card">
+      <div v-if="canCalculateRecipe" class="card chart-card">
         <div class="chart-heading">
           <h3>Empfohlene Dosierung</h3>
           <span class="badge badge-ok">Verlässlichkeit {{ consumptionReliability }} %</span>
@@ -220,32 +282,47 @@
           Gewähr für die Richtigkeit.
         </p>
       </div>
+      <EmptyState
+        v-else
+        kicker="Mindestens zwei Berichte"
+        title="Verbrauch noch nicht berechenbar"
+        message="Wählen Sie ein Aquarium mit mindestens zwei abgeschlossenen Analysen und zwei unterschiedliche Berichte."
+        mark="RCP"
+        tone="compact"
+      >
+        <template #actions>
+          <RouterLink to="/analyses/activate" class="btn btn-primary">Analyse registrieren</RouterLink>
+        </template>
+      </EmptyState>
     </section>
 
     <!-- ============ TRENDS ============ -->
-    <section v-else-if="activeTool === 'trends'" class="tool-layout">
+    <section
+      v-else-if="activeTool === 'trends'"
+      id="tool-panel-trends"
+      class="tool-layout"
+      role="tabpanel"
+      aria-labelledby="tool-tab-trends"
+    >
       <div class="card tool-panel">
         <div class="panel-kicker">Verlauf</div>
         <h2>Verlaufsdiagramme</h2>
         <p class="panel-copy">Zeigt die Entwicklung eines oder mehrerer Parameter über die Zeit. Y-Achse passt sich an Wert und Einheit an.</p>
         <div class="form-group">
-          <label>Aquarium-Profil</label>
-          <select v-model="selectedProfileId">
+          <label for="trend-profile">Aquarium-Profil</label>
+          <select id="trend-profile" v-model="selectedProfileId">
             <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Parameter-Gruppe</label>
-          <select v-model="trendGroup">
-            <option>Basiswerte</option>
-            <option>Mengenelemente</option>
-            <option>Nährstoffe</option>
-            <option>Schadstoffe</option>
+          <label for="trend-group">Parameter-Gruppe</label>
+          <select id="trend-group" v-model="trendGroup">
+            <option v-for="group in trendGroups" :key="group.label" :value="group.label">{{ group.label }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Zeitraum</label>
-          <select v-model="trendRange">
+          <label for="trend-range">Zeitraum</label>
+          <select id="trend-range" v-model="trendRange">
             <option value="3">Letzte 3 Monate</option>
             <option value="6">Letzte 6 Monate</option>
             <option value="12">Letzte 12 Monate</option>
@@ -255,26 +332,50 @@
         <RouterLink to="/tools/trends" class="btn btn-primary btn-block">Detailansicht öffnen</RouterLink>
       </div>
 
-      <div class="card chart-card">
+      <div v-if="trendSeries.length" class="card chart-card">
         <div class="chart-heading">
           <h3>{{ trendGroup }} im Verlauf</h3>
           <span class="badge badge-created">{{ trendRange === '0' ? 'alle' : trendRange + ' Monate' }}</span>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-wrap" role="img" :aria-label="`${activeTrendParameter.label} im zeitlichen Verlauf`">
           <Line :data="trendChartData" :options="lineOptions" />
         </div>
       </div>
+      <EmptyState
+        v-else
+        kicker="Keine Trenddaten"
+        title="Für diesen Zeitraum fehlen Werte"
+        message="Wählen Sie einen längeren Zeitraum, eine andere Parametergruppe oder registrieren Sie eine weitere Analyse."
+        mark="TRD"
+        tone="compact"
+      >
+        <template #actions>
+          <RouterLink to="/analyses/activate" class="btn btn-primary">Analyse registrieren</RouterLink>
+        </template>
+      </EmptyState>
     </section>
 
     <!-- ============ DOSIERPLAN ============ -->
-    <section v-else class="tool-layout">
+    <section
+      v-else
+      id="tool-panel-dosing"
+      class="tool-layout"
+      role="tabpanel"
+      aria-labelledby="tool-tab-dosing"
+    >
       <div class="card tool-panel">
         <div class="panel-kicker">Planung</div>
         <h2>Dosierplan</h2>
-        <p class="panel-copy">Wöchentlicher Plan für ICP-Elemente mit erledigten Dosen und Fortschritt.</p>
+        <p class="panel-copy">Wöchentlicher Plan für freigegebene ICP-Dosierungen mit erledigten Dosen und Fortschritt.</p>
         <div class="form-group">
-          <label>Woche</label>
-          <input v-model="doseWeek" type="week" />
+          <label for="dosing-profile">Aquarium-Profil</label>
+          <select id="dosing-profile" v-model="selectedProfileId">
+            <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dosing-week">Woche</label>
+          <input id="dosing-week" v-model="doseWeek" type="week" />
         </div>
         <div class="tool-summary">
           <div><strong>{{ completedDoses }}/{{ totalDoses }}</strong><span>erledigt</span></div>
@@ -282,7 +383,7 @@
         </div>
       </div>
 
-      <div class="card dosing-card">
+      <div v-if="dosingRows.length" class="card dosing-card">
         <div class="chart-heading">
           <h3>Wochendosierung</h3>
           <span class="badge badge-created">{{ doseCompletion }}% erledigt</span>
@@ -293,25 +394,49 @@
           <template v-for="row in dosingRows" :key="row.element">
             <div class="dosing-element">{{ row.element }} <span>{{ row.amount }}</span></div>
             <label v-for="day in days" :key="`${row.element}-${day}`" class="dose-check">
-              <input v-model="row.done[day]" type="checkbox" />
+              <input v-model="row.done[day]" type="checkbox" :aria-label="`${row.element}, ${day}, ${row.amount}`" />
               <span></span>
             </label>
           </template>
         </div>
       </div>
+      <EmptyState
+        v-else
+        kicker="Keine freigegebene Dosierung"
+        title="Für diese Woche gibt es keine Dosieraufgaben"
+        message="Dosieraufgaben erscheinen nur für geprüfte Produktkonfigurationen aus dem aktuellen Laborbericht."
+        mark="DOS"
+        tone="compact"
+      />
     </section>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Bar, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
   BarElement, Tooltip, Legend, Filler
 } from 'chart.js'
-import { profileApi } from '@/services/toolsData'
+import { useAuthStore } from '@/stores/auth'
+import { buildDosingPlan } from '@/services/dosingPlan'
+import { analysisApi, profileApi } from '@/services/toolsData'
+import { loadDosingProgress, saveDosingProgress } from '@/services/toolsDosingStore'
+import {
+  buildAnalysisSeries,
+  calculateConsumption,
+  clampNumber,
+  isoWeekValue,
+  parameterFromAnalysis,
+  scoreParameters,
+  scoreValue,
+  simulateWaterChanges,
+  waterChangeFraction,
+} from '@/services/toolsCalculations'
 import '@/assets/styles/report-base.css'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler)
 
@@ -324,10 +449,14 @@ const tools = [
 
 const activeTool = ref('waterchange')
 const profiles = ref([])
-const selectedProfileId = ref(1)
+const osmosisProfiles = ref([])
+const allAnalyses = ref([])
+const loading = ref(true)
+const selectedProfileId = ref('')
+const auth = useAuthStore()
 
 /* water change inputs */
-const osmosisProfile = ref('')
+const osmosisProfileId = ref('')
 const saltSource = ref('Absolute Ocean')
 const saltCharge = ref('')
 const saltAnalysisId = ref('')
@@ -343,90 +472,138 @@ const dosingMode = ref('none')
 /* trends / dosing inputs */
 const trendGroup = ref('Mengenelemente')
 const trendRange = ref('12')
-const doseWeek = ref('2026-W21')
+const doseWeek = ref(isoWeekValue())
 
-const fallbackProfiles = [
-  { id: 1, name: 'Riffbecken', net_volume: 500 },
-  { id: 2, name: 'Pflanzenaquarium', net_volume: 250 },
-]
+const waterParameterKeys = ['calcium', 'magnesium', 'kh', 'nitrate', 'phosphate']
+const defaultSaltValues = {
+  calcium: 430,
+  magnesium: 1320,
+  kh: 8.2,
+  nitrate: 0,
+  phosphate: 0,
+}
+const nyosBatches = {
+  '20042025': { calcium: 425, magnesium: 1300, kh: 8, nitrate: 0, phosphate: 0 },
+}
 
-/* Parameter des Aquariums + Zielbereiche (Norm) für den Qualitätsindex */
-const wcParams = [
-  { key: 'ca', label: 'Calcium', unit: 'mg/l', aquarium: 414, target: [400, 450], dec: 0 },
-  { key: 'mg', label: 'Magnesium', unit: 'mg/l', aquarium: 1255, target: [1250, 1350], dec: 0 },
-  { key: 'kh', label: 'Alkalinität', unit: 'dKH', aquarium: 7.3, target: [7.5, 8.5], dec: 1 },
-  { key: 'no3', label: 'Nitrat', unit: 'mg/l', aquarium: 18, target: [2, 10], dec: 1 },
-  { key: 'po4', label: 'Phosphat', unit: 'mg/l', aquarium: 0.17, target: [0.03, 0.1], dec: 2 },
-]
+const selectedProfile = computed(() => (
+  profiles.value.find((profile) => String(profile.id) === String(selectedProfileId.value)) || profiles.value[0]
+))
+const selectedProfileAnalyses = computed(() => allAnalyses.value.filter(
+  (analysis) => String(analysis.profile_id) === String(selectedProfileId.value),
+))
+const latestAnalysis = computed(() => selectedProfileAnalyses.value.at(-1) || null)
+const selectedOsmosisAnalysis = computed(() => allAnalyses.value.filter(
+  (analysis) => String(analysis.profile_id) === String(osmosisProfileId.value),
+).at(-1) || null)
+const saltAnalyses = computed(() => allAnalyses.value.filter((analysis) => analysis.waterType === 'Meersalz'))
+const saltSources = computed(() => [
+  {
+    name: 'Absolute Ocean', input: 'fixed', values: defaultSaltValues,
+    description: 'Hinterlegte Referenzwerte für frisch angesetztes Meerwasser.',
+  },
+  {
+    name: 'Nyos pure', input: 'charge', batches: nyosBatches,
+    description: 'Verfügbare Testcharge: 20042025.',
+  },
+  {
+    name: 'Salzanalyse', input: 'analysis', disabled: !saltAnalyses.value.length,
+    disabledReason: 'keine Salzanalyse vorhanden',
+    description: 'Werte werden aus dem ausgewählten Meersalz-Laborbericht geladen.',
+  },
+  {
+    name: 'Balancer', input: 'balancer', disabled: true,
+    disabledReason: 'bald verfügbar', description: 'Noch nicht verfügbar.',
+  },
+])
+const activeSalt = computed(() => saltSources.value.find((source) => source.name === saltSource.value) || saltSources.value[0])
 
-/* Salzquellen — feste Werte, Charge-ID (Nyos) oder Salzanalyse (Analyse-ID) */
-const saltSources = [
-  { name: 'Absolute Ocean', input: 'fixed', ca: 430, mg: 1320, kh: 8.2, no3: 0, po4: 0 },
-  { name: 'Nyos pure', input: 'charge', ca: 425, mg: 1300, kh: 8.0, no3: 0, po4: 0 },
-  { name: 'Salzanalyse', input: 'analysis', ca: 418, mg: 1280, kh: 7.8, no3: 0.2, po4: 0.01 },
-  { name: 'Balancer', input: 'balancer', soon: true, ca: 445, mg: 1360, kh: 8.6, no3: 0, po4: 0 },
-]
+function valuesFromAnalysis(analysis) {
+  if (!analysis) return null
+  const values = Object.fromEntries(waterParameterKeys.map((key) => [key, Number(parameterFromAnalysis(analysis, key)?.value)]))
+  return Object.values(values).every(Number.isFinite) ? values : null
+}
 
-const osmosisProfiles = [
-  { name: 'Osmosewasser 1', ca: 0, mg: 0, kh: 0, no3: 0, po4: 0 },
-  { name: 'Leitungswasser (Rest)', ca: 6, mg: 2, kh: 0.4, no3: 1.2, po4: 0.02 },
-]
-
-const selectedProfile = computed(() => profiles.value.find(p => String(p.id) === String(selectedProfileId.value)) || fallbackProfiles[0])
-const activeSalt = computed(() => saltSources.find(s => s.name === saltSource.value) || saltSources[0])
-const osmosisValues = computed(() => osmosisProfiles.find(o => o.name === osmosisProfile.value) || { ca: 0, mg: 0, kh: 0, no3: 0, po4: 0 })
-
-const pctPerChange = computed(() => {
-  const vol = selectedProfile.value.net_volume || 1
-  const pct = changeUnit.value === 'pct' ? changeAmount.value : (changeAmount.value / vol) * 100
-  return Math.max(1, Math.min(90, Math.round(pct)))
+const activeSaltValues = computed(() => {
+  if (activeSalt.value.input === 'fixed') return activeSalt.value.values
+  if (activeSalt.value.input === 'charge') return activeSalt.value.batches[saltCharge.value] || null
+  if (activeSalt.value.input === 'analysis') {
+    return valuesFromAnalysis(saltAnalyses.value.find((analysis) => analysis.id === saltAnalysisId.value))
+  }
+  return null
 })
-const litresPerChange = computed(() => Math.round(selectedProfile.value.net_volume * (pctPerChange.value / 100)))
-const totalLitres = computed(() => litresPerChange.value * waterChanges.value)
+const osmosisValues = computed(() => valuesFromAnalysis(selectedOsmosisAnalysis.value) || Object.fromEntries(
+  waterParameterKeys.map((key) => [key, 0]),
+))
 
-/* neues Wasser = Osmosewasser + Salzquelle; danach iterativer Wasserwechsel */
-function newWater(key) {
-  return (osmosisValues.value[key] || 0) + (activeSalt.value[key] || 0)
-}
-function simulateValues(n, pct) {
-  const p = pct / 100
-  const res = {}
-  wcParams.forEach((par) => {
-    const nw = newWater(par.key)
-    let v = par.aquarium
-    for (let i = 0; i < n; i++) v = v * (1 - p) + nw * p
-    res[par.key] = v
-  })
-  return res
-}
-const afterValues = computed(() => simulateValues(waterChanges.value, pctPerChange.value))
+const wcParams = computed(() => waterParameterKeys.map((key) => {
+  const parameter = parameterFromAnalysis(latestAnalysis.value, key)
+  const minimum = Number(parameter?.referenceRange?.min)
+  const maximum = Number(parameter?.referenceRange?.max)
+  const aquarium = Number(parameter?.value)
+  if (!parameter || !Number.isFinite(minimum) || !Number.isFinite(maximum) || !Number.isFinite(aquarium)) return null
+  return {
+    key,
+    label: parameter.label,
+    unit: parameter.unit,
+    aquarium,
+    target: [minimum, maximum],
+    dec: Number(parameter.precision ?? 2),
+  }
+}).filter(Boolean))
 
-function scoreVal(v, [lo, hi]) {
-  if (v >= lo && v <= hi) return 100
-  const width = (hi - lo) || 1
-  const dist = v < lo ? lo - v : v - hi
-  return Math.max(0, Math.round(100 - (dist / width) * 55))
+const maxChangeLitres = computed(() => Math.max(1, Number(selectedProfile.value?.net_volume || 1) * 0.9))
+const safeWaterChanges = computed(() => Math.round(clampNumber(waterChanges.value, 1, 12, 1)))
+const changeFraction = computed(() => waterChangeFraction({
+  amount: changeAmount.value,
+  unit: changeUnit.value,
+  volume: selectedProfile.value?.net_volume,
+}))
+const pctPerChange = computed(() => changeFraction.value * 100)
+const litresPerChange = computed(() => Number(selectedProfile.value?.net_volume || 0) * changeFraction.value)
+const totalLitres = computed(() => litresPerChange.value * safeWaterChanges.value)
+const newWaterValues = computed(() => Object.fromEntries(waterParameterKeys.map((key) => [
+  key,
+  Number(activeSaltValues.value?.[key] || 0) + Number(osmosisValues.value[key] || 0),
+])))
+const waterChangeReady = computed(() => (
+  selectedProfile.value?.water_type === 'Meerwasser'
+  && wcParams.value.length === waterParameterKeys.length
+  && Boolean(activeSaltValues.value)
+))
+const afterValues = computed(() => waterChangeReady.value
+  ? simulateWaterChanges(wcParams.value, newWaterValues.value, safeWaterChanges.value, changeFraction.value)
+  : {})
+const beforeValues = computed(() => Object.fromEntries(wcParams.value.map((parameter) => [parameter.key, parameter.aquarium])))
+const qualityBefore = computed(() => waterChangeReady.value ? scoreParameters(wcParams.value, beforeValues.value) : 0)
+const qualityAfter = computed(() => waterChangeReady.value ? scoreParameters(wcParams.value, afterValues.value) : 0)
+
+function setChangeUnit(nextUnit) {
+  if (nextUnit === changeUnit.value) return
+  changeAmount.value = Number((nextUnit === 'l' ? litresPerChange.value : pctPerChange.value).toFixed(2))
+  changeUnit.value = nextUnit
+  normalizeWaterInputs()
 }
-function scoreOf(values) {
-  const sum = wcParams.reduce((acc, par) => acc + scoreVal(values[par.key], par.target), 0)
-  return Math.round(sum / wcParams.length)
+
+function normalizeWaterInputs() {
+  waterChanges.value = safeWaterChanges.value
+  const maximum = changeUnit.value === 'pct' ? 90 : maxChangeLitres.value
+  changeAmount.value = clampNumber(changeAmount.value, 1, maximum, 1)
 }
-const qualityBefore = computed(() => scoreOf(simulateValues(0, pctPerChange.value)))
-const qualityAfter = computed(() => scoreOf(afterValues.value))
 
 function fmt(par, v) {
   return `${v.toFixed(par.dec)} ${par.unit}`
 }
 const deviationSummary = computed(() =>
-  wcParams
-    .filter(par => scoreVal(par.aquarium, par.target) < 100)
+  wcParams.value
+    .filter((par) => scoreValue(par.aquarium, par.target) < 100 || scoreValue(afterValues.value[par.key], par.target) < 100)
     .map((par) => {
       const after = afterValues.value[par.key]
       return {
         label: par.label,
         before: fmt(par, par.aquarium),
         after: fmt(par, after),
-        tone: scoreVal(after, par.target) >= 100 ? 'good' : 'watch',
+        tone: scoreValue(after, par.target) >= 100 ? 'good' : 'watch',
         note: `Ziel ${par.target[0]}–${par.target[1]} ${par.unit}`,
       }
     }),
@@ -436,19 +613,20 @@ const waterChangeChartData = computed(() => {
   const mid = (par) => (par.target[0] + par.target[1]) / 2
   const pctOf = (par, v) => Math.round((v / mid(par)) * 100)
   return {
-    labels: wcParams.map(p => p.label),
+    labels: wcParams.value.map(p => p.label),
     datasets: [
-      { label: 'Aktuell (% vom Ziel)', data: wcParams.map(p => pctOf(p, p.aquarium)), backgroundColor: '#8be7e1', borderRadius: 8 },
-      { label: 'Nach Simulation', data: wcParams.map(p => pctOf(p, afterValues.value[p.key])), backgroundColor: '#0072CE', borderRadius: 8 },
+      { label: 'Aktuell (% vom Ziel)', data: wcParams.value.map(p => pctOf(p, p.aquarium)), backgroundColor: '#8be7e1', borderRadius: 8 },
+      { label: 'Nach Simulation', data: wcParams.value.map(p => pctOf(p, afterValues.value[p.key])), backgroundColor: '#0072CE', borderRadius: 8 },
     ],
   }
 })
 
 const optimizationSuggestion = computed(() => {
-  const pct = pctPerChange.value
+  const pct = Number(pctPerChange.value.toFixed(1))
   let n90 = null
-  for (let n = 1; n <= 10; n++) {
-    if (scoreOf(simulateValues(n, pct)) >= 90) { n90 = n; break }
+  for (let n = 1; n <= 12; n++) {
+    const values = simulateWaterChanges(wcParams.value, newWaterValues.value, n, changeFraction.value)
+    if (scoreParameters(wcParams.value, values) >= 90) { n90 = n; break }
   }
   if (n90 && waterChanges.value > n90) {
     return `Bereits ${n90} Wechsel à ${pct} % erreichen ~90 % Qualität. Weitere Wechsel kosten Wasser, bringen aber kaum Zusatznutzen.`
@@ -460,20 +638,28 @@ const optimizationSuggestion = computed(() => {
 })
 
 /* ---------- Rezeptfinder ---------- */
-const intervalDays = computed(() => Math.max(1, Math.round((new Date(rangeEnd.value) - new Date(rangeStart.value)) / 86400000)))
+const olderAnalysis = computed(() => selectedProfileAnalyses.value.find((analysis) => analysis.id === rangeStart.value) || null)
+const newerAnalysis = computed(() => selectedProfileAnalyses.value.find((analysis) => analysis.id === rangeEnd.value) || null)
+const intervalDays = computed(() => {
+  const start = new Date(olderAnalysis.value?.created_at)
+  const end = new Date(newerAnalysis.value?.created_at)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
+  return Math.max(0, Math.round((end - start) / 86400000))
+})
+const dosingAdjustments = ref({})
 
 const dosingHint = computed(() => {
-  if (dosingMode.value === 'once') return 'Die einmalige Ausgleichsdosierung wird als neuer Startwert berücksichtigt.'
-  if (dosingMode.value === 'regular') return 'Die berechnete Menge wird zusätzlich zur bisherigen Dosierung empfohlen.'
+  if (dosingMode.value === 'once') return 'Tragen Sie die gesamte Konzentrationszugabe zwischen beiden Berichten je Element ein.'
+  if (dosingMode.value === 'regular') return 'Tragen Sie die bereits dosierte Konzentration pro Tag ein; angezeigt wird die zusätzlich nötige Menge.'
   return 'Der Verbrauch wird direkt aus der Differenz beider Analysen berechnet.'
 })
 
-const elementData = [
-  { name: 'Calcium', unit: 'mg/l', a: 432, b: 414, product: 'ATI Essentials Pro' },
-  { name: 'Magnesium', unit: 'mg/l', a: 1325, b: 1292, product: 'ATI Magnesium' },
-  { name: 'Alkalinität', unit: 'dKH', a: 8.4, b: 7.7, product: 'ATI Essentials Pro' },
-  { name: 'Jod', unit: 'µg/l', a: 58, b: 2, product: 'ATI ICP Elements Jod' },
-  { name: 'Eisen', unit: 'µg/l', a: 11.5, b: 4.2, product: 'ATI Daily Traces' },
+const recipeParameters = [
+  { key: 'calcium', product: 'ATI Essentials Pro' },
+  { key: 'magnesium', product: 'ATI Magnesium' },
+  { key: 'kh', product: 'ATI Essentials Pro' },
+  { key: 'iodine', product: 'ATI ICP Elements Jod' },
+  { key: 'iron', product: 'ATI Daily Traces' },
 ]
 
 function smartRound(n) {
@@ -484,24 +670,41 @@ function smartRound(n) {
   return n.toFixed(3)
 }
 
-const recipeRows = computed(() =>
-  elementData.map((e) => {
-    const perDay = (e.a - e.b) / intervalDays.value
-    const zeroLimit = e.unit === 'µg/l' ? 3 : e.unit === 'dKH' ? 0.2 : 5
-    const zero = e.b <= zeroLimit
-    const prefix = dosingMode.value === 'regular' ? '+' : ''
+const recipeInputs = computed(() => recipeParameters.map((config) => {
+  const older = parameterFromAnalysis(olderAnalysis.value, config.key)
+  const newer = parameterFromAnalysis(newerAnalysis.value, config.key)
+  if (!older || !newer) return null
+  return { ...config, label: newer.label, unit: newer.unit, older, newer }
+}).filter(Boolean))
+const canCalculateRecipe = computed(() => (
+  intervalDays.value > 0 && rangeStart.value !== rangeEnd.value && recipeInputs.value.length > 0
+))
+const recipeRows = computed(() => canCalculateRecipe.value
+  ? recipeInputs.value.map((item) => {
+    const result = calculateConsumption({
+      olderValue: item.older.value,
+      newerValue: item.newer.value,
+      intervalDays: intervalDays.value,
+      dosingMode: dosingMode.value,
+      documentedDose: dosingAdjustments.value[item.key],
+    })
+    const zeroLimit = item.unit === 'µg/l' ? 3 : item.unit === 'dKH' ? 0.2 : 5
+    const zero = Number(item.newer.value) <= zeroLimit
+    const additional = result.recommendedAdditionalPerDay
+    const dose = additional > 0 ? `${dosingMode.value === 'regular' ? '+' : ''}${smartRound(additional)} ${item.unit}/Tag` : 'Keine Zugabe'
     return {
-      name: e.name,
-      consumption: `${smartRound(perDay)} ${e.unit}`,
-      dose: `${prefix}${smartRound(perDay)} ${e.unit}/Tag`,
-      weekly: `${prefix}${smartRound(perDay * 7)} ${e.unit}/Woche`,
-      product: e.product,
+      name: item.label,
+      consumption: `${smartRound(result.consumptionPerDay)} ${item.unit}`,
+      dose,
+      weekly: additional > 0 ? `${smartRound(additional * 7)} ${item.unit}/Woche` : 'Wert beobachten',
+      product: item.product,
       zero,
     }
-  }),
-)
+  })
+  : [])
 
 const consumptionReliability = computed(() => {
+  if (!canCalculateRecipe.value) return 0
   let base = Math.max(34, Math.min(98, 108 - Math.round(intervalDays.value / 3)))
   if (recipeRows.value.some(r => r.zero)) base = Math.max(30, base - 18)
   if (dosingMode.value === 'none') base = Math.min(99, base + 4)
@@ -509,20 +712,25 @@ const consumptionReliability = computed(() => {
 })
 
 /* ---------- Trends ---------- */
-const trendSets = {
-  Basiswerte: { label: 'pH', data: [8.18, 8.22, 8.2, 8.25, 8.27, 8.28] },
-  Mengenelemente: { label: 'Calcium', data: [415, 422, 431, 425, 428, 430] },
-  Nährstoffe: { label: 'Nitrat', data: [6, 6.5, 12.5, 7.5, 6.8, 6.1] },
-  Schadstoffe: { label: 'Kupfer', data: [0.001, 0.001, 0.002, 0.001, 0.001, 0.001] },
-}
+const trendGroups = [
+  { label: 'Basiswerte', key: 'kh', parameterLabel: 'Karbonathärte' },
+  { label: 'Mengenelemente', key: 'calcium', parameterLabel: 'Calcium' },
+  { label: 'Nährstoffe', key: 'nitrate', parameterLabel: 'Nitrat' },
+  { label: 'Schadstoffe', key: 'copper', parameterLabel: 'Kupfer' },
+]
+const activeTrendParameter = computed(() => trendGroups.find((group) => group.label === trendGroup.value) || trendGroups[0])
+const trendSeries = computed(() => buildAnalysisSeries(
+  selectedProfileAnalyses.value,
+  activeTrendParameter.value.key,
+  { months: Number(trendRange.value) },
+))
 const trendChartData = computed(() => {
-  const set = trendSets[trendGroup.value]
   return {
-    labels: ['Nov', 'Dez', 'Feb', 'Apr', 'Jun', 'Aug'],
+    labels: trendSeries.value.map((point) => formatDate(point.date)),
     datasets: [
       {
-        label: set.label,
-        data: set.data,
+        label: activeTrendParameter.value.parameterLabel,
+        data: trendSeries.value.map((point) => point.value),
         borderColor: '#0072CE',
         backgroundColor: 'rgba(136,193,233,0.08)',
         fill: true,
@@ -537,22 +745,28 @@ const trendChartData = computed(() => {
 
 /* ---------- Dosierplan ---------- */
 const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
-const dosingRows = ref([
-  { element: 'Jod', amount: '2 ml', done: { Mo: true, Di: true, Mi: false, Do: false, Fr: false, Sa: false, So: false } },
-  { element: 'Mangan', amount: '1 ml', done: { Mo: true, Di: false, Mi: false, Do: false, Fr: false, Sa: false, So: false } },
-  { element: 'Eisen', amount: '1 ml', done: { Mo: true, Di: true, Mi: true, Do: false, Fr: false, Sa: false, So: false } },
-])
+const dosingCandidates = computed(() => buildDosingPlan(
+  latestAnalysis.value?.parameters || [],
+  Number(selectedProfile.value?.net_volume) || 0,
+).filter((item) => item.dose))
+const dosingRows = ref([])
 const totalDoses = computed(() => dosingRows.value.length * days.length)
 const completedDoses = computed(() => dosingRows.value.reduce((sum, row) => sum + days.filter(day => row.done[day]).length, 0))
-const doseCompletion = computed(() => Math.round((completedDoses.value / totalDoses.value) * 100))
+const doseCompletion = computed(() => totalDoses.value ? Math.round((completedDoses.value / totalDoses.value) * 100) : 0)
 
 /* ---------- Workbench readout ---------- */
 const activeToolLabel = computed(() => tools.find(t => t.key === activeTool.value)?.label || 'Tools')
+const workbenchMetricLabel = computed(() => ({
+  waterchange: 'Simulierte Wasserqualität',
+  consumption: 'Berechnungsverlässlichkeit',
+  trends: 'Datenabdeckung',
+  dosing: 'Wochenfortschritt',
+}[activeTool.value] || 'Werkzeugstatus'))
 const workbenchScore = computed(() => {
   if (activeTool.value === 'waterchange') return qualityAfter.value
   if (activeTool.value === 'consumption') return consumptionReliability.value
-  if (activeTool.value === 'dosing') return doseCompletion.value
-  return 91
+  if (activeTool.value === 'dosing') return dosingRows.value.length ? doseCompletion.value : 0
+  return Math.min(100, trendSeries.value.length * 25)
 })
 const workbenchRingStyle = computed(() => {
   const color = workbenchScore.value >= 80 ? '#0072CE' : workbenchScore.value >= 55 ? '#f59e0b' : '#e85d4f'
@@ -572,13 +786,88 @@ const barOptions = {
   scales: { x: { grid: { display: false } }, y: { grid: { color: '#eef7f9' } } },
 }
 
+const latestAnalysisLabel = computed(() => latestAnalysis.value
+  ? `Basis: ${analysisOptionLabel(latestAnalysis.value)}`
+  : 'Für dieses Aquarium liegt noch keine abgeschlossene Analyse vor.')
+const osmosisAnalysisLabel = computed(() => selectedOsmosisAnalysis.value
+  ? `Restwerte aus ${analysisOptionLabel(selectedOsmosisAnalysis.value)}`
+  : 'Keine Osmoseanalyse vorhanden; Restwerte werden mit 0 angesetzt.')
+const saltValidationMessage = computed(() => {
+  if (activeSalt.value.input === 'charge' && !activeSaltValues.value) return 'Bitte eine verfügbare Chargen-ID eingeben.'
+  if (activeSalt.value.input === 'analysis' && saltAnalysisId.value && !activeSaltValues.value) return 'Die gewählte Analyse enthält nicht alle benötigten Salzwerte.'
+  return ''
+})
+const waterChangeUnavailableMessage = computed(() => {
+  if (selectedProfile.value?.water_type !== 'Meerwasser') return 'Der Wasserwechsel-Simulator unterstützt derzeit ausschließlich Meerwasseraquarien.'
+  if (!latestAnalysis.value) return 'Für das ausgewählte Aquarium fehlt ein abgeschlossener Laborbericht.'
+  if (wcParams.value.length !== waterParameterKeys.length) return 'Der aktuelle Bericht enthält nicht alle fünf benötigten Wasserparameter.'
+  return saltValidationMessage.value || 'Bitte eine verfügbare Salzquelle auswählen.'
+})
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(value))
+}
+
+function formatNumber(value, maximumFractionDigits = 2) {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits }).format(Number(value) || 0)
+}
+
+function analysisOptionLabel(analysis) {
+  const number = analysis.reportNumber || analysis.barcode || analysis.id
+  return `${number} · ${formatDate(analysis.completed_at || analysis.completedAt || analysis.created_at)}`
+}
+
+function syncRecipeSelection() {
+  const analyses = selectedProfileAnalyses.value
+  if (analyses.length < 2) {
+    rangeStart.value = analyses[0]?.id || ''
+    rangeEnd.value = ''
+    return
+  }
+  if (!analyses.some((analysis) => analysis.id === rangeStart.value)) rangeStart.value = analyses[0].id
+  if (!analyses.some((analysis) => analysis.id === rangeEnd.value) || rangeEnd.value === rangeStart.value) {
+    rangeEnd.value = analyses.at(-1).id
+  }
+}
+
+function syncDosingRows() {
+  const progress = loadDosingProgress(auth.user?.id, selectedProfileId.value, doseWeek.value)
+  dosingRows.value = dosingCandidates.value.map((item) => ({
+    key: item.key,
+    element: item.label,
+    amount: `${formatNumber(item.dose.dailyMl)} ml`,
+    done: Object.fromEntries(days.map((day) => [day, Boolean(progress[item.key]?.[day])])),
+  }))
+}
+
+watch(selectedProfileId, () => {
+  syncRecipeSelection()
+  syncDosingRows()
+})
+watch(doseWeek, syncDosingRows)
+watch(dosingCandidates, syncDosingRows)
+watch(dosingRows, (rows) => {
+  const progress = Object.fromEntries(rows.map((row) => [row.key, row.done]))
+  saveDosingProgress(auth.user?.id, selectedProfileId.value, doseWeek.value, progress)
+}, { deep: true })
+
 onMounted(async () => {
   try {
-    const loaded = await profileApi.list()
-    profiles.value = loaded.length ? loaded : fallbackProfiles
-    selectedProfileId.value = profiles.value[0]?.id || 1
+    const [loadedProfiles, loadedOsmosisProfiles, loadedAnalyses] = await Promise.all([
+      profileApi.aquariums(),
+      profileApi.osmosisSources(),
+      analysisApi.list({ status: 'completed' }),
+    ])
+    profiles.value = loadedProfiles
+    osmosisProfiles.value = loadedOsmosisProfiles
+    allAnalyses.value = loadedAnalyses
+    selectedProfileId.value = profiles.value[0]?.id || ''
+    syncRecipeSelection()
+    syncDosingRows()
   } catch {
-    profiles.value = fallbackProfiles
+    profiles.value = []
+  } finally {
+    loading.value = false
   }
 })
 </script>
@@ -773,8 +1062,19 @@ onMounted(async () => {
 .panel-copy { color: rgba(255,255,255,0.68); font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
 .tool-panel .form-group label { color: rgba(255,255,255,0.66); }
 .tool-panel .form-group label em { color: rgba(255,255,255,0.5); font-style: normal; }
+.group-label {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(255,255,255,0.66);
+  font-size: 12px;
+  font-weight: var(--fw-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .field-hint { display: block; margin-top: 6px; color: rgba(255,255,255,0.55); font-size: 11px; line-height: 1.45; }
+.field-error { color: #ffd1c7; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }
+.dose-adjustments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 
 .input-unit { display: flex; gap: 8px; align-items: stretch; }
 .input-unit input { flex: 1; min-width: 0; }
@@ -950,5 +1250,6 @@ onMounted(async () => {
   .chart-wrap { height: 280px; }
   .recipe-row { grid-template-columns: 1fr 1fr; gap: 8px; }
   .recipe-row.head { display: none; }
+  .dose-adjustments { grid-template-columns: 1fr; }
 }
 </style>
