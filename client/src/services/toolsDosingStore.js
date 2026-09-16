@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'reef-pilot:tools-dosing-progress:v1'
+const STORAGE_KEY = 'reef-pilot:tools-dosing-progress:v2'
 
 function readAll() {
   try {
@@ -8,16 +8,16 @@ function readAll() {
   }
 }
 
-function storageId(ownerId, aquariumId, week) {
-  return [ownerId || 'guest', aquariumId || 'none', week].join(':')
+function storageId(ownerId, aquariumId, analysisId, week) {
+  return [ownerId || 'guest', aquariumId || 'none', analysisId || 'none', week].join(':')
 }
 
-export function loadDosingProgress(ownerId, aquariumId, week) {
-  return readAll()[storageId(ownerId, aquariumId, week)] || {}
+export function loadDosingProgress(ownerId, aquariumId, analysisId, week) {
+  return readAll()[storageId(ownerId, aquariumId, analysisId, week)] || {}
 }
 
-export function saveDosingProgress(ownerId, aquariumId, week, progress) {
+export function saveDosingProgress(ownerId, aquariumId, analysisId, week, progress) {
   const stored = readAll()
-  stored[storageId(ownerId, aquariumId, week)] = progress
+  stored[storageId(ownerId, aquariumId, analysisId, week)] = progress
   localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
 }

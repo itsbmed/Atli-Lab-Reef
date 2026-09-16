@@ -374,6 +374,16 @@
           </select>
         </div>
         <div class="form-group">
+          <label for="dosing-analysis">Laboranalyse</label>
+          <select id="dosing-analysis" v-model="dosingAnalysisId" :disabled="!dosingAnalysisOptions.length">
+            <option v-if="!dosingAnalysisOptions.length" value="">Keine abgeschlossene Analyse</option>
+            <option v-for="analysis in dosingAnalysisOptions" :key="analysis.id" :value="analysis.id">
+              {{ analysisOptionLabel(analysis) }}{{ analysis.id === latestAnalysis?.id ? ' · Neueste' : '' }}
+            </option>
+          </select>
+          <small class="field-hint">{{ dosingAnalysisHint }}</small>
+        </div>
+        <div class="form-group">
           <label for="dosing-week">Woche</label>
           <input id="dosing-week" v-model="doseWeek" type="week" />
         </div>
@@ -404,7 +414,7 @@
         v-else
         kicker="Keine freigegebene Dosierung"
         title="Für diese Woche gibt es keine Dosieraufgaben"
-        message="Dosieraufgaben erscheinen nur für geprüfte Produktkonfigurationen aus dem aktuellen Laborbericht."
+        :message="dosingEmptyMessage"
         mark="DOS"
         tone="compact"
       />
@@ -473,6 +483,7 @@ const dosingMode = ref('none')
 const trendGroup = ref('Mengenelemente')
 const trendRange = ref('12')
 const doseWeek = ref(isoWeekValue())
+const dosingAnalysisId = ref('')
 
 const waterParameterKeys = ['calcium', 'magnesium', 'kh', 'nitrate', 'phosphate']
 const defaultSaltValues = {
@@ -745,14 +756,24 @@ const trendChartData = computed(() => {
 
 /* ---------- Dosierplan ---------- */
 const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+const dosingAnalysisOptions = computed(() => [...selectedProfileAnalyses.value].reverse())
+const selectedDosingAnalysis = computed(() => (
+  selectedProfileAnalyses.value.find((analysis) => analysis.id === dosingAnalysisId.value) || null
+))
 const dosingCandidates = computed(() => buildDosingPlan(
-  latestAnalysis.value?.parameters || [],
+  selectedDosingAnalysis.value?.parameters || [],
   Number(selectedProfile.value?.net_volume) || 0,
 ).filter((item) => item.dose))
 const dosingRows = ref([])
 const totalDoses = computed(() => dosingRows.value.length * days.length)
 const completedDoses = computed(() => dosingRows.value.reduce((sum, row) => sum + days.filter(day => row.done[day]).length, 0))
 const doseCompletion = computed(() => totalDoses.value ? Math.round((completedDoses.value / totalDoses.value) * 100) : 0)
+const dosingAnalysisHint = computed(() => selectedDosingAnalysis.value
+  ? `Dosierbedarf aus ${analysisOptionLabel(selectedDosingAnalysis.value)} und ${selectedProfile.value?.net_volume || 0} L Nettovolumen.`
+  : 'Wählen Sie ein Aquarium mit einer abgeschlossenen Analyse.')
+const dosingEmptyMessage = computed(() => selectedDosingAnalysis.value
+  ? 'Diese Analyse enthält keine Unterversorgung mit einer geprüften Produktkonfiguration. Sobald eine passende Dosierung freigegeben ist, erscheint sie hier.'
+  : 'Für das ausgewählte Aquarium liegt noch keine abgeschlossene Analyse vor.')
 
 /* ---------- Workbench readout ---------- */
 const activeToolLabel = computed(() => tools.find(t => t.key === activeTool.value)?.label || 'Tools')
@@ -831,7 +852,7 @@ function syncRecipeSelection() {
 }
 
 function syncDosingRows() {
-  const progress = loadDosingProgress(auth.user?.id, selectedProfileId.value, doseWeek.value)
+  const progress = loadDosingProgress(auth.user?.id, selectedProfileId.value, dosingAnalysisId.value, doseWeek.value)
   dosingRows.value = dosingCandidates.value.map((item) => ({
     key: item.key,
     element: item.label,
@@ -840,15 +861,23 @@ function syncDosingRows() {
   }))
 }
 
+function syncDosingAnalysis() {
+  if (!selectedProfileAnalyses.value.some((analysis) => analysis.id === dosingAnalysisId.value)) {
+    dosingAnalysisId.value = latestAnalysis.value?.id || ''
+  }
+}
+
 watch(selectedProfileId, () => {
   syncRecipeSelection()
+  syncDosingAnalysis()
   syncDosingRows()
 })
 watch(doseWeek, syncDosingRows)
+watch(dosingAnalysisId, syncDosingRows)
 watch(dosingCandidates, syncDosingRows)
 watch(dosingRows, (rows) => {
   const progress = Object.fromEntries(rows.map((row) => [row.key, row.done]))
-  saveDosingProgress(auth.user?.id, selectedProfileId.value, doseWeek.value, progress)
+  saveDosingProgress(auth.user?.id, selectedProfileId.value, dosingAnalysisId.value, doseWeek.value, progress)
 }, { deep: true })
 
 onMounted(async () => {
@@ -863,6 +892,7 @@ onMounted(async () => {
     allAnalyses.value = loadedAnalyses
     selectedProfileId.value = profiles.value[0]?.id || ''
     syncRecipeSelection()
+    syncDosingAnalysis()
     syncDosingRows()
   } catch {
     profiles.value = []
