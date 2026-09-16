@@ -1,26 +1,27 @@
 <template>
-  <div class="admin-settings">
+  <div class="report-page admin-settings">
     <section class="admin-hero">
       <div>
         <span>Admin-Einstellungen</span>
-        <h1>Inhalte zentral steuern.</h1>
-        <p>Pflegen Sie Elementinformationen, Empfehlungen und Hilfe-Inhalte an einer Stelle. Gespeicherte Inhalte werden in den jeweiligen Kundenbereichen verwendet.</p>
+        <h1>Inhalte und Pflegepläne verwalten.</h1>
+        <p>Elementwissen, Produkte und Empfehlungen passend zu Ihren Laborberichten pflegen.</p>
       </div>
       <div class="admin-role"><span>Zugriff</span><strong>{{ roleLabel }}</strong><em>{{ ANALYSIS_PARAMETERS.length }} Elemente · {{ supportContent.faqs.length }} FAQs<span v-if="canManageUsers"> · {{ adminUsers.length }} Nutzer</span></em></div>
     </section>
 
     <nav class="settings-tabs" aria-label="Einstellungsbereiche">
       <button type="button" :class="{ active: activeArea === 'elements' }" @click="activeArea = 'elements'"><span>Elemente</span><small>Messwerte &amp; Empfehlungen</small></button>
-      <button type="button" :class="{ active: activeArea === 'dosing' }" @click="activeArea = 'dosing'"><span>Dosierungsplan</span><small>Produkte &amp; Berechnung</small></button>
+      <button type="button" :class="{ active: activeArea === 'dosing' }" @click="activeArea = 'dosing'"><span>Produkte &amp; Dosierung</span><small>Produktkarten &amp; freigegebene Formeln</small></button>
       <button v-if="recommendationRulesEnabled" type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
       <button type="button" :class="{ active: activeArea === 'support' }" @click="activeArea = 'support'"><span>Hilfe &amp; Support</span><small>FAQs verwalten</small></button>
       <button v-if="canManageUsers" type="button" :class="{ active: activeArea === 'users' }" @click="openUserManagement"><span>Benutzer</span><small>Konten &amp; Berechtigungen</small></button>
     </nav>
+    <p class="storage-note">Aktuell werden Änderungen in diesem Browser gespeichert. Eine geräteübergreifende Veröffentlichung ist noch nicht angebunden.</p>
 
     <section v-show="activeArea === 'elements'" class="editor-shell">
       <header class="editor-heading">
         <div><span>Analyse-Inhalte</span><h2>Elementbibliothek</h2><p>Wählen Sie ein Element und bearbeiten Sie die Informationen für Kundenberichte.</p></div>
-        <div class="editor-state"><i></i><span>Zentraler Inhalt</span></div>
+        <div class="editor-state" :class="{ unsaved: dirtyAreas.elements }"><i></i><span>{{ dirtyAreas.elements ? 'Ungespeicherte Änderungen' : 'Gespeicherter Inhalt' }}</span></div>
       </header>
 
       <div class="editor-layout">
@@ -48,6 +49,7 @@
               <label><span>Nachkommastellen</span><input v-model.number="selectedContent.precision" type="number" min="0" max="4" /></label>
             </div>
             <p class="technical-note"><b>{{ selectedMeta.source }}</b> · {{ selectedMeta.waterTypes.join(', ') }} · Zielbereiche sind aktuell als Demo markiert.</p>
+            <p v-if="selectedElementError" class="field-error" role="status">{{ selectedElementError }}</p>
           </div>
 
           <div class="editor-section">
@@ -72,7 +74,6 @@
 
           <footer>
             <p :class="['save-message', saveState.type]" role="status">{{ saveState.message }}</p>
-            <button class="btn btn-primary" type="button" @click="save">Inhalte speichern</button>
           </footer>
         </main>
       </div>
@@ -80,7 +81,7 @@
 
     <section v-show="activeArea === 'dosing'" class="editor-shell dosing-editor-shell">
       <header class="editor-heading dosing-editor-heading">
-        <div><span>Dosierungslogik</span><h2>Produktpläne verwalten</h2><p>Hinterlegen Sie freigegebene Produktformeln. Daraus berechnet der Kundenbericht die Gesamtmenge, Tagesdosis und Dauer passend zum Aquariumvolumen.</p></div>
+        <div><span>Produkte &amp; Dosierung</span><h2>Produkte zuordnen, Dosierungen freigeben</h2><p>Ein Produkt kann ohne Dosierformel empfohlen werden. Eine ml-Menge erscheint erst mit einer vollständigen, laborgeprüften Formel.</p></div>
         <div class="dosing-summary">
           <span><b>{{ activeDosingCount }}</b>aktiv</span>
           <span><b>{{ verifiedDosingCount }}</b>verifiziert</span>
@@ -94,8 +95,7 @@
           <nav aria-label="Dosierungsparameter auswählen">
             <button v-for="parameter in filteredDosingParameters" :key="parameter.key" type="button" :class="{ active: selectedDosingKey === parameter.key }" @click="selectDosingParameter(parameter.key)">
               <span>{{ parameter.symbol }}</span>
-              <div><strong>{{ parameter.label }}</strong><small>{{ dosingConfig[parameter.key].enabled ? dosingConfig[parameter.key].productName || 'Produkt fehlt' : 'Nicht konfiguriert' }}</small></div>
-              <i :class="{ configured: dosingConfig[parameter.key].enabled, verified: dosingConfig[parameter.key].verified && dosingConfig[parameter.key].enabled }"></i>
+              <div><strong>{{ parameter.label }}</strong><small>{{ dosingConfig[parameter.key].productOverride ? 'Eigenes Produkt' : dosingConfig[parameter.key].productName ? 'Standard ATI-Produkt' : 'Kein Produkt zugeordnet' }}</small><small :class="['dosing-status', { approved: dosingStatus(parameter.key) === 'Dosierung freigegeben' }]">{{ dosingStatus(parameter.key) }}</small></div>
             </button>
           </nav>
         </aside>
@@ -105,22 +105,25 @@
             <div class="dosing-identity"><span>{{ selectedDosingMeta.symbol }}</span><div><small>{{ selectedDosingMeta.group }}</small><h3>{{ selectedDosingMeta.label }}</h3></div></div>
             <div class="dosing-header-actions">
               <button type="button" class="reset-button" @click="resetSelectedDosing">Eintrag zurücksetzen</button>
-              <label class="dosing-switch"><input v-model="selectedDosing.enabled" type="checkbox" /><span>{{ selectedDosing.enabled ? 'Plan aktiv' : 'Plan inaktiv' }}</span></label>
             </div>
           </header>
 
-          <div :class="['dosing-form-body', { disabled: !selectedDosing.enabled }]">
+          <div class="dosing-form-body">
             <section class="dosing-form-section">
-              <div class="section-label"><span>01</span><div><strong>Produkt und Freigabe</strong><small>Diese Angaben erscheinen direkt im Korrekturplan</small></div></div>
+              <div class="section-label"><span>01</span><div><strong>Empfohlenes Produkt</strong><small>Unabhängig von einer Dosierformel in Berichten sichtbar</small></div></div>
               <div class="dosing-fields product-fields">
-                <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="z. B. ATI Essentials · Calcium" /></label>
-                <label class="wide"><span>Shop-Link</span><input v-model="selectedDosing.productUrl" type="url" placeholder="shop.atiaquaristik.com/…" /></label>
-                <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Laborgeprüfte Formel</b><small>Nur verifizierte Formeln erzeugen eine konkrete ml-Empfehlung.</small></span></label>
+                <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="Produktname eingeben" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productName" class="field-error">{{ selectedDosingErrors.productName }}</small></label>
+                <label class="wide"><span>Shop-Link · optional</span><input v-model="selectedDosing.productUrl" type="text" inputmode="url" placeholder="https://shop.atiaquaristik.com/…" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productUrl" class="field-error">{{ selectedDosingErrors.productUrl }}</small></label>
+                <label class="wide"><span>Bild-Link · optional</span><input v-model="selectedDosing.productImage" type="text" inputmode="url" placeholder="https://…" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productImage" class="field-error">{{ selectedDosingErrors.productImage }}</small></label>
               </div>
+              <div class="product-source"><span>{{ selectedDosing.productOverride ? 'Eigenes Produkt' : 'Standard ATI-Produkt' }}</span><button v-if="selectedDosing.productOverride" type="button" class="reset-button" @click="restoreStandardProduct">Standardprodukt verwenden</button></div>
+              <ProductSuggestions :products="adminProductPreview" />
             </section>
 
             <section class="dosing-form-section">
-              <div class="section-label"><span>02</span><div><strong>Dosierformel</strong><small>Produktwirkung bezogen auf 100 Liter Aquarienwasser</small></div></div>
+              <div class="section-label"><span>02</span><div><strong>Dosierformel · optional</strong><small>Produktwirkung bezogen auf 100 Liter Aquarienwasser</small></div></div>
+              <label class="dosing-switch"><input v-model="selectedDosing.enabled" type="checkbox" /><span>Konkrete Dosierung konfigurieren</span></label>
+              <fieldset v-show="selectedDosing.enabled" :disabled="!selectedDosing.enabled" class="formula-fields">
               <div class="formula-builder">
                 <label><span>Produktmenge</span><div><input v-model.number="selectedDosing.mlPer100Liters" type="number" min="0" step="any" /><b>ml / 100 l</b></div></label>
                 <i>erhöht</i>
@@ -128,17 +131,20 @@
                 <i>maximal</i>
                 <label><span>Tagesanstieg</span><div><input v-model.number="selectedDosing.maxDailyIncrease" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }} / Tag</b></div></label>
               </div>
-              <p class="formula-explanation">{{ dosingFormulaExplanation }}</p>
+              <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Laborgeprüfte Formel</b><small>Erst mit dieser Freigabe erscheint eine ml-Menge im Kundenbericht.</small></span></label>
+              </fieldset>
+              <p v-if="selectedDosing.enabled" class="formula-explanation">{{ dosingFormulaExplanation }}</p>
+              <ul v-if="selectedDosing.enabled && formulaErrors.length" class="formula-errors"><li v-for="error in formulaErrors" :key="error">{{ error }}</li></ul>
             </section>
 
-            <section class="dosing-form-section">
+            <section v-show="selectedDosing.enabled" class="dosing-form-section">
               <div class="section-label"><span>03</span><div><strong>Anwendungshinweis</strong><small>Zusätzlicher Hinweis unter der berechneten Dosierung</small></div></div>
               <label class="dosing-instructions"><span>Hinweis für Kunden</span><textarea v-model="selectedDosing.instructions" rows="4" placeholder="z. B. Tagesmenge auf mehrere Dosierzeitpunkte verteilen."></textarea></label>
             </section>
 
             <section class="dosing-preview">
-              <header><div><span>Live-Prüfung</span><h4>Formel mit Beispielwert testen</h4></div><b :class="{ ready: dosingPreview.ready }">{{ dosingPreview.ready ? 'Berechenbar' : 'Unvollständig' }}</b></header>
-              <div class="preview-inputs">
+              <header><div><span>Kundenvorschau</span><h4>Dosierung mit Beispielwert testen</h4></div><b :class="{ ready: dosingPreview.ready }">{{ dosingPreview.ready ? 'Dosierung freigegeben' : dosingStatus(selectedDosingKey) }}</b></header>
+              <div v-if="selectedDosing.enabled" class="preview-inputs">
                 <label><span>Aquariumvolumen</span><div><input v-model.number="previewVolume" type="number" min="1" /><b>Liter</b></div></label>
                 <label><span>Aktueller Wert</span><div><input v-model.number="previewValue" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }}</b></div></label>
                 <div><span>Zielwert</span><strong>{{ selectedDosingTarget }} {{ selectedDosingMeta.unit }}</strong></div>
@@ -148,18 +154,18 @@
                 <div><span>Dauer</span><strong>{{ dosingPreview.days }} {{ dosingPreview.days === 1 ? 'Tag' : 'Tage' }}</strong></div>
                 <div><span>Pro Tag</span><strong>{{ formatDosingNumber(dosingPreview.dailyMl) }} ml</strong></div>
               </div>
-              <p v-else>Aktivieren und vervollständigen Sie die Formel. Der aktuelle Wert muss unter dem Zielwert liegen.</p>
+              <p v-else>{{ dosingPreviewReason }}</p>
             </section>
           </div>
 
-          <footer><p :class="['save-message', dosingSaveState.type]" role="status">{{ dosingSaveState.message }}</p><button class="btn btn-primary" type="button" @click="saveDosing">Dosierungspläne speichern</button></footer>
+          <footer><p :class="['save-message', dosingSaveState.type]" role="status">{{ dosingSaveState.message }}</p></footer>
         </main>
       </div>
     </section>
 
     <section v-if="recommendationRulesEnabled" v-show="activeArea === 'recommendations'" class="editor-shell rule-editor-shell">
       <header class="editor-heading rule-editor-heading">
-        <div><span>Empfehlungslogik</span><h2>Regeln statt einzelner Standardtexte</h2><p>Eine Regel bündelt ähnliche Messwerte und erzeugt nur dann eine Empfehlung, wenn ihre Bedingungen erfüllt sind.</p></div>
+        <div><span>Empfehlungen</span><h2>Auslöser und nächste Schritte</h2><p>Definieren Sie, wann eine Empfehlung erscheint, und prüfen Sie das Ergebnis direkt an einem Laborbericht.</p></div>
         <button class="btn btn-primary" type="button" @click="addRecommendationRule">+ Regel hinzufügen</button>
       </header>
 
@@ -213,15 +219,17 @@
       </div>
 
       <section class="rule-simulator">
-        <header><div><span>Live-Simulator</span><h3>Welche Regeln würden ausgelöst?</h3><p>Die drei Demo-Berichte verwenden echte Parameterwerte und reagieren sofort auf ungespeicherte Änderungen.</p></div><div class="scenario-switch" role="group" aria-label="Demo-Ergebnis auswählen"><button type="button" :class="{ active: simulatorScenario === 'good' }" @click="simulatorScenario = 'good'">Gut</button><button type="button" :class="{ active: simulatorScenario === 'medium' }" @click="simulatorScenario = 'medium'">Mittel</button><button type="button" :class="{ active: simulatorScenario === 'bad' }" @click="simulatorScenario = 'bad'">Schlecht</button></div></header>
+        <header><div><span>Kundenvorschau</span><h3>Was sieht der Kunde mit diesen Regeln?</h3><p>Ungespeicherte Regeländerungen wirken nur auf diese Vorschau.</p></div></header>
+        <label class="simulator-report-picker"><span>Laborbericht prüfen</span><select v-model="simulatorReportId"><option value="">Demoberichte</option><option v-for="report in simulatorReports" :key="report.id" :value="report.id">{{ report.reportNumber || report.barcode }} · {{ report.aquariumName }}</option></select></label>
+        <div v-if="!simulatorReportId" class="scenario-switch" role="group" aria-label="Demo-Ergebnis auswählen"><button type="button" :class="{ active: simulatorScenario === 'good' }" @click="simulatorScenario = 'good'">Gut</button><button type="button" :class="{ active: simulatorScenario === 'medium' }" @click="simulatorScenario = 'medium'">Mittel</button><button type="button" :class="{ active: simulatorScenario === 'bad' }" @click="simulatorScenario = 'bad'">Schlecht</button></div>
         <div class="simulator-summary"><span :class="`tone-${simulatorAnalysis.resultLevel}`">{{ simulatorAnalysis.score }} Punkte</span><strong>{{ simulatorIssueCount }} auffällige Werte</strong><b>{{ simulatorResults.length }} {{ simulatorResults.length === 1 ? 'Regel' : 'Regeln' }} ausgelöst</b></div>
         <div v-if="simulatorResults.length" class="simulator-results">
-          <article v-for="result in simulatorResults" :key="result.key"><div><span>{{ result.priority }}</span><small>{{ result.ruleName }}</small></div><h4>{{ result.title }}</h4><p><b>{{ result.matchedCount }} Treffer:</b> {{ result.parameters.join(', ') }}</p></article>
+          <article v-for="result in simulatorResults" :key="result.key"><div><span>{{ result.priority }}</span><small>{{ result.ruleName }}</small></div><h4>{{ result.title }}</h4><p><b>{{ result.matchedCount }} passende Werte:</b> {{ result.parameters.join(', ') }}</p><p>{{ result.summary }}</p><ol><li v-for="step in result.steps" :key="step">{{ step }}</li></ol><p>Kontrolle nach {{ result.recheckDays }} Tagen</p><ProductSuggestions :products="simulatorProducts(result)" /></article>
         </div>
         <div v-else class="simulator-empty"><strong>Keine Regel ausgelöst</strong><p>Für diesen Bericht passen aktuell keine aktiven Bedingungen.</p></div>
       </section>
 
-      <footer class="rule-save-footer"><p :class="['save-message', recommendationSaveState.type]" role="status">{{ recommendationSaveState.message }}</p><span>{{ recommendationRules.filter((rule) => rule.active).length }} von {{ recommendationRules.length }} Regeln aktiv</span><button class="btn btn-primary" type="button" @click="saveRecommendations">Regeln speichern</button></footer>
+      <footer class="rule-save-footer"><p :class="['save-message', recommendationSaveState.type]" role="status">{{ recommendationSaveState.message }}</p><span>{{ recommendationRules.filter((rule) => rule.active).length }} von {{ recommendationRules.length }} Regeln aktiv</span></footer>
     </section>
 
     <section v-show="activeArea === 'support'" class="editor-shell support-editor-shell">
@@ -233,14 +241,14 @@
       <div v-if="supportContent.faqs.length" class="faq-admin-list">
         <article v-for="(faq, index) in supportContent.faqs" :key="faq.id" class="faq-admin-card">
           <header>
-            <div><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ faq.question || 'Neue Frage' }}</strong></div>
+            <button type="button" class="faq-expand" :aria-expanded="expandedFaqId === faq.id" :aria-controls="`faq-editor-${faq.id}`" @click="expandedFaqId = expandedFaqId === faq.id ? '' : faq.id"><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ faq.question || 'Neue Frage' }}</strong><i aria-hidden="true">{{ expandedFaqId === faq.id ? '−' : '+' }}</i></button>
             <div class="faq-card-actions">
               <button type="button" :disabled="index === 0" title="Nach oben" aria-label="FAQ nach oben verschieben" @click="moveFaq(index, -1)">↑</button>
               <button type="button" :disabled="index === supportContent.faqs.length - 1" title="Nach unten" aria-label="FAQ nach unten verschieben" @click="moveFaq(index, 1)">↓</button>
               <button type="button" class="remove-faq" title="FAQ entfernen" aria-label="FAQ entfernen" @click="removeFaq(index)">Entfernen</button>
             </div>
           </header>
-          <div class="faq-fields">
+          <div v-show="expandedFaqId === faq.id" :id="`faq-editor-${faq.id}`" class="faq-fields">
             <label class="faq-category"><span>Kategorie</span><input v-model="faq.category" type="text" placeholder="z. B. Analyse" /></label>
             <label><span>Frage</span><input v-model="faq.question" type="text" placeholder="Welche Frage soll beantwortet werden?" /></label>
             <label class="faq-answer"><span>Antwort</span><textarea v-model="faq.answer" rows="4" placeholder="Klare und hilfreiche Antwort…"></textarea></label>
@@ -252,9 +260,12 @@
       <footer class="support-editor-footer">
         <p :class="['save-message', supportSaveState.type]" role="status">{{ supportSaveState.message }}</p>
         <span>{{ supportContent.faqs.length }} {{ supportContent.faqs.length === 1 ? 'Eintrag' : 'Einträge' }}</span>
-        <button class="btn btn-primary" type="button" @click="saveSupport">FAQs speichern</button>
       </footer>
     </section>
+    <footer v-if="activeArea !== 'users'" class="admin-save-bar">
+      <div><strong>{{ dirtyAreas[activeArea] ? 'Ungespeicherte Änderungen' : 'Alle Änderungen gespeichert' }}</strong><small>{{ saveScope }}</small><p v-if="activeSaveState.message" :class="['save-message', activeSaveState.type]" role="status">{{ activeSaveState.message }}</p></div>
+      <div class="save-bar-actions"><button type="button" class="btn btn-ghost" :disabled="!dirtyAreas[activeArea]" @click="discardCurrentArea">Änderungen verwerfen</button><button type="button" class="btn btn-primary" :disabled="!dirtyAreas[activeArea]" @click="saveCurrentArea">{{ saveButtonLabel }}</button></div>
+    </footer>
 
     <section v-if="canManageUsers" v-show="activeArea === 'users'" class="editor-shell user-editor-shell">
       <header class="editor-heading user-editor-heading">
@@ -301,14 +312,19 @@ import { createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSupportFaq, loadSupportContent, saveSupportContent } from '@/services/supportContent'
 import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
 import { createRecommendationRule, evaluateRecommendationRules, loadRecommendationRules, RECOMMENDATION_SCOPES, saveRecommendationRules } from '@/services/recommendationRules'
-import { DOSING_PARAMETERS, loadDosingConfig, resetDosingEntry, saveDosingConfig } from '@/services/dosingConfig'
+import { DOSING_PARAMETERS, loadDosingConfig, resetDosingEntry, saveDosingConfig, recommendedProductsForKeys } from '@/services/dosingConfig'
+import { buildDosingPlan } from '@/services/dosingPlan'
+import { getAllAnalysisRecords, getAnalysis } from '@/services/analysisStore'
+import { dosingEntryErrors, elementEntryError } from '@/services/adminValidation'
+import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import '@/assets/styles/report-base.css'
 
 const auth = useAuthStore()
-// Keep the unfinished recommendation editor out of production navigation until it is approved.
-const recommendationRulesEnabled = false
+const recommendationRulesEnabled = true
 const content = reactive(loadAnalysisContent())
 const dosingConfig = reactive(loadDosingConfig())
 const supportContent = reactive(loadSupportContent())
+const expandedFaqId = ref(supportContent.faqs[0]?.id || '')
 const recommendationRules = reactive(loadRecommendationRules())
 const activeArea = ref('elements')
 const selectedKey = ref(ANALYSIS_PARAMETERS[0].key)
@@ -320,6 +336,8 @@ const recommendationSaveState = reactive({ message: '', type: '' })
 const selectedRecommendationRuleId = ref(recommendationRules[0]?.id || '')
 const recommendationSearch = ref('')
 const simulatorScenario = ref('medium')
+const simulatorReportId = ref('')
+const simulatorReports = ref(loadSimulatorReports())
 const selectedDosingKey = ref(DOSING_PARAMETERS[0].key)
 const dosingSearch = ref('')
 const previewVolume = ref(420)
@@ -351,16 +369,26 @@ const filteredRecommendationRules = computed(() => {
   return recommendationRules.filter((rule) => !query || `${rule.name} ${rule.title} ${scopeLabel(rule.groupKey)}`.toLocaleLowerCase('de-DE').includes(query))
 })
 const selectedRecommendationRule = computed(() => recommendationRules.find((rule) => rule.id === selectedRecommendationRuleId.value) || null)
-const simulatorAnalysis = computed(() => createDemoAnalysis(`rule-simulator-${simulatorScenario.value}`, simulatorScenario.value))
+const simulatorAnalysis = computed(() => simulatorReports.value.find((report) => report.id === simulatorReportId.value)
+  || createDemoAnalysis(`rule-simulator-${simulatorScenario.value}`, simulatorScenario.value))
 const simulatorResults = computed(() => evaluateRecommendationRules(simulatorAnalysis.value, recommendationRules))
 const simulatorIssueCount = computed(() => simulatorAnalysis.value.parameters.filter((parameter) => parameter.tone !== 'good').length)
 const selectedMeta = computed(() => ANALYSIS_PARAMETERS.find((item) => item.key === selectedKey.value) || ANALYSIS_PARAMETERS[0])
 const selectedContent = computed(() => content[selectedKey.value])
+const selectedElementError = computed(() => elementEntryError(selectedContent.value))
 const selectedDosingMeta = computed(() => DOSING_PARAMETERS.find((item) => item.key === selectedDosingKey.value) || DOSING_PARAMETERS[0])
 const selectedDosing = computed(() => dosingConfig[selectedDosingKey.value])
+const selectedDosingErrors = computed(() => dosingEntryErrors(selectedDosing.value))
+const formulaErrors = computed(() => ['mlPer100Liters', 'raisesBy', 'maxDailyIncrease'].map((key) => selectedDosingErrors.value[key]).filter(Boolean))
+const adminProductPreview = computed(() => selectedDosing.value.productName.trim() ? [{
+  parameterKey: selectedDosingKey.value,
+  productName: selectedDosing.value.productName,
+  productUrl: selectedDosingErrors.value.productUrl ? '' : selectedDosing.value.productUrl ? (/^https?:\/\//i.test(selectedDosing.value.productUrl) ? selectedDosing.value.productUrl : `https://${selectedDosing.value.productUrl}`) : '',
+  productImage: selectedDosingErrors.value.productImage ? '' : selectedDosing.value.productImage ? (/^https?:\/\//i.test(selectedDosing.value.productImage) ? selectedDosing.value.productImage : `https://${selectedDosing.value.productImage}`) : '',
+}] : [])
 const selectedDosingTarget = computed(() => Number(content[selectedDosingKey.value]?.targetMin) || 0)
 const activeDosingCount = computed(() => Object.values(dosingConfig).filter((entry) => entry.enabled).length)
-const verifiedDosingCount = computed(() => Object.values(dosingConfig).filter((entry) => entry.enabled && entry.verified).length)
+const verifiedDosingCount = computed(() => Object.values(dosingConfig).filter((entry) => entry.enabled && entry.verified && !Object.keys(dosingEntryErrors(entry)).length).length)
 const filteredDosingParameters = computed(() => {
   const query = dosingSearch.value.trim().toLocaleLowerCase('de-DE')
   return DOSING_PARAMETERS.filter((parameter) => !query || `${parameter.label} ${parameter.symbol} ${parameter.group} ${dosingConfig[parameter.key].productName}`.toLocaleLowerCase('de-DE').includes(query))
@@ -371,15 +399,58 @@ const dosingFormulaExplanation = computed(() => {
   return `${formatDosingNumber(dosing.mlPer100Liters)} ml pro 100 Liter erhöhen ${selectedDosingMeta.value.label} um ${formatDosingNumber(dosing.raisesBy)} ${selectedDosingMeta.value.unit}. Der Plan begrenzt die Korrektur auf ${formatDosingNumber(dosing.maxDailyIncrease)} ${selectedDosingMeta.value.unit} pro Tag.`
 })
 const dosingPreview = computed(() => {
-  const dosing = selectedDosing.value
-  const deficit = Math.max(0, selectedDosingTarget.value - (Number(previewValue.value) || 0))
-  const volume = Math.max(0, Number(previewVolume.value) || 0)
-  const ready = dosing.enabled && dosing.productName.trim() && Number(dosing.mlPer100Liters) > 0 && Number(dosing.raisesBy) > 0 && Number(dosing.maxDailyIncrease) > 0 && deficit > 0 && volume > 0
-  if (!ready) return { ready: false, totalMl: 0, dailyMl: 0, days: 0 }
-  const totalMl = (deficit / Number(dosing.raisesBy)) * Number(dosing.mlPer100Liters) * volume / 100
-  const days = Math.max(1, Math.ceil(deficit / Number(dosing.maxDailyIncrease)))
-  return { ready: true, totalMl, dailyMl: totalMl / days, days }
+  if (!selectedDosing.value.enabled || Object.keys(selectedDosingErrors.value).length || previewValue.value === '' || previewValue.value == null || !Number.isFinite(Number(previewValue.value)) || !(Number(previewVolume.value) > 0)) return { ready: false }
+  const meta = selectedDosingMeta.value
+  const item = buildDosingPlan([{
+    key: meta.key, label: meta.label, groupKey: meta.groupKey, unit: content[meta.key]?.unit || meta.unit, precision: content[meta.key]?.precision ?? meta.precision,
+    value: Number(previewValue.value), referenceRange: { min: selectedDosingTarget.value, max: Number(content[meta.key]?.targetMax) },
+  }], Number(previewVolume.value), dosingConfig)[0]
+  return item?.dose ? { ready: true, ...item.dose } : { ready: false }
 })
+const dosingPreviewReason = computed(() => {
+  if (!selectedDosing.value.enabled) return 'Das Produkt kann empfohlen werden. Eine konkrete Dosierung ist nicht konfiguriert.'
+  if (Object.keys(selectedDosingErrors.value).length) return Object.values(selectedDosingErrors.value).join(' ')
+  if (!selectedDosing.value.verified) return 'Die Formel ist noch nicht laborgeprüft freigegeben. Kunden sehen das Produkt ohne ml-Angabe.'
+  return 'Wählen Sie ein gültiges Aquariumvolumen und einen aktuellen Wert unter dem Zielwert.'
+})
+
+const areaData = { elements: content, dosing: dosingConfig, recommendations: recommendationRules, support: supportContent }
+const savedSnapshots = reactive(Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value)])))
+const dirtyAreas = computed(() => Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value) !== savedSnapshots[key]])))
+const activeSaveState = computed(() => ({ elements: saveState, dosing: dosingSaveState, recommendations: recommendationSaveState, support: supportSaveState }[activeArea.value] || {}))
+const saveButtonLabel = computed(() => ({ elements: 'Alle Elementänderungen speichern', dosing: 'Alle Produktänderungen speichern', recommendations: 'Alle Regeln speichern', support: 'Alle FAQs speichern' }[activeArea.value]))
+const saveScope = computed(() => 'Speichert alle Änderungen in diesem Bereich. Andere Bereiche bleiben unverändert.')
+function saveCurrentArea() { ({ elements: save, dosing: saveDosing, recommendations: saveRecommendations, support: saveSupport }[activeArea.value])?.() }
+function markSaved(area) { savedSnapshots[area] = JSON.stringify(areaData[area]) }
+function discardCurrentArea() {
+  const area = activeArea.value
+  const saved = JSON.parse(savedSnapshots[area])
+  if (area === 'recommendations') {
+    recommendationRules.splice(0, recommendationRules.length, ...saved)
+    if (!recommendationRules.some((rule) => rule.id === selectedRecommendationRuleId.value)) selectedRecommendationRuleId.value = recommendationRules[0]?.id || ''
+  } else {
+    Object.assign(areaData[area], saved)
+    if (area === 'support' && !supportContent.faqs.some((faq) => faq.id === expandedFaqId.value)) expandedFaqId.value = supportContent.faqs[0]?.id || ''
+  }
+  activeSaveState.value.message = 'Ungespeicherte Änderungen wurden verworfen.'
+  activeSaveState.value.type = ''
+}
+function loadSimulatorReports() {
+  return getAllAnalysisRecords().filter((record) => record.status === 'completed').map((record) => getAnalysis(record.id, record.ownerId)).filter(Boolean)
+}
+function simulatorProducts(result) { return recommendedProductsForKeys(result.parameterKeys, simulatorAnalysis.value.parameters || []) }
+function dosingStatus(key) {
+  const entry = dosingConfig[key]
+  const errors = dosingEntryErrors(entry)
+  if (errors.productName || errors.productUrl || errors.productImage) return 'Produktangaben prüfen'
+  if (!entry.enabled) return 'Ohne ml-Dosierung'
+  if (Object.keys(errors).length) return 'Formel unvollständig'
+  return entry.verified ? 'Dosierung freigegeben' : 'Freigabe fehlt'
+}
+function restoreStandardProduct() {
+  const standard = resetDosingEntry(selectedDosingKey.value)
+  Object.assign(selectedDosing.value, { productOverride: false, productName: standard.productName, productUrl: standard.productUrl, productImage: standard.productImage })
+}
 
 function resetSelected() {
   Object.assign(content[selectedKey.value], DEFAULT_PARAMETER_CONTENT[selectedKey.value])
@@ -392,10 +463,19 @@ function save() {
     saveState.type = 'error'
     return
   }
+  const invalid = ANALYSIS_PARAMETERS.find((parameter) => elementEntryError(content[parameter.key]))
+  if (invalid) {
+    selectedKey.value = invalid.key
+    saveState.message = `${invalid.label}: ${elementEntryError(content[invalid.key])}`
+    saveState.type = 'error'
+    return
+  }
   const saved = saveAnalysisContent(content)
   for (const parameter of ANALYSIS_PARAMETERS) Object.assign(content[parameter.key], saved[parameter.key])
   saveState.message = 'Analyse-Inhalte wurden gespeichert.'
   saveState.type = 'success'
+  markSaved('elements')
+  simulatorReports.value = loadSimulatorReports()
 }
 function selectDosingParameter(key) {
   selectedDosingKey.value = key
@@ -406,7 +486,7 @@ function selectDosingParameter(key) {
   dosingSaveState.type = ''
 }
 function resetSelectedDosing() {
-  Object.assign(dosingConfig[selectedDosingKey.value], resetDosingEntry())
+  Object.assign(dosingConfig[selectedDosingKey.value], resetDosingEntry(selectedDosingKey.value))
   dosingSaveState.message = 'Eintrag zurückgesetzt. Speichern Sie, um die Änderung zu veröffentlichen.'
   dosingSaveState.type = ''
 }
@@ -419,13 +499,10 @@ function saveDosing() {
     dosingSaveState.type = 'error'
     return
   }
-  const incompleteKey = DOSING_PARAMETERS.find(({ key }) => {
-    const entry = dosingConfig[key]
-    return entry.enabled && (!entry.productName.trim() || !(Number(entry.mlPer100Liters) > 0) || !(Number(entry.raisesBy) > 0) || !(Number(entry.maxDailyIncrease) > 0))
-  })?.key
+  const incompleteKey = DOSING_PARAMETERS.find(({ key }) => Object.keys(dosingEntryErrors(dosingConfig[key])).length)?.key
   if (incompleteKey) {
     selectDosingParameter(incompleteKey)
-    dosingSaveState.message = 'Bitte Produktname, Produktmenge, Wirkung und maximalen Tagesanstieg für alle aktiven Pläne ausfüllen.'
+    dosingSaveState.message = `${selectedDosingMeta.value.label}: ${Object.values(dosingEntryErrors(dosingConfig[incompleteKey])).join(' ')}`
     dosingSaveState.type = 'error'
     return
   }
@@ -433,6 +510,7 @@ function saveDosing() {
   for (const parameter of DOSING_PARAMETERS) Object.assign(dosingConfig[parameter.key], saved[parameter.key])
   dosingSaveState.message = 'Dosierungspläne wurden gespeichert und werden in Kundenberichten verwendet.'
   dosingSaveState.type = 'success'
+  markSaved('dosing')
 }
 function addRecommendationRule() {
   const rule = createRecommendationRule()
@@ -451,7 +529,7 @@ function removeRecommendationRule() {
 }
 function updateRuleSteps(event) {
   if (!selectedRecommendationRule.value) return
-  selectedRecommendationRule.value.steps = event.target.value.split('\n').map((step) => step.trim()).filter(Boolean)
+  selectedRecommendationRule.value.steps = event.target.value.split('\n')
 }
 function setRuleTrigger(event) {
   if (!selectedRecommendationRule.value) return
@@ -479,10 +557,10 @@ function saveRecommendations() {
     recommendationSaveState.type = 'error'
     return
   }
-  const incomplete = recommendationRules.find((rule) => !rule.name.trim() || !rule.title.trim() || !rule.summary.trim() || !rule.why.trim() || !rule.steps.length)
+  const incomplete = recommendationRules.find((rule) => !rule.name.trim() || !rule.title.trim() || !rule.summary.trim() || !rule.why.trim() || !rule.steps.some((step) => step.trim()) || !(Number(rule.minimumMatches) >= 1) || !(Number(rule.recheckDays) >= 1))
   if (incomplete) {
     selectedRecommendationRuleId.value = incomplete.id
-    recommendationSaveState.message = 'Bitte Name, Titel, Empfehlung, Begründung und Schritte bei allen Regeln ausfüllen.'
+    recommendationSaveState.message = 'Bitte alle Texte und mindestens einen Schritt ausfüllen. Trefferzahl und Kontrollintervall müssen mindestens 1 sein.'
     recommendationSaveState.type = 'error'
     return
   }
@@ -492,14 +570,19 @@ function saveRecommendations() {
   selectedRecommendationRuleId.value = recommendationRules.some((rule) => rule.id === selectedId) ? selectedId : recommendationRules[0]?.id || ''
   recommendationSaveState.message = 'Regeln gespeichert. Fertige Berichte verwenden sie ab sofort.'
   recommendationSaveState.type = 'success'
+  markSaved('recommendations')
 }
 function addFaq() {
-  supportContent.faqs.push(createSupportFaq())
+  const faq = createSupportFaq()
+  supportContent.faqs.push(faq)
+  expandedFaqId.value = faq.id
   supportSaveState.message = 'Neue FAQ hinzugefügt. Ergänzen Sie Frage und Antwort.'
   supportSaveState.type = ''
 }
 function removeFaq(index) {
+  const removedId = supportContent.faqs[index].id
   supportContent.faqs.splice(index, 1)
+  if (removedId === expandedFaqId.value) expandedFaqId.value = supportContent.faqs[Math.min(index, supportContent.faqs.length - 1)]?.id || ''
   supportSaveState.message = 'FAQ entfernt. Speichern Sie, um die Änderung zu veröffentlichen.'
   supportSaveState.type = ''
 }
@@ -519,6 +602,7 @@ function saveSupport() {
   }
   const incomplete = supportContent.faqs.find((faq) => !faq.category.trim() || !faq.question.trim() || !faq.answer.trim())
   if (incomplete) {
+    expandedFaqId.value = incomplete.id
     supportSaveState.message = 'Bitte Kategorie, Frage und Antwort bei allen FAQs ausfüllen.'
     supportSaveState.type = 'error'
     return
@@ -527,6 +611,7 @@ function saveSupport() {
   supportContent.faqs.splice(0, supportContent.faqs.length, ...saved.faqs)
   supportSaveState.message = 'FAQs wurden in Hilfe & Support veröffentlicht.'
   supportSaveState.type = 'success'
+  markSaved('support')
 }
 function openUserManagement() {
   activeArea.value = 'users'
@@ -588,4 +673,36 @@ function formatAdminDate(value) {
 @media (max-width: 980px) { .editor-layout,.rule-workspace,.dosing-workspace { grid-template-columns: 1fr; }.element-browser,.rule-browser,.dosing-browser { position: static; max-height: min(430px, 52vh); }.element-browser nav { grid-template-columns: repeat(3,minmax(0,1fr)); }.rule-browser nav,.dosing-browser nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 700px) { .admin-hero { flex-direction: column; }.admin-role { min-width: 0; }.settings-tabs,.user-controls { grid-template-columns: 1fr; }.editor-heading,.content-editor > header,.content-editor > footer,.faq-admin-card > header,.support-editor-footer,.rule-simulator > header,.rule-save-footer,.dosing-form > header,.dosing-form > footer { align-items: stretch; flex-direction: column; }.user-summary,.dosing-summary { display: grid; grid-template-columns: repeat(3,1fr); }.dosing-header-actions { justify-content: space-between; }.element-browser nav,.rule-browser nav,.dosing-browser nav { grid-template-columns: 1fr 1fr; }.recommendation-fields,.preview-actions,.technical-fields,.faq-fields,.rule-fields,.preview-inputs,.preview-result { grid-template-columns: 1fr; }.preview-inputs > div { padding: 10px 0 0; border-top: 1px solid rgba(255,255,255,.12); border-left: 0; }.preview-result > div { border-right: 0; border-bottom: 1px solid rgba(136,225,239,.18); }.faq-fields .faq-answer,.rule-fields label.wide { grid-column: auto; }.faq-card-actions button { flex: 1; }.save-message { margin: 0; }.scenario-switch button { flex: 1; min-width: 0; } }
 @media (max-width: 480px) { .rule-browser nav,.element-browser nav,.dosing-browser nav { grid-template-columns: 1fr; }.rule-form > header { align-items: flex-start; }.simulator-results { grid-template-columns: 1fr; }.dosing-header-actions { align-items: stretch; flex-direction: column; }.dosing-summary span { min-width: 0; } }
+/* Match the customer screens with shared brand tokens and readable controls. */
+.admin-settings { min-width: 0; gap: 20px; }
+.admin-hero { border-radius: 28px; background: linear-gradient(112deg,rgba(10,27,67,.98),rgba(18,66,109,.92) 58%,rgba(0,114,206,.74)),url('/reeftech-pattern.jpg') center / cover; }
+.admin-hero h1 { font-size: clamp(32px,4.2vw,46px); }.admin-hero > div:first-child > span { color: var(--brand-cyan); }
+.storage-note { padding: 0 3px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.settings-tabs { padding: 0; gap: 10px; border: 0; background: transparent; box-shadow: none; grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)); }
+.settings-tabs button { min-width: 0; min-height: 70px; border: 1px solid var(--panel-line); border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(10,27,67,.05); }.settings-tabs button.active { border-color: var(--brand-blue); }.settings-tabs small { font-size: 11px; line-height: 1.35; font-weight: 500; }
+.editor-shell { min-width: 0; border-color: var(--panel-line); border-radius: 20px; padding: 24px; }.editor-heading h2 { color: var(--brand-navy); font-size: 24px; letter-spacing: -.02em; }.editor-heading p { font-size: 13px; line-height: 1.6; }
+.editor-state.unsaved { background: var(--amber-bg); color: #9a5b0a; }.editor-state.unsaved i { background: var(--amber); }
+.element-browser label span,.dosing-browser > label span,.rule-browser > label span { font-size: 11px; }.element-browser nav strong,.dosing-browser nav button strong,.rule-browser nav strong { font-size: 13px; }.element-browser nav small,.dosing-browser nav button small,.rule-browser nav small { font-size: 11px; }
+.dosing-browser nav button { grid-template-columns: 38px minmax(0,1fr); }.dosing-browser .dosing-status { color: #93620f; font-size: 10px; white-space: normal; }.dosing-browser .dosing-status.approved { color: #047857; }
+.element-identity small,.dosing-identity small,.rule-form > header small { font-size: 11px; }.section-label strong { font-size: 14px; }.section-label small { font-size: 11px; line-height: 1.4; }
+.editor-section label > span,.technical-fields span,.dosing-fields label > span,.formula-builder label > span,.dosing-instructions > span,.preview-inputs label > span,.rule-fields label > span,.faq-fields label > span { font-size: 12px; font-weight: 600; }.editor-section label > small { font-size: 11px; }
+.admin-settings input:not([type='checkbox']),.admin-settings select,.admin-settings textarea { min-width: 0; min-height: 44px; border-radius: 12px; font-family: inherit; font-size: 14px; color: var(--text); }.admin-settings textarea { line-height: 1.6; }
+.reset-button { font-size: 11px; padding: 9px 12px; border-radius: 999px; }.technical-note,.formula-explanation { font-size: 12px; line-height: 1.55; }
+.field-error { color: #b53a2e; font-size: 12px; }.formula-errors { padding-left: 18px; color: #b53a2e; font-size: 12px; line-height: 1.6; }
+.product-source { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 12px 0; }.product-source > span { font-size: 11px; color: var(--text-muted); }
+.formula-fields { min-width: 0; border: 0; padding: 0; margin: 12px 0 0; }.verification-field { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; font-size: 13px; }.verification-field small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; }.verification-field input { margin-top: 4px; }
+.content-preview { background: var(--surface-soft); color: var(--text); border: 1px solid var(--border); }.content-preview span { color: var(--teal-700); font-size: 11px; }.content-preview > p,.preview-actions p { color: var(--text-muted); font-size: 12px; }.preview-actions article { border-color: var(--border); background: #fff; }
+.dosing-preview,.rule-simulator { background: var(--surface-soft); color: var(--text); border: 1px solid var(--border); border-radius: 16px; }.dosing-preview h4,.rule-simulator h3 { color: var(--brand-navy); font-size: 19px; }.dosing-preview > header span,.rule-simulator > header span { color: var(--teal-700); font-size: 11px; }.dosing-preview > p,.rule-simulator > header p { color: var(--text-muted); font-size: 12px; }
+.preview-inputs label > span,.preview-inputs > div > span,.preview-result span { color: var(--text-muted); font-size: 11px; }.preview-inputs > div > strong,.preview-result strong { color: var(--brand-navy); }.preview-inputs input { background: #fff; border-color: var(--border); }.preview-inputs label > div { background: #fff; border-color: var(--border); }.preview-inputs label > div > b { color: var(--text-muted); font-size: 11px; }.preview-result { background: #fff; border-color: var(--border); }
+.dosing-preview > header > b { background: #fff3d6; color: #805300; font-size: 10px; }.simulator-results p b { color: var(--brand-navy); }.simulator-summary > * { font-size: 11px; background: #fff; }.simulator-results article small { color: var(--text-muted); font-size: 11px; }
+.rule-explanation { font-size: 12px; line-height: 1.6; }.rule-explanation b { color: var(--brand-blue); }
+.simulator-report-picker { display: grid; gap: 6px; margin: 16px 0; }.simulator-report-picker > span { color: var(--text-muted); font-size: 12px; font-weight: 600; }.simulator-report-picker select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: #fff; }
+.scenario-switch { width: fit-content; background: #e7eef5; }.scenario-switch button { color: var(--text-muted); font-size: 12px; }.scenario-switch button.active { background: #fff; color: var(--brand-blue); }
+.simulator-summary { flex-wrap: wrap; }.simulator-summary strong { color: var(--text); }.simulator-summary b { color: var(--teal-700); }
+.simulator-results { grid-template-columns: 1fr; }.simulator-results article { padding: 18px; border-color: var(--border); background: #fff; color: var(--text); }.simulator-results h4 { color: var(--brand-navy); font-size: 17px; }.simulator-results p,.simulator-results li { color: var(--text-muted); font-size: 13px; line-height: 1.6; }.simulator-results small { color: var(--text-muted); font-size: 11px; }.simulator-results ol { margin: 12px 0; padding-left: 19px; }.simulator-empty { border-color: var(--border); }.simulator-empty p { color: var(--text-muted); font-size: 12px; }
+.faq-expand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }.faq-expand > span { flex: none; color: var(--brand-blue); font-size: 12px; font-weight: 700; }.faq-expand > strong { font-size: 14px; line-height: 1.4; }.faq-expand > i { margin-left: auto; color: var(--brand-blue); font-size: 20px; font-style: normal; }.faq-admin-card { padding: 16px 18px; }.faq-admin-card .faq-fields { margin-top: 16px; }
+.admin-save-bar { position: sticky; bottom: 18px; z-index: 12; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 20px; border: 1px solid var(--panel-line); border-radius: 18px; background: rgba(255,255,255,.97); box-shadow: 0 12px 36px rgba(10,27,67,.13); backdrop-filter: blur(18px); }.admin-save-bar > div:first-child { min-width: 0; }.admin-save-bar strong { display: block; color: var(--brand-navy); font-size: 13px; }.admin-save-bar small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; }.admin-save-bar .save-message { margin-top: 6px; }.save-bar-actions { display: flex; flex: none; gap: 8px; }
+@media (max-width:700px) { .admin-save-bar .save-bar-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 6px; }.admin-save-bar .save-bar-actions .btn { min-height: 44px; padding: 8px; font-size: 11px; } }
+@media (max-width:1100px) { .admin-save-bar { align-items: stretch; flex-direction: column; }.save-bar-actions { justify-content: flex-end; } }
+@media (max-width:700px) { .editor-shell { padding: 18px; }.settings-tabs { display: flex; overflow-x: auto; padding-bottom: 4px; }.settings-tabs button { flex: 0 0 190px; }.admin-save-bar { bottom: 100px; padding: 14px; }.save-bar-actions { flex-direction: column; }.save-bar-actions .btn { width: 100%; white-space: normal; line-height: 1.3; }.admin-hero { padding: 24px; }.element-browser,.dosing-browser,.rule-browser { max-height: 240px; }.formula-builder label div { min-width: 0; }.faq-admin-card > header { gap: 14px; }.faq-expand { width: 100%; }.product-source { align-items: flex-start; flex-direction: column; } }
 </style>

@@ -81,7 +81,7 @@ function fallbackProfile(parameter) {
 function verifiedDose(parameter, deficit, volume, dosingConfig) {
   const centralDosing = dosingConfig[parameter.key]
   const dosing = centralDosing?.enabled ? centralDosing : parameter.dosingRecommendation || parameter.dosing
-  if (!dosing?.verified || !dosing.productName || !(Number(dosing.raisesBy) > 0) || !(Number(dosing.mlPer100Liters) > 0) || !(volume > 0)) return null
+  if (!dosing?.verified || !dosing.productName || !['raisesBy', 'mlPer100Liters', 'maxDailyIncrease'].every((key) => Number.isFinite(Number(dosing[key])) && Number(dosing[key]) > 0) || !Number.isFinite(volume) || !(volume > 0)) return null
   const totalMl = round((deficit / Number(dosing.raisesBy)) * Number(dosing.mlPer100Liters) * volume / 100, 2)
   const maxIncrease = Number(dosing.maxDailyIncrease)
   const days = maxIncrease > 0 ? Math.max(1, Math.ceil(deficit / maxIncrease)) : 1
@@ -99,9 +99,8 @@ export function isLowParameter(parameter) {
   return eligibleProductKeys([parameter.key], [parameter]).length > 0
 }
 
-export function buildDosingPlan(parameters = [], volumeLiters = 0) {
+export function buildDosingPlan(parameters = [], volumeLiters = 0, dosingConfig = loadDosingConfig()) {
   const volume = Math.max(0, Number(volumeLiters) || 0)
-  const dosingConfig = loadDosingConfig()
   return parameters.filter(isLowParameter).map((parameter) => {
     const range = numericRange(parameter)
     const precision = Math.max(0, Number(parameter.precision ?? 2))

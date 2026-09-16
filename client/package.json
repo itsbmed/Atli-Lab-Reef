@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:tools": "node --test src/services/toolsCalculations.test.js",
+    "test:admin": "node --test src/services/adminValidation.test.js",
     "test:recommendations": "node --test src/services/recommendationsHub.test.js src/services/productEligibility.test.js"
   },
   "dependencies": {

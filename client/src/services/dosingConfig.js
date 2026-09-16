@@ -7,12 +7,15 @@ const NON_DOSING_KEYS = new Set(['salinity', 'chloride', 'sodium', 'sulfur', 'ph
 
 export const DOSING_PARAMETERS = ELEMENT_DEFINITIONS.filter((parameter) => parameter.groupKey !== 'pollutants' && !NON_DOSING_KEYS.has(parameter.key))
 
-function defaultEntry() {
+function defaultEntry(key = '') {
+  const product = ATI_PRODUCT_CATALOG[key]
   return {
     enabled: false,
     verified: false,
-    productName: '',
-    productUrl: '',
+    productOverride: false,
+    productName: product?.name || '',
+    productUrl: product?.url || '',
+    productImage: product?.image || '',
     mlPer100Liters: 0,
     raisesBy: 0,
     maxDailyIncrease: 0,
@@ -21,7 +24,7 @@ function defaultEntry() {
 }
 
 function defaults() {
-  return Object.fromEntries(DOSING_PARAMETERS.map((parameter) => [parameter.key, defaultEntry()]))
+  return Object.fromEntries(DOSING_PARAMETERS.map((parameter) => [parameter.key, defaultEntry(parameter.key)]))
 }
 
 function normalizeUrl(raw) {
@@ -30,12 +33,16 @@ function normalizeUrl(raw) {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`
 }
 
-function normalizeEntry(entry = {}) {
+function normalizeEntry(entry = {}, key = '') {
+  const standard = defaultEntry(key)
+  const productOverride = entry.productOverride ?? Boolean(entry.enabled && entry.productName)
   return {
     enabled: Boolean(entry.enabled),
     verified: Boolean(entry.verified),
-    productName: String(entry.productName || '').trim(),
-    productUrl: normalizeUrl(entry.productUrl),
+    productOverride: Boolean(productOverride),
+    productName: productOverride ? String(entry.productName || '').trim() : standard.productName,
+    productUrl: productOverride ? normalizeUrl(entry.productUrl) : standard.productUrl,
+    productImage: productOverride ? normalizeUrl(entry.productImage) : standard.productImage,
     mlPer100Liters: Math.max(0, Number(entry.mlPer100Liters) || 0),
     raisesBy: Math.max(0, Number(entry.raisesBy) || 0),
     maxDailyIncrease: Math.max(0, Number(entry.maxDailyIncrease) || 0),
@@ -47,7 +54,7 @@ export function loadDosingConfig() {
   const result = defaults()
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-    for (const parameter of DOSING_PARAMETERS) result[parameter.key] = normalizeEntry(stored[parameter.key])
+    for (const parameter of DOSING_PARAMETERS) result[parameter.key] = normalizeEntry(stored[parameter.key], parameter.key)
   } catch {
     // Invalid or unavailable browser storage falls back to an empty configuration.
   }
@@ -57,14 +64,14 @@ export function loadDosingConfig() {
 export function saveDosingConfig(config) {
   const safeConfig = Object.fromEntries(DOSING_PARAMETERS.map((parameter) => [
     parameter.key,
-    normalizeEntry(config[parameter.key]),
+    normalizeEntry(config[parameter.key], parameter.key),
   ]))
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig))
   return safeConfig
 }
 
-export function resetDosingEntry() {
-  return defaultEntry()
+export function resetDosingEntry(key = '') {
+  return defaultEntry(key)
 }
 
 // Sammelt die empfohlenen Produkte für eine Menge an Parameter-Keys (z. B. aus
@@ -77,7 +84,7 @@ export function recommendedProductsForKeys(keys = [], parameters = []) {
   const seen = new Set()
   const products = []
   for (const key of eligibleProductKeys(keys, parameters)) {
-    const custom = config[key]?.enabled && config[key].productName ? config[key] : null
+    const custom = config[key]?.productOverride && config[key].productName ? config[key] : null
     const catalog = ATI_PRODUCT_CATALOG[key]
     const productName = custom?.productName || catalog?.name
     if (!productName) continue
@@ -88,7 +95,7 @@ export function recommendedProductsForKeys(keys = [], parameters = []) {
       parameterKey: key,
       productName,
       productUrl: custom ? custom.productUrl : (catalog?.url || ''),
-      productImage: custom ? '' : (catalog?.image || ''),
+      productImage: custom ? custom.productImage : (catalog?.image || ''),
     })
   }
   return products
