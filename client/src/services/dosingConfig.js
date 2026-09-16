@@ -93,3 +93,23 @@ export function recommendedProductsForKeys(keys = [], parameters = []) {
   }
   return products
 }
+
+export function recommendedDosingProducts(items = [], parameters = []) {
+  const eligible = new Set(eligibleProductKeys(items.map((item) => item.key), parameters))
+  const seen = new Set()
+  return items.flatMap((item) => {
+    if (item.mode === 'water' || !eligible.has(item.key)) return []
+    const products = item.dose ? [{
+      parameterKey: item.key,
+      productName: item.dose.productName,
+      productUrl: item.dose.productUrl || '',
+      productImage: '',
+    }] : recommendedProductsForKeys([item.key], parameters)
+    return products.filter((product) => {
+      const key = product.productName.toLocaleLowerCase('de-DE')
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  })
+}

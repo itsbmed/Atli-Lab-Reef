@@ -426,6 +426,8 @@
           </template>
         </div>
 
+        <ProductSuggestions class="dosing-products" :products="dosingProducts(dosingCandidates)" />
+
         <section v-if="unverifiedDosingItems.length" class="dosing-review">
           <header>
             <div><span>Weitere Korrekturen</span><h4>Exakte Produktmenge noch nicht freigegeben</h4></div>
@@ -437,6 +439,7 @@
               <span :class="['review-symbol', item.tone]">{{ item.symbol }}</span>
               <div><strong>{{ item.label }}</strong><small>{{ formatNumber(item.value, 3) }} {{ item.unit }} · Ziel ab {{ formatNumber(item.targetValue, 3) }} {{ item.unit }}</small></div>
               <em>{{ dosingReviewStatus(item) }}</em>
+              <ProductSuggestions class="review-products" :products="dosingProducts([item])" />
             </article>
           </div>
           <RouterLink :to="`/analyses/${selectedDosingAnalysis.id}`" class="btn btn-ghost btn-sm">Korrekturplan im Bericht öffnen</RouterLink>
@@ -486,6 +489,8 @@ import {
 } from '@/services/toolsCalculations'
 import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import { recommendedDosingProducts } from '@/services/dosingConfig'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler)
 
@@ -917,6 +922,10 @@ function dosingReviewStatus(item) {
   if (!Number(selectedProfile.value?.net_volume)) return 'Nettovolumen fehlt'
   if (item.mode === 'water') return item.modeLabel
   return 'Produktformel fehlt'
+}
+
+function dosingProducts(items) {
+  return recommendedDosingProducts(items, selectedDosingAnalysis.value?.parameters || [])
 }
 
 function syncDosingAnalysis() {
@@ -1355,6 +1364,8 @@ onMounted(async () => {
 .dosing-review-list article div strong { color: var(--text); font-size: 12px; }
 .dosing-review-list article div small { margin-top: 2px; color: var(--text-muted); font-size: 10px; }
 .dosing-review-list article > em { padding: 5px 8px; border-radius: 999px; background: #fff1c7; color: #8d5708; font-size: 9px; font-style: normal; font-weight: 850; }
+.dosing-products { margin-top: 16px; }
+.review-products { grid-column: 1 / -1; width: 100%; }
 
 @media (max-width: 980px) {
   .tools-hero { grid-template-columns: 1fr; }

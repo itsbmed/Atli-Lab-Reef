@@ -76,7 +76,7 @@
             <div v-else><span>Produktmenge nicht freigegeben</span><strong>{{ formatMass(selectedItem.requiredMassMg) }} rechnerischer Elementbedarf</strong><p>Eine ml-Angabe erscheint erst mit einer laborgeprüften Produktkonzentration. So vermeiden wir Scheingenauigkeit.</p></div>
           </section>
 
-          <ProductSuggestions v-if="!selectedItem.dose && selectedItem.mode !== 'water'" class="recommended-products" :products="itemProducts(selectedItem)" />
+          <ProductSuggestions v-if="selectedItem.mode !== 'water'" class="recommended-products" :products="itemProducts(selectedItem)" />
 
           <section class="procedure">
             <header><span>So gehen Sie vor</span><strong>{{ selectedItem.recheckDays }} Tage bis zur Kontrolle</strong></header>
@@ -101,7 +101,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { buildDosingPlan, formatMass } from '@/services/dosingPlan'
-import { recommendedProductsForKeys } from '@/services/dosingConfig'
+import { recommendedDosingProducts } from '@/services/dosingConfig'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
@@ -126,7 +126,7 @@ function selectOffset(offset) {
 }
 
 function itemProducts(item) {
-  return recommendedProductsForKeys([item.key], props.analysis.parameters || [])
+  return recommendedDosingProducts([item], props.analysis.parameters || [])
 }
 </script>
 
