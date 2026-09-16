@@ -1,5 +1,5 @@
 <template>
-  <div class="report-page">
+  <div class="report-page tools-page">
     <div v-if="loading" class="loading" role="status">Werkzeuge werden geladen…</div>
 
     <EmptyState
@@ -115,7 +115,7 @@
           {{ saltValidationMessage || activeSalt.description }}
         </small>
 
-        <div class="form-grid">
+        <div class="form-grid waterchange-inputs">
           <div class="form-group">
             <label for="waterchange-count">Anzahl Wasserwechsel</label>
             <input id="waterchange-count" v-model.number="waterChanges" type="number" min="1" max="12" @change="normalizeWaterInputs" />
@@ -970,9 +970,9 @@ onMounted(async () => {
   grid-template-columns: minmax(min(100%, 520px), 1fr) minmax(min(100%, 320px), 0.42fr);
   gap: 24px;
   align-items: stretch;
-  padding: 36px;
-  margin-bottom: 22px;
-  border-radius: 30px;
+  padding: 30px 32px;
+  margin-bottom: 18px;
+  border-radius: 28px;
   background:
     linear-gradient(105deg, rgba(10,27,67,0.98), rgba(10,27,67,0.9) 45%, rgba(10,27,67,0.54)),
     url('/reeftech-pattern.jpg') center bottom / cover;
@@ -1002,8 +1002,8 @@ onMounted(async () => {
 }
 .tools-hero h1 {
   max-width: 760px;
-  font-size: clamp(34px, 5vw, 56px);
-  line-height: 0.98;
+  font-size: clamp(32px, 4.2vw, 48px);
+  line-height: 1;
   font-weight: var(--fw-heading-strong);
   letter-spacing: -0.055em;
   margin-bottom: 14px;
@@ -1011,23 +1011,24 @@ onMounted(async () => {
 .tools-hero p {
   max-width: 660px;
   color: rgba(255,255,255,0.72);
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.65;
 }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .hero-readout {
   display: grid;
-  grid-template-columns: 124px 1fr;
+  grid-template-columns: 106px 1fr;
   gap: 17px;
   align-items: center;
-  padding: 22px;
-  border-radius: 26px;
+  padding: 18px;
+  border-radius: 22px;
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.16);
   backdrop-filter: blur(18px);
 }
 .readout-ring {
-  width: 124px;
-  height: 124px;
+  width: 106px;
+  height: 106px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -1044,7 +1045,7 @@ onMounted(async () => {
 }
 .readout-ring strong,
 .readout-ring span { position: relative; z-index: 1; }
-.readout-ring strong { align-self: end; font-size: 38px; font-weight: var(--fw-heading-strong); letter-spacing: -0.06em; }
+.readout-ring strong { align-self: end; font-size: 32px; font-weight: var(--fw-heading-strong); letter-spacing: -0.06em; }
 .readout-ring span { align-self: start; margin-top: -8px; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: var(--fw-label); }
 .hero-readout div:last-child span { display: block; color: var(--teal-200); font-size: 11px; font-weight: var(--fw-label); letter-spacing: 0.08em; text-transform: uppercase; }
 .hero-readout div:last-child strong { display: block; margin-top: 5px; font-size: 22px; line-height: 1.05; font-weight: var(--fw-heading-strong); letter-spacing: -0.03em; }
@@ -1053,27 +1054,27 @@ onMounted(async () => {
 .tool-tabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 .tool-tab {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 38px 1fr;
   align-items: center;
   justify-content: start;
   gap: 12px;
-  min-height: 78px;
+  min-height: 68px;
   text-align: left;
-  padding: 14px 16px;
+  padding: 12px 14px;
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(136,193,233,0.18);
-  border-radius: 18px;
-  background: var(--panel);
+  border-radius: 16px;
+  background: #fff;
   color: var(--text);
   font-weight: var(--fw-extra-bold);
   cursor: pointer;
-  box-shadow: var(--shadow);
+  box-shadow: 0 10px 28px rgba(10,27,67,0.055);
   transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s, background 0.18s;
 }
 .tool-tab::before {
@@ -1088,15 +1089,15 @@ onMounted(async () => {
 .tool-tab:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: rgba(0,114,206,0.28); }
 .tool-tab.active {
   border-color: var(--brand-blue);
-  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,245,251,0.9));
+  background: linear-gradient(180deg, #fff, var(--teal-50));
   color: var(--brand-navy);
   box-shadow: 0 12px 30px rgba(0,114,206,0.12);
 }
 .tool-tab.active::before { opacity: 1; }
 .tool-tab-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   display: grid;
   place-items: center;
   background: var(--teal-50);
@@ -1104,7 +1105,7 @@ onMounted(async () => {
   grid-row: span 2;
   transition: background 0.18s, color 0.18s;
 }
-.tool-tab-icon svg { width: 22px; height: 22px; }
+.tool-tab-icon svg { width: 20px; height: 20px; }
 .tool-tab.active .tool-tab-icon {
   background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
   color: #fff;
@@ -1121,14 +1122,14 @@ onMounted(async () => {
 .tool-layout {
   display: grid;
   grid-template-columns: minmax(min(100%, 280px), 390px) minmax(min(100%, 560px), 1fr);
-  gap: 22px;
-  align-items: stretch;
+  gap: 18px;
+  align-items: start;
 }
 .tool-panel {
-  background:
-    linear-gradient(160deg, rgba(10,27,67,0.97), rgba(81,125,166,0.88));
-  color: #fff;
+  background: #fff;
+  color: var(--text);
   overflow: hidden;
+  border-top: 3px solid var(--brand-blue);
 }
 .tool-panel::after {
   content: '';
@@ -1137,12 +1138,12 @@ onMounted(async () => {
   bottom: -90px;
   width: 190px;
   height: 190px;
-  border: 32px solid rgba(255,255,255,0.07);
+  border: 32px solid rgba(0,114,206,0.045);
   border-radius: 50%;
 }
 .tool-panel > * { position: relative; z-index: 1; }
 .panel-kicker {
-  color: var(--brand-cyan);
+  color: var(--brand-blue);
   font-size: 11px;
   font-weight: var(--fw-heading-strong);
   letter-spacing: 0.12em;
@@ -1150,59 +1151,64 @@ onMounted(async () => {
   margin-bottom: 6px;
 }
 .tool-panel h2,
-.chart-heading h3 { font-size: 18px; font-weight: var(--fw-heading-strong); color: inherit; margin-bottom: 16px; letter-spacing: -0.02em; }
-.panel-copy { color: rgba(255,255,255,0.68); font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
-.tool-panel .form-group label { color: rgba(255,255,255,0.66); }
-.tool-panel .form-group label em { color: rgba(255,255,255,0.5); font-style: normal; }
+.chart-heading h3 { font-size: 18px; font-weight: var(--fw-heading-strong); color: var(--brand-navy); margin-bottom: 16px; letter-spacing: -0.02em; }
+.panel-copy { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
+.tool-panel .form-group label { color: var(--text-muted); }
+.tool-panel .form-group label em { color: #8191a6; font-style: normal; }
 .group-label {
   display: block;
   margin-bottom: 6px;
-  color: rgba(255,255,255,0.66);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: var(--fw-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.field-hint { display: block; margin-top: 6px; color: rgba(255,255,255,0.55); font-size: 11px; line-height: 1.45; }
-.field-error { color: #ffd1c7; }
+.field-hint { display: block; margin-top: 6px; color: #718198; font-size: 11px; line-height: 1.45; }
+.field-error { color: #c74338; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }
+.waterchange-inputs { align-items: end; }
+.waterchange-inputs .form-group { display: grid; grid-template-rows: minmax(2.8em, auto) auto; align-content: end; }
+.waterchange-inputs .form-group label { display: flex; align-items: flex-end; }
 .dose-adjustments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 
 .input-unit { display: flex; gap: 8px; align-items: stretch; }
 .input-unit input { flex: 1; min-width: 0; }
 .unit-toggle {
   display: flex;
-  border: 1px solid rgba(255,255,255,0.22);
+  padding: 3px;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  background: var(--surface-soft);
   flex-shrink: 0;
 }
 .unit-toggle button {
   padding: 0 13px;
   border: 0;
   background: transparent;
-  color: rgba(255,255,255,0.72);
+  border-radius: 9px;
+  color: var(--text-muted);
   font-weight: var(--fw-extra-bold);
   font-size: 13px;
   cursor: pointer;
   transition: background 0.16s, color 0.16s;
 }
-.unit-toggle button.active { background: var(--brand-cyan); color: #06283d; }
+.unit-toggle button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 3px 10px rgba(10,27,67,.1); }
 
 .seg-toggle { display: flex; gap: 6px; }
 .seg-toggle button {
   flex: 1;
   padding: 9px 6px;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.78);
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: var(--fw-extra-bold);
   cursor: pointer;
   transition: background 0.16s, color 0.16s, border-color 0.16s;
 }
-.seg-toggle button.active { background: #fff; color: var(--brand-navy); border-color: #fff; }
+.seg-toggle button.active { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); box-shadow: 0 5px 14px rgba(0,114,206,.2); }
 
 .tool-summary {
   display: grid;
@@ -1211,17 +1217,17 @@ onMounted(async () => {
   margin-top: 4px;
 }
 .tool-summary div {
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid rgba(0,114,206,0.14);
   border-radius: 16px;
   padding: 12px;
-  background: rgba(255,255,255,0.1);
+  background: var(--teal-50);
 }
-.tool-summary strong { display: block; font-size: 24px; line-height: 1; color: #fff; letter-spacing: -0.03em; }
-.tool-summary span { font-size: 12px; color: rgba(255,255,255,0.65); }
+.tool-summary strong { display: block; font-size: 24px; line-height: 1; color: var(--brand-navy); letter-spacing: -0.03em; }
+.tool-summary span { font-size: 12px; color: var(--text-muted); }
 
 .chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .chart-heading h3 { margin: 0; }
-.chart-card { padding: 28px; }
+.chart-card { padding: 24px; }
 .chart-wrap { height: 320px; min-height: 260px; }
 
 .index-strip { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
@@ -1280,7 +1286,7 @@ onMounted(async () => {
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(255,255,255,0.7);
+  background: #fff;
 }
 .recipe-row.head {
   background: rgba(234,249,252,0.9);
@@ -1300,7 +1306,7 @@ onMounted(async () => {
 .r-dose small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--text-muted); font-weight: var(--fw-ui); }
 .r-prod { font-size: 12px; color: var(--text-muted); }
 
-.dosing-card { overflow-x: auto; padding: 28px; }
+.dosing-card { overflow-x: auto; padding: 24px; }
 .dosing-card .chart-heading > div small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 11px; }
 .dosing-course-note { display: flex; align-items: flex-start; gap: 10px; min-width: 620px; margin: 14px 0; padding: 12px 14px; border-radius: 12px; background: #eef7fd; color: #456378; font-size: 12px; line-height: 1.5; }
 .dosing-course-note i { display: grid; place-items: center; flex: none; width: 23px; height: 23px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-style: normal; font-weight: 900; }
@@ -1356,16 +1362,29 @@ onMounted(async () => {
   .tool-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
-  .tools-hero { padding: 26px; }
+  .tools-hero { padding: 24px; border-radius: 22px; }
   .tools-hero h1 { font-size: 34px; }
   .hero-actions { flex-direction: column; }
   .hero-actions .btn { width: 100%; }
-  .hero-readout { grid-template-columns: 1fr; }
+  .hero-readout { grid-template-columns: 90px 1fr; }
+  .readout-ring { width: 90px; height: 90px; }
+  .readout-ring strong { font-size: 28px; }
+  .tool-tabs { grid-template-columns: 1fr 1fr; }
   .tool-tab { min-height: 68px; font-size: 12px; }
   .chart-wrap { height: 280px; }
   .recipe-row { grid-template-columns: 1fr 1fr; gap: 8px; }
   .recipe-row.head { display: none; }
   .dose-adjustments { grid-template-columns: 1fr; }
   .dosing-card { padding: 18px; }
+}
+@media (max-width: 430px) {
+  .tools-hero { padding: 22px 20px; }
+  .tools-hero h1 { font-size: 31px; }
+  .hero-readout { grid-template-columns: 1fr; }
+  .tool-tabs { grid-template-columns: 1fr; }
+  .tool-tab { min-height: 62px; }
+  .chart-card { padding: 18px; }
+  .index-strip { align-items: stretch; }
+  .index-arrow { width: 20px; }
 }
 </style>

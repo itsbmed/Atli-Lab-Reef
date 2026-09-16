@@ -1,11 +1,13 @@
 <template>
-  <div class="report-page">
-    <div class="page-header">
-      <div class="page-title-row">
-        <RouterLink to="/tools" class="btn btn-ghost btn-sm">← Tools</RouterLink>
+  <div class="report-page trends-page">
+    <header class="trends-header">
+      <div>
+        <span class="header-kicker">Werkzeuge · Verlauf</span>
         <h1>Trenddiagramme</h1>
+        <p>Laborwerte über mehrere Analysen vergleichen und Veränderungen früh erkennen.</p>
       </div>
-    </div>
+      <RouterLink to="/tools" class="btn btn-ghost">← Zurück zu Tools</RouterLink>
+    </header>
 
     <div class="card controls">
       <div class="controls-row">
@@ -51,7 +53,13 @@
     </EmptyState>
 
     <div v-else class="card chart-card">
-      <h2 class="chart-title">{{ activeParameter.label }} im Verlauf <span>{{ activeUnit }}</span></h2>
+      <div class="chart-heading">
+        <div>
+          <span>Ausgewählter Parameter</span>
+          <h2 class="chart-title">{{ activeParameter.label }} im Verlauf</h2>
+        </div>
+        <strong>{{ activeUnit }}</strong>
+      </div>
       <div class="chart-container" role="img" :aria-label="`${activeParameter.label} im zeitlichen Verlauf`">
         <Line :data="chartData" :options="chartOptions" />
       </div>
@@ -150,17 +158,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-title-row { display: flex; align-items: center; gap: 12px; }
-.controls { margin-bottom: 20px; }
-.controls-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
-.controls-row .form-group { min-width: 180px; margin: 0; }
-.chart-card { padding: 28px; }
-.chart-title { margin-bottom: 16px; color: var(--text); font-size: 18px; font-weight: var(--fw-bold); }
-.chart-title span { margin-left: 5px; color: var(--text-muted); font-size: 12px; font-weight: var(--fw-medium); }
+.trends-page { display: grid; gap: 18px; }
+.trends-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 32px;
+  border-radius: 26px;
+  color: #fff;
+  background: linear-gradient(112deg, rgba(10,27,67,.98), rgba(18,66,109,.92) 60%, rgba(0,114,206,.75)), url('/reeftech-pattern.jpg') center / cover;
+  box-shadow: var(--shadow-md);
+}
+.header-kicker { display: block; margin-bottom: 7px; color: var(--brand-cyan); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.trends-header h1 { margin: 0; font-size: clamp(31px, 4vw, 44px); line-height: 1; letter-spacing: -.045em; }
+.trends-header p { max-width: 620px; margin-top: 9px; color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.55; }
+.trends-header .btn-ghost { flex: none; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); color: #fff; }
+.controls { margin: 0; padding: 18px 20px; border-top: 3px solid var(--brand-blue); }
+.controls-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; }
+.controls-row .form-group { min-width: 0; margin: 0; }
+.chart-card { padding: 24px; }
+.chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.chart-heading span { display: block; color: var(--brand-blue); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.chart-title { margin-top: 3px; color: var(--brand-navy); font-size: 20px; font-weight: var(--fw-heading-strong); letter-spacing: -.02em; }
+.chart-heading > strong { padding: 7px 11px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; }
 .chart-container { height: 360px; }
+@media (max-width: 760px) {
+  .trends-header { align-items: flex-start; flex-direction: column; padding: 25px 24px; }
+  .controls-row { grid-template-columns: 1fr; }
+}
 @media (max-width: 600px) {
-  .page-title-row { align-items: flex-start; flex-direction: column; }
-  .controls-row .form-group { width: 100%; min-width: 0; }
+  .trends-header { border-radius: 22px; }
+  .trends-header .btn { width: 100%; }
   .chart-card { padding: 18px; }
   .chart-container { height: 300px; }
 }
