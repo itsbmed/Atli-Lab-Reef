@@ -63,7 +63,7 @@
         <div class="topbar-search" @focusin="searchOpen = true" @focusout="closeSearchSoon">
           <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/></svg>
           <input type="search" placeholder="Suche nach Aquarium, Analyse, Barcode…" v-model="searchQuery" />
-          <button v-if="searchQuery" class="search-clear" type="button" @mousedown.prevent="searchQuery = ''">×</button>
+          <button v-if="searchQuery" class="search-clear" type="button" aria-label="Suche zurücksetzen" @mousedown.prevent @click="searchQuery = ''">×</button>
           <div v-if="searchOpen" class="search-panel">
             <div v-if="!searchQuery" class="search-help">
               <span>Direktsuche</span>
@@ -77,7 +77,8 @@
                   :key="item.id"
                   type="button"
                   class="search-result"
-                  @mousedown.prevent="goToAquarium(item.id)"
+                  @mousedown.prevent
+                  @click="goToAquarium(item.id)"
                 >
                   <span class="search-result-icon" v-html="iconTank"></span>
                   <span class="search-result-body">
@@ -93,7 +94,8 @@
                   :key="item.id"
                   type="button"
                   class="search-result"
-                  @mousedown.prevent="goToAnalysis(item.id)"
+                  @mousedown.prevent
+                  @click="goToAnalysis(item.id)"
                 >
                   <span class="search-result-icon" v-html="iconChart"></span>
                   <span class="search-result-body">
@@ -221,7 +223,10 @@ const analysesStore = useAnalysesStore()
 
 const searchQuery = ref('')
 const searchOpen = ref(false)
-function closeSearchSoon() { setTimeout(() => { searchOpen.value = false }, 120) }
+function closeSearchSoon(event) {
+  if (event.currentTarget.contains(event.relatedTarget)) return
+  searchOpen.value = false
+}
 
 // Direktsuche greift auf die bereits geladenen Aquarien-/Analysen-Stores zu,
 // die hier bei Bedarf (erneut) geladen werden, damit die Suche auch dann
