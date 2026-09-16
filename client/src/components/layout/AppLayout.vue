@@ -63,11 +63,49 @@
         <div class="topbar-search" @focusin="searchOpen = true" @focusout="closeSearchSoon">
           <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/></svg>
           <input type="search" placeholder="Suche nach Aquarium, Analyse, Barcode…" v-model="searchQuery" />
-          <button v-if="searchQuery" class="search-clear" type="button" @click="searchQuery = ''">×</button>
+          <button v-if="searchQuery" class="search-clear" type="button" @mousedown.prevent="searchQuery = ''">×</button>
           <div v-if="searchOpen" class="search-panel">
-            <div class="search-help">
+            <div v-if="!searchQuery" class="search-help">
               <span>Direktsuche</span>
               <strong>Aquarien, Barcodes und Analyseberichte finden</strong>
+            </div>
+            <template v-else-if="hasSearchResults">
+              <div v-if="aquariumResults.length" class="search-group">
+                <span class="search-group-label">Aquarien</span>
+                <button
+                  v-for="item in aquariumResults"
+                  :key="item.id"
+                  type="button"
+                  class="search-result"
+                  @mousedown.prevent="goToAquarium(item.id)"
+                >
+                  <span class="search-result-icon" v-html="iconTank"></span>
+                  <span class="search-result-body">
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ item.aquarium_type || item.water_type }}</small>
+                  </span>
+                </button>
+              </div>
+              <div v-if="analysisResults.length" class="search-group">
+                <span class="search-group-label">Analysen</span>
+                <button
+                  v-for="item in analysisResults"
+                  :key="item.id"
+                  type="button"
+                  class="search-result"
+                  @mousedown.prevent="goToAnalysis(item.id)"
+                >
+                  <span class="search-result-icon" v-html="iconChart"></span>
+                  <span class="search-result-body">
+                    <strong>{{ item.barcode }}</strong>
+                    <small>{{ item.aquariumName }} · {{ item.statusLabel }}</small>
+                  </span>
+                </button>
+              </div>
+            </template>
+            <div v-else class="search-help">
+              <span>Keine Treffer</span>
+              <strong>Für „{{ searchQuery }}" wurde nichts gefunden</strong>
             </div>
           </div>
         </div>
@@ -168,18 +206,69 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAquariumsStore } from '@/stores/aquariums'
+import { useAnalysesStore } from '@/stores/analyses'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const aquariumsStore = useAquariumsStore()
+const analysesStore = useAnalysesStore()
 
 const searchQuery = ref('')
 const searchOpen = ref(false)
 function closeSearchSoon() { setTimeout(() => { searchOpen.value = false }, 120) }
+
+// Direktsuche greift auf die bereits geladenen Aquarien-/Analysen-Stores zu,
+// die hier bei Bedarf (erneut) geladen werden, damit die Suche auch dann
+// Treffer liefert, wenn noch keine der jeweiligen Seiten besucht wurde.
+function loadSearchSources() {
+  if (!auth.isLoggedIn) return
+  aquariumsStore.load()
+  analysesStore.load()
+}
+onMounted(loadSearchSources)
+watch(() => auth.user?.id, loadSearchSources)
+
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase())
+
+function matches(fields, query) {
+  return fields.filter(Boolean).some((field) => String(field).toLowerCase().includes(query))
+}
+
+const aquariumResults = computed(() => {
+  const query = normalizedSearchQuery.value
+  if (!query) return []
+  return aquariumsStore.items
+    .filter((a) => matches([a.name, a.aquarium_type, a.water_type, a.dimensions], query))
+    .slice(0, 5)
+})
+
+const analysisResults = computed(() => {
+  const query = normalizedSearchQuery.value
+  if (!query) return []
+  return analysesStore.items
+    .filter((a) => matches([a.barcode, a.reportNumber, a.aquariumName, a.packageLabel, a.reasonLabel, a.statusLabel], query))
+    .slice(0, 5)
+})
+
+const hasSearchResults = computed(() => aquariumResults.value.length > 0 || analysisResults.value.length > 0)
+
+function goToAquarium(id) {
+  searchQuery.value = ''
+  searchOpen.value = false
+  router.push(`/aquariums/${id}`)
+}
+
+function goToAnalysis(id) {
+  searchQuery.value = ''
+  searchOpen.value = false
+  router.push(`/analyses/${id}`)
+}
 
 // Mobiles Menü: Bottom-Tabbar + „Mehr“-Sheet (wie im Hauptprojekt).
 const mobileMenuOpen = ref(false)
@@ -357,6 +446,15 @@ const sheetNav = computed(() => [...mainNav, ...accountNav.value])
 .search-help { padding: 16px; }
 .search-help span { display: block; color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .search-help strong { display: block; margin-top: 4px; color: var(--text); font-size: 13px; font-weight: 700; }
+.search-group { padding: 6px; }
+.search-group + .search-group { border-top: 1px solid rgba(93,132,145,0.14); margin-top: 4px; padding-top: 8px; }
+.search-group-label { display: block; padding: 6px 10px 4px; color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.search-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; background: none; border-radius: 12px; cursor: pointer; text-align: left; transition: background 0.12s; }
+.search-result:hover { background: var(--teal-50); }
+.search-result-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; color: var(--teal-600); background: var(--teal-50); }
+.search-result-body { display: flex; flex-direction: column; min-width: 0; }
+.search-result-body strong { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-result-body small { font-size: 11.5px; color: var(--text-muted); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .icon-btn { position: relative; width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(93,132,145,0.16); background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: border-color 0.15s, color 0.15s; }
 .icon-btn:hover { border-color: var(--teal-400); color: var(--teal-500); }
