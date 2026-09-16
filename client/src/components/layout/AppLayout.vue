@@ -17,9 +17,8 @@
         <component
           v-for="item in mainNav"
           :key="item.label"
-          :is="item.to ? 'RouterLink' : 'a'"
+          :is="item.to ? RouterLink : 'a'"
           :to="item.to || undefined"
-          :href="item.to ? undefined : '#'"
           class="nav-item"
           :class="{ 'nav-item--active': isActive(item) }"
         >
@@ -31,9 +30,8 @@
         <component
           v-for="item in accountNav"
           :key="item.label"
-          :is="item.to ? 'RouterLink' : 'a'"
+          :is="item.to ? RouterLink : 'a'"
           :to="item.to || undefined"
-          :href="item.to ? undefined : '#'"
           class="nav-item"
           :class="{ 'nav-item--active': isActive(item) }"
         >
@@ -111,7 +109,7 @@
       <component
         v-for="item in mobilePrimary"
         :key="item.label"
-        :is="item.to ? 'RouterLink' : 'button'"
+        :is="item.to ? RouterLink : 'button'"
         :to="item.to || undefined"
         type="button"
         class="tabbar-item"
@@ -150,7 +148,7 @@
             <component
               v-for="item in sheetNav"
               :key="item.label"
-              :is="item.to ? 'RouterLink' : 'button'"
+              :is="item.to ? RouterLink : 'button'"
               :to="item.to || undefined"
               type="button"
               class="sheet-item"
@@ -171,7 +169,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
 
@@ -195,6 +193,7 @@ const routeMeta = {
   '/aquariums': { title: 'Aquarien', sub: () => 'Ihre Becken im Überblick' },
   '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
+  '/recommendations': { title: 'Empfehlungen', sub: () => 'Offene Maßnahmen aus Ihren neuesten Laborberichten' },
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
   '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
   '/tools': { title: 'Tools', sub: () => 'Wasserwechsel, Verbrauch und Dosierung planen' },
@@ -233,7 +232,7 @@ const mainNav = [
   { label: 'Übersicht', icon: iconHome, to: '/dashboard' },
   { label: 'Aquarien', icon: iconTank, to: '/aquariums' },
   { label: 'Analysen', icon: iconChart, to: '/analyses' },
-  { label: 'Empfehlungen', icon: iconBulb, to: null },
+  { label: 'Empfehlungen', icon: iconBulb, to: '/recommendations' },
   { label: 'Chronik', icon: iconClock, to: '/chronik' },
   { label: 'Tools', icon: iconTools, to: '/tools' },
 ]

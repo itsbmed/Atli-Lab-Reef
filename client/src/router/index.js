@@ -13,6 +13,7 @@ const routes = [
   { path: '/analyses', name: 'Analyses', component: () => import('@/views/analyses/AnalysesView.vue'), meta: { public: true, shell: true } },
   { path: '/analyses/activate', name: 'ActivateAnalysis', component: () => import('@/views/analyses/ActivateView.vue'), meta: { public: true, shell: true } },
   { path: '/analyses/:id', name: 'AnalysisReport', component: () => import('@/views/analyses/ReportView.vue'), meta: { public: true, shell: true } },
+  { path: '/recommendations', name: 'Recommendations', component: () => import('@/views/RecommendationsView.vue'), meta: { auth: true, shell: true } },
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { public: true, shell: true } },
   { path: '/support', name: 'Support', component: () => import('@/views/SupportView.vue'), meta: { public: true, shell: true } },
   { path: '/tools', name: 'Tools', component: () => import('@/views/tools/ToolsView.vue'), meta: { auth: true, shell: true } },
