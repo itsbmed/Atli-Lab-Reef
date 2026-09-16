@@ -87,7 +87,7 @@ function createProgram(gl) {
   return null
 }
 
-export function mountHeroWaterEffect(frame, image) {
+export function mountHeroWaterEffect(frame, image, options = {}) {
   if (!frame || !image || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {}
 
   const canvas = document.createElement('canvas')
@@ -95,12 +95,15 @@ export function mountHeroWaterEffect(frame, image) {
   Object.assign(canvas.style, {
     position: 'absolute',
     inset: '0',
-    zIndex: '0',
+    zIndex: String(options.zIndex ?? 0),
     width: '100%',
     height: '100%',
     pointerEvents: 'none',
     transition: 'transform .6s',
     transformOrigin: 'center',
+    opacity: String(options.opacity ?? 1),
+    mixBlendMode: options.mixBlendMode || 'normal',
+    filter: options.filter || 'none',
   })
 
   const gl = canvas.getContext('webgl', {
@@ -206,7 +209,7 @@ export function mountHeroWaterEffect(frame, image) {
   }
 
   function onPointerEnter() {
-    canvas.style.transform = 'scale(1.04)'
+    canvas.style.transform = `scale(${options.hoverScale ?? 1.04})`
   }
 
   function onPointerLeave() {

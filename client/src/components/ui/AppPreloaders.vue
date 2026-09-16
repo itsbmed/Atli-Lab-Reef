@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="first-loader">
-      <div v-if="showFirstVisit" class="first-visit-loader" role="status" aria-live="polite" :aria-label="phases[phase]">
+      <div ref="loaderFrame" v-if="showFirstVisit" class="first-visit-loader" role="status" aria-live="polite" :aria-label="phases[phase]">
         <div class="loader-particles" aria-hidden="true">
           <i v-for="particle in particles" :key="particle.id" :style="particle.style"></i>
         </div>
@@ -54,11 +54,13 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { APP_PRELOADER_EVENT } from '@/services/appPreloader'
+import { mountHeroWaterEffect } from '@/services/heroWaterEffect'
 
 const FIRST_VISIT_DURATION = 5200
 const showFirstVisit = ref(false)
+const loaderFrame = ref(null)
 const phase = ref(0)
 const progress = ref(6)
 const phases = [
@@ -68,6 +70,8 @@ const phases = [
   'Ihr persönlicher Wasserbericht ist bereit',
 ]
 const timers = new Set()
+let destroyWaterEffect = () => {}
+let waterTexture = null
 
 const particles = computed(() => Array.from({ length: 18 }, (_, index) => ({
   id: index,
@@ -103,6 +107,7 @@ function playFirstVisitLoader() {
   progress.value = 6
   showFirstVisit.value = true
   document.documentElement.classList.add('is-preloading')
+  mountLoaderWaterEffect()
 
   later(() => {
     phase.value = 1
@@ -120,9 +125,31 @@ function playFirstVisitLoader() {
     progress.value = 100
   }, 4750)
   later(() => {
+    destroyWaterEffect()
+    destroyWaterEffect = () => {}
     showFirstVisit.value = false
     document.documentElement.classList.remove('is-preloading')
   }, FIRST_VISIT_DURATION)
+}
+
+async function mountLoaderWaterEffect() {
+  await nextTick()
+  if (!showFirstVisit.value || !loaderFrame.value) return
+  destroyWaterEffect()
+  waterTexture = new Image()
+  waterTexture.src = '/reeftech-pattern.jpg'
+  try {
+    await waterTexture.decode()
+  } catch {
+    return
+  }
+  if (!showFirstVisit.value || !loaderFrame.value) return
+  destroyWaterEffect = mountHeroWaterEffect(loaderFrame.value, waterTexture, {
+    opacity: 0.34,
+    mixBlendMode: 'screen',
+    filter: 'saturate(1.35) contrast(1.08)',
+    hoverScale: 1.015,
+  })
 }
 
 function handlePreloaderRequest() {
@@ -137,6 +164,8 @@ onBeforeUnmount(() => {
   window.removeEventListener(APP_PRELOADER_EVENT, handlePreloaderRequest)
   timers.forEach((timer) => window.clearTimeout(timer))
   timers.clear()
+  destroyWaterEffect()
+  waterTexture = null
   document.documentElement.classList.remove('is-preloading')
 })
 </script>
@@ -144,12 +173,13 @@ onBeforeUnmount(() => {
 <style scoped>
 .first-visit-loader { position:fixed; inset:0; z-index:10000; }
 .first-visit-loader { display:grid; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 45%,rgba(0,190,208,.2),transparent 25rem),linear-gradient(145deg,#071737,#0a1b43 58%,#07355a); color:#fff; }
-.first-visit-loader::before { position:absolute; inset:0; background-image:linear-gradient(rgba(136,193,233,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(136,193,233,.04) 1px,transparent 1px); background-size:42px 42px; mask-image:radial-gradient(circle at center,#000,transparent 66%); content:''; animation:grid-breathe 4s ease-in-out infinite; }
-.first-visit-loader::after { position:absolute; top:50%; left:50%; width:min(78vw,760px); aspect-ratio:1; border:1px solid rgba(136,193,233,.08); border-radius:50%; content:''; transform:translate(-50%,-50%); box-shadow:0 0 0 90px rgba(136,193,233,.025),0 0 0 180px rgba(136,193,233,.018); }
+.first-visit-loader::before { position:absolute; inset:0; z-index:1; pointer-events:none; background-image:linear-gradient(rgba(136,193,233,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(136,193,233,.04) 1px,transparent 1px); background-size:42px 42px; mask-image:radial-gradient(circle at center,#000,transparent 66%); content:''; animation:grid-breathe 4s ease-in-out infinite; }
+.first-visit-loader::after { position:absolute; z-index:1; top:50%; left:50%; width:min(78vw,760px); aspect-ratio:1; pointer-events:none; border:1px solid rgba(136,193,233,.08); border-radius:50%; content:''; transform:translate(-50%,-50%); box-shadow:0 0 0 90px rgba(136,193,233,.025),0 0 0 180px rgba(136,193,233,.018); }
 .first-loader-brand { position:absolute; top:clamp(24px,6vh,64px); left:50%; display:flex; align-items:center; gap:14px; transform:translateX(-50%); }
+.first-loader-brand,.analysis-stage,.first-loader-status { z-index:2; }
 .first-loader-brand img { width:92px; filter:brightness(0) invert(1); opacity:.92; }
 .first-loader-brand span { padding-left:14px; border-left:1px solid rgba(255,255,255,.22); color:rgba(255,255,255,.66); font-size:12px; font-weight:750; letter-spacing:.13em; text-transform:uppercase; }
-.loader-particles { position:absolute; inset:0; }
+.loader-particles { position:absolute; z-index:1; inset:0; pointer-events:none; }
 .loader-particles i { position:absolute; top:var(--particle-y); left:var(--particle-x); width:var(--particle-size); height:var(--particle-size); border-radius:50%; background:rgba(136,225,239,.55); box-shadow:0 0 12px rgba(0,190,208,.5); animation:particle-drift var(--particle-duration) ease-in-out var(--particle-delay) infinite; }
 .analysis-stage { position:relative; width:min(88vw,480px); aspect-ratio:1; margin-top:-54px; }
 .analysis-lens { position:absolute; inset:17%; overflow:hidden; border:1px solid rgba(161,236,244,.44); border-radius:50%; background:radial-gradient(circle at 45% 38%,rgba(95,232,241,.26),transparent 24%),radial-gradient(circle at center,rgba(0,190,208,.25),rgba(0,67,113,.58) 58%,rgba(2,20,50,.86)); box-shadow:inset 0 0 32px rgba(118,230,243,.18),0 0 0 10px rgba(136,225,239,.035),0 28px 80px rgba(0,0,0,.35),0 0 50px rgba(0,190,208,.12); }
