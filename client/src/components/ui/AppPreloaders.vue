@@ -58,7 +58,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { APP_PRELOADER_EVENT } from '@/services/appPreloader'
 import { mountHeroWaterEffect } from '@/services/heroWaterEffect'
 
-const FIRST_VISIT_DURATION = 5200
+const FIRST_VISIT_DURATION = 3200
 const showFirstVisit = ref(false)
 const loaderFrame = ref(null)
 const phase = ref(0)
@@ -112,18 +112,18 @@ function playFirstVisitLoader() {
   later(() => {
     phase.value = 1
     progress.value = 34
-  }, 1050)
+  }, 650)
   later(() => {
     phase.value = 2
     progress.value = 68
-  }, 2550)
+  }, 1550)
   later(() => {
     phase.value = 3
     progress.value = 92
-  }, 4050)
+  }, 2450)
   later(() => {
     progress.value = 100
-  }, 4750)
+  }, 2750)
   later(() => {
     destroyWaterEffect()
     destroyWaterEffect = () => {}
