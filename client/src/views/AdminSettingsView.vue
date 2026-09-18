@@ -491,7 +491,7 @@ function resetSelectedDosing() {
   dosingSaveState.type = ''
 }
 function formatDosingNumber(value) {
-  return Number(Number(value || 0).toFixed(2)).toLocaleString('de-DE')
+  return Number(value || 0).toLocaleString('de-DE', { maximumFractionDigits: 6 })
 }
 function saveDosing() {
   if (!['admin', 'subadmin'].includes(auth.user?.role)) {

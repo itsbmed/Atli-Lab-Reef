@@ -3,8 +3,8 @@
     <header class="plan-header">
       <div>
         <span>Dosierungsplan · {{ analysis.reportNumber }}</span>
-        <h2>Ihr Korrekturplan</h2>
-        <p>In der richtigen Reihenfolge – vom stabilen Grundsystem bis zur gezielten Elementkorrektur.</p>
+        <h2>Ihr Dosierungsplan</h2>
+        <p>Erforderliche Produktdosierungen mit freigegebenen Mengen und täglichen Zugabegrenzen.</p>
       </div>
       <div class="aquarium-context">
         <small>Berechnungsgrundlage</small>
@@ -18,15 +18,16 @@
     </div>
 
     <div v-else-if="!plan.length" class="clean-state">
-      <i>✓</i><div><strong>Keine Unterversorgung erkannt</strong><p>Aktuell ist für keinen dosierbaren Messwert eine Anhebung erforderlich.</p></div>
+      <i>i</i><div><strong>Keine freigegebene Produktdosierung</strong><p>{{ corrections.length ? 'Für niedrige Werte fehlen eine freigegebene Produktformel, ein Tageslimit oder eine direkte Dosierempfehlung. Weitere Maßnahmen finden Sie in den Empfehlungen der Analyse.' : 'Aktuell ist für keinen dosierbaren Messwert eine Anhebung erforderlich.' }}</p></div>
     </div>
 
     <template v-else>
+      <DosingCalendar :items="plan" :aquarium-name="analysis.aquariumName" :report-number="analysis.reportNumber" :volume="volume" />
       <section class="plan-summary" aria-label="Zusammenfassung des Korrekturplans">
         <div><span>Zu korrigieren</span><strong>{{ plan.length }}</strong><small>{{ plan.length === 1 ? 'Messwert' : 'Messwerte' }}</small></div>
-        <div><span>Zuerst stabilisieren</span><strong>{{ foundationCount }}</strong><small>Basis- oder Wasserwerte</small></div>
-        <div><span>Gezielte Ergänzung</span><strong>{{ productCount }}</strong><small>Elemente</small></div>
-        <div :class="{ ready: verifiedDoseCount === doseCandidateCount && doseCandidateCount > 0 }"><span>Exakt freigegeben</span><strong>{{ verifiedDoseCount }}/{{ doseCandidateCount }}</strong><small>mögliche Produktpläne</small></div>
+        <div><span>Kursdauer</span><strong>{{ Math.max(...plan.map(item => item.dose.days)) }}</strong><small>Tage</small></div>
+        <div><span>Tageslimit</span><strong>✓</strong><small>je Produkt berücksichtigt</small></div>
+        <div class="ready"><span>Exakt freigegeben</span><strong>{{ plan.length }}</strong><small>Produktpläne</small></div>
       </section>
 
       <div class="sequence-note"><i>i</i><p><strong>Reihenfolge beachten:</strong> Erst Salinität und Ionengleichgewicht stabilisieren. Danach Mengen- und zuletzt Spurenelemente korrigieren.</p></div>
@@ -62,7 +63,7 @@
           <section v-if="selectedItem.dose" class="verified-dose">
             <header><div><span>Laborgeprüfte Produktdosierung</span><h4>{{ selectedItem.dose.productName }}</h4></div><b>Verifiziert</b></header>
             <div class="dose-metrics">
-              <div><span>Pro Tag</span><strong>{{ formatNumber(selectedItem.dose.dailyMl) }} ml</strong></div>
+              <div><span>Pro Tag · maximal</span><strong>{{ formatNumber(selectedItem.dose.dailyMl) }} ml</strong></div>
               <div><span>Dauer</span><strong>{{ selectedItem.dose.days }} {{ selectedItem.dose.days === 1 ? 'Tag' : 'Tage' }}</strong></div>
               <div><span>Gesamt</span><strong>{{ formatNumber(selectedItem.dose.totalMl) }} ml</strong></div>
             </div>
@@ -103,21 +104,19 @@ import { computed, ref } from 'vue'
 import { buildDosingPlan, formatMass } from '@/services/dosingPlan'
 import { recommendedDosingProducts } from '@/services/dosingConfig'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
 const selectedKey = ref('')
 const volume = computed(() => Number(props.analysis.aquariumProfile?.volumeLiters || props.analysis.aquariumProfile?.net_volume || 0))
 const supplySystem = computed(() => props.analysis.aquariumProfile?.supplySystem || 'Versorgung nicht hinterlegt')
-const plan = computed(() => buildDosingPlan(props.analysis.parameters, volume.value))
+const corrections = computed(() => buildDosingPlan(props.analysis.parameters, volume.value))
+const plan = computed(() => corrections.value.filter(item => item.dose))
 const selectedItem = computed(() => plan.value.find((item) => item.key === selectedKey.value) || plan.value[0] || null)
 const selectedIndex = computed(() => Math.max(0, plan.value.findIndex((item) => item.key === selectedItem.value?.key)))
-const foundationCount = computed(() => plan.value.filter((item) => ['water', 'supply'].includes(item.mode)).length)
-const productCount = computed(() => plan.value.filter((item) => item.mode === 'product').length)
-const doseCandidateCount = computed(() => plan.value.filter((item) => item.mode !== 'water').length)
-const verifiedDoseCount = computed(() => plan.value.filter((item) => item.dose).length)
 
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString('de-DE', { maximumFractionDigits: 3 })
+  return Number(value || 0).toLocaleString('de-DE', { maximumFractionDigits: 6 })
 }
 
 function selectOffset(offset) {

@@ -48,7 +48,7 @@
           Übersicht &amp; Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
-          Dosierungsplan <b v-if="lowParameters.length">{{ lowParameters.length }}</b>
+          Dosierungsplan <b v-if="approvedDosingItems.length">{{ approvedDosingItems.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
@@ -481,7 +481,7 @@ import { useAuthStore } from '@/stores/auth'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
 import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
-import { isLowParameter } from '@/services/dosingPlan'
+import { buildDosingPlan } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
 import { recommendedProductsForKeys } from '@/services/dosingConfig'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
@@ -574,7 +574,7 @@ const explorerSummary = computed(() => {
   return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
 })
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
-const lowParameters = computed(() => (analysis.value?.parameters || []).filter(isLowParameter))
+const approvedDosingItems = computed(() => buildDosingPlan(analysis.value?.parameters || [], Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0)).filter(item => item.dose))
 const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))

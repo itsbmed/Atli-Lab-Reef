@@ -1,5 +1,6 @@
 import { loadDosingConfig } from '@/services/dosingConfig'
 import { eligibleProductKeys } from '@/services/productEligibility'
+import { splitDose } from '@/services/dosingCalendar'
 
 const CORRECTION_PROFILES = Object.freeze({
   salinity: {
@@ -82,15 +83,12 @@ function verifiedDose(parameter, deficit, volume, dosingConfig) {
   const centralDosing = dosingConfig[parameter.key]
   const dosing = centralDosing?.enabled ? centralDosing : parameter.dosingRecommendation || parameter.dosing
   if (!dosing?.verified || !dosing.productName || !['raisesBy', 'mlPer100Liters', 'maxDailyIncrease'].every((key) => Number.isFinite(Number(dosing[key])) && Number(dosing[key]) > 0) || !Number.isFinite(volume) || !(volume > 0)) return null
-  const totalMl = round((deficit / Number(dosing.raisesBy)) * Number(dosing.mlPer100Liters) * volume / 100, 2)
-  const maxIncrease = Number(dosing.maxDailyIncrease)
-  const days = maxIncrease > 0 ? Math.max(1, Math.ceil(deficit / maxIncrease)) : 1
+  const split = splitDose({ deficit, raisesBy: dosing.raisesBy, mlPer100Liters: dosing.mlPer100Liters, maxDailyIncrease: dosing.maxDailyIncrease, volume })
+  if (!split) return null
   return {
     productName: String(dosing.productName),
     productUrl: String(dosing.productUrl || ''),
-    totalMl,
-    days,
-    dailyMl: round(totalMl / days, 2),
+    ...split,
     instructions: String(dosing.instructions || ''),
   }
 }
@@ -103,9 +101,8 @@ export function buildDosingPlan(parameters = [], volumeLiters = 0, dosingConfig 
   const volume = Math.max(0, Number(volumeLiters) || 0)
   return parameters.filter(isLowParameter).map((parameter) => {
     const range = numericRange(parameter)
-    const precision = Math.max(0, Number(parameter.precision ?? 2))
-    const targetValue = round(range.min, precision)
-    const deficit = round(Math.max(0, targetValue - Number(parameter.value)), Math.max(precision, 2))
+    const targetValue = range.min
+    const deficit = Math.max(0, targetValue - Number(parameter.value))
     const unitFactor = parameter.unit === 'µg/l' ? 0.001 : parameter.unit === 'mg/l' ? 1 : null
     const requiredMassMg = unitFactor === null || volume <= 0 ? null : round(deficit * volume * unitFactor, 2)
     const profile = CORRECTION_PROFILES[parameter.key] || fallbackProfile(parameter)
@@ -116,7 +113,7 @@ export function buildDosingPlan(parameters = [], volumeLiters = 0, dosingConfig 
       targetRange: range,
       deficit,
       requiredMassMg,
-      dose: verifiedDose(parameter, deficit, volume, dosingConfig),
+      dose: profile.mode === 'water' || parameter.key === 'phosphorus' ? null : verifiedDose(parameter, deficit, volume, dosingConfig),
       priority: parameter.tone === 'critical' ? 'Hoch' : 'Mittel',
       sequence: profile.order * 10 + (parameter.tone === 'critical' ? 0 : 1),
     }

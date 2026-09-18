@@ -393,11 +393,12 @@
         </div>
       </div>
 
-      <div v-if="selectedDosingAnalysis && dosingPlanItems.length" class="card dosing-card">
+      <div v-if="selectedDosingAnalysis && dosingCandidates.length" class="card dosing-card">
+        <DosingCalendar :items="dosingCandidates" :aquarium-name="selectedProfile?.name" :report-number="selectedDosingAnalysis.reportNumber || selectedDosingAnalysis.barcode" :volume="Number(selectedProfile?.net_volume) || 0" :start-date="weekStart(doseWeek)" />
         <div class="chart-heading">
           <div>
             <h3>{{ dosingRows.length ? 'Wochendosierung' : 'Korrekturen aus der Analyse' }}</h3>
-            <small>{{ dosingRows.length }} exakt freigegeben · {{ unverifiedDosingItems.length }} ohne ml-Freigabe</small>
+            <small>{{ dosingRows.length }} erforderliche Produktdosierungen · Tageslimit berücksichtigt</small>
           </div>
           <span v-if="dosingRows.length" class="badge badge-created">{{ doseCompletion }}% erledigt</span>
         </div>
@@ -428,27 +429,11 @@
 
         <ProductSuggestions class="dosing-products" :products="dosingProducts(dosingCandidates)" />
 
-        <section v-if="unverifiedDosingItems.length" class="dosing-review">
-          <header>
-            <div><span>Weitere Korrekturen</span><h4>Exakte Produktmenge noch nicht freigegeben</h4></div>
-            <strong>{{ unverifiedDosingItems.length }}</strong>
-          </header>
-          <p>Die Analyse erkennt eine Unterversorgung. Ohne geprüfte Produktkonzentration wird bewusst keine ml-Menge erfunden.</p>
-          <div class="dosing-review-list">
-            <article v-for="item in unverifiedDosingItems" :key="item.key">
-              <span :class="['review-symbol', item.tone]">{{ item.symbol }}</span>
-              <div><strong>{{ item.label }}</strong><small>{{ formatNumber(item.value, 3) }} {{ item.unit }} · Ziel ab {{ formatNumber(item.targetValue, 3) }} {{ item.unit }}</small></div>
-              <em>{{ dosingReviewStatus(item) }}</em>
-              <ProductSuggestions class="review-products" :products="dosingProducts([item])" />
-            </article>
-          </div>
-          <RouterLink :to="`/analyses/${selectedDosingAnalysis.id}`" class="btn btn-ghost btn-sm">Korrekturplan im Bericht öffnen</RouterLink>
-        </section>
       </div>
       <EmptyState
         v-else
-        :kicker="selectedDosingAnalysis ? 'Keine Unterversorgung' : 'Keine Analyse'"
-        :title="selectedDosingAnalysis ? 'Für diesen Bericht ist keine Anhebung nötig' : 'Noch kein Dosierplan verfügbar'"
+        :kicker="selectedDosingAnalysis ? 'Keine Produktdosierung' : 'Keine Analyse'"
+        :title="selectedDosingAnalysis ? 'Keine freigegebene Dosierung verfügbar' : 'Noch kein Dosierplan verfügbar'"
         :message="dosingEmptyMessage"
         mark="DOS"
         tone="compact"
@@ -473,6 +458,8 @@ import {
 } from 'chart.js'
 import { useAuthStore } from '@/stores/auth'
 import { buildDosingPlan } from '@/services/dosingPlan'
+import { weekStart } from '@/services/dosingCalendar'
+import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 import { analysisApi, profileApi } from '@/services/toolsData'
 import { loadDosingProgress, saveDosingProgress } from '@/services/toolsDosingStore'
 import {
@@ -810,7 +797,6 @@ const dosingPlanItems = computed(() => buildDosingPlan(
   Number(selectedProfile.value?.net_volume) || 0,
 ))
 const dosingCandidates = computed(() => dosingPlanItems.value.filter((item) => item.dose))
-const unverifiedDosingItems = computed(() => dosingPlanItems.value.filter((item) => !item.dose))
 const dosingRows = ref([])
 const totalDoses = computed(() => dosingRows.value.reduce((sum, row) => sum + days.filter((day) => row.active[day]).length, 0))
 const completedDoses = computed(() => dosingRows.value.reduce(
@@ -822,7 +808,7 @@ const dosingAnalysisHint = computed(() => selectedDosingAnalysis.value
   ? `Dosierbedarf aus ${analysisOptionLabel(selectedDosingAnalysis.value)} und ${selectedProfile.value?.net_volume || 0} L Nettovolumen.`
   : 'Wählen Sie ein Aquarium mit einer abgeschlossenen Analyse.')
 const dosingEmptyMessage = computed(() => selectedDosingAnalysis.value
-  ? 'Alle dosierbaren Messwerte liegen mindestens am unteren Rand ihres Zielbereichs. Der Bericht bleibt die Grundlage für die nächste Kontrolle.'
+  ? dosingPlanItems.value.length ? 'Niedrige Werte benötigen eine freigegebene Produktformel und ein Tageslimit, bevor eine Dosierung berechnet werden kann. Weitere Maßnahmen finden Sie im Quellbericht.' : 'Alle dosierbaren Messwerte liegen mindestens am unteren Rand ihres Zielbereichs. Der Bericht bleibt die Grundlage für die nächste Kontrolle.'
   : 'Für das ausgewählte Aquarium liegt noch keine abgeschlossene Analyse vor.')
 
 /* ---------- Workbench readout ---------- */
@@ -910,18 +896,12 @@ function syncDosingRows() {
       key: item.key,
       element: item.label,
       product: item.dose.productName,
-      amount: `${formatNumber(item.dose.dailyMl)} ml/Tag`,
-      course: `${formatNumber(item.dose.totalMl)} ml gesamt · ${item.dose.days} ${item.dose.days === 1 ? 'Tag' : 'Tage'}${schedule.remainingDays ? ` · ${schedule.remainingDays} weitere nach Sonntag` : ''}`,
+      amount: `bis zu ${formatNumber(item.dose.dailyMl, 6)} ml/Tag`,
+      course: `${formatNumber(item.dose.totalMl, 6)} ml gesamt · ${item.dose.days} ${item.dose.days === 1 ? 'Tag' : 'Tage'}${schedule.remainingDays ? ` · ${schedule.remainingDays} weitere nach Sonntag` : ''}`,
       active: Object.fromEntries(days.map((day) => [day, activeDays.has(day)])),
       done: Object.fromEntries(days.map((day) => [day, activeDays.has(day) && Boolean(progress[item.key]?.[day])])),
     }
   })
-}
-
-function dosingReviewStatus(item) {
-  if (!Number(selectedProfile.value?.net_volume)) return 'Nettovolumen fehlt'
-  if (item.mode === 'water') return item.modeLabel
-  return 'Produktformel fehlt'
 }
 
 function dosingProducts(items) {
