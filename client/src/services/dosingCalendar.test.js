@@ -13,6 +13,11 @@ test('split doses conserve total and never exceed the daily limit, including rou
 test('missing daily limits and invalid quantities never produce a plan', () => {
   for (const maxDailyIncrease of [0, null, -1, Infinity]) assert.equal(splitDose({ deficit: 2, raisesBy: 1, mlPer100Liters: 10, maxDailyIncrease, volume: 100 }), null)
 })
+test('a 90 litre lithium limit stays exactly 0.9 ml without floating point artifacts', () => {
+  const dose = splitDose({ deficit: 59.5, raisesBy: 15, mlPer100Liters: 1, maxDailyIncrease: 15, volume: 90 })
+  assert.equal(dose.maxDailyMl, 0.9)
+  assert.equal(dose.totalMl, 3.57)
+})
 test('calendar includes all course days beyond one week and crosses year boundaries', () => {
   const dose = splitDose({ deficit: 10, raisesBy: 1, mlPer100Liters: 10, maxDailyIncrease: 1, volume: 100 })
   const weeks = calendarWeeks([{ key: 'calcium', label: 'Calcium', dose: { ...dose, productName: 'Calcium' } }], '2026-12-28')

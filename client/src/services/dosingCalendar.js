@@ -1,10 +1,10 @@
 // Quantize down so rounding can never exceed the product's approved daily limit.
 export function splitDose({ deficit, raisesBy, mlPer100Liters, maxDailyIncrease, volume }) {
   if (![deficit, raisesBy, mlPer100Liters, maxDailyIncrease, volume].every(value => Number.isFinite(Number(value)) && Number(value) > 0)) return null
-  const factor = Number(mlPer100Liters) * Number(volume) / (100 * Number(raisesBy))
   const scale = 1e6
-  const totalUnits = Math.floor(Number(deficit) * factor * scale)
-  const limitUnits = Math.floor(Number(maxDailyIncrease) * factor * scale)
+  const denominator = 100 * Number(raisesBy)
+  const totalUnits = Math.floor(Number(deficit) * Number(mlPer100Liters) * Number(volume) * scale / denominator)
+  const limitUnits = Math.floor(Number(maxDailyIncrease) * Number(mlPer100Liters) * Number(volume) * scale / denominator)
   if (!Number.isSafeInteger(totalUnits) || !Number.isSafeInteger(limitUnits) || totalUnits <= 0 || limitUnits <= 0) return null
   const days = Math.max(1, Math.ceil(Number(deficit) / Number(maxDailyIncrease)), Math.ceil(totalUnits / limitUnits))
   const base = Math.floor(totalUnits / days)
