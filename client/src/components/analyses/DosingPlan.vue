@@ -13,6 +13,8 @@
       </div>
     </header>
 
+    <aside v-if="volume && pendingItems.length" class="blocking-note"><i>i</i><div><strong>{{ pendingItems.map(item => item.label).join(', ') }} · Dosierangaben fehlen</strong><p>Diese Werte sind zu niedrig. Eine aktive, geprüfte Produktformel mit passender Einheit fehlt noch. Die Maßnahmen bleiben in den Analyse-Empfehlungen sichtbar.</p></div></aside>
+
     <div v-if="!volume" class="blocking-note">
       <i>!</i><div><strong>Plan noch nicht berechenbar</strong><p>Im verbundenen Aquariumprofil fehlt das Netto-Wasservolumen. Bis es ergänzt ist, werden keine Mengen ausgegeben.</p></div>
     </div>
@@ -22,7 +24,6 @@
     </div>
 
     <template v-else>
-      <DosingCalendar :items="plan" :aquarium-name="analysis.aquariumName" :report-number="analysis.reportNumber" :volume="volume" />
       <section class="plan-summary" aria-label="Zusammenfassung des Korrekturplans">
         <div><span>Zu korrigieren</span><strong>{{ plan.length }}</strong><small>{{ plan.length === 1 ? 'Messwert' : 'Messwerte' }}</small></div>
         <div><span>Kursdauer</span><strong>{{ Math.max(...plan.map(item => item.dose.days)) }}</strong><small>Tage</small></div>
@@ -61,7 +62,7 @@
           </section>
 
           <section v-if="selectedItem.dose" class="verified-dose">
-            <header><div><span>Laborgeprüfte Produktdosierung</span><h4>{{ selectedItem.dose.productName }}</h4></div><b>Verifiziert</b></header>
+            <header><div><span>{{ selectedItem.dose.verificationSource === 'manufacturer' ? 'Dosierung nach Herstellerangaben' : 'Laborgeprüfte Produktdosierung' }}</span><h4>{{ selectedItem.dose.productName }}</h4></div><b>Verifiziert</b></header>
             <div class="dose-metrics">
               <div><span>Pro Tag · maximal</span><strong>{{ formatNumber(selectedItem.dose.dailyMl) }} ml</strong></div>
               <div><span>Dauer</span><strong>{{ selectedItem.dose.days }} {{ selectedItem.dose.days === 1 ? 'Tag' : 'Tage' }}</strong></div>
@@ -104,7 +105,6 @@ import { computed, ref } from 'vue'
 import { buildDosingPlan, formatMass } from '@/services/dosingPlan'
 import { recommendedDosingProducts } from '@/services/dosingConfig'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
-import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
 const selectedKey = ref('')
@@ -112,6 +112,7 @@ const volume = computed(() => Number(props.analysis.aquariumProfile?.volumeLiter
 const supplySystem = computed(() => props.analysis.aquariumProfile?.supplySystem || 'Versorgung nicht hinterlegt')
 const corrections = computed(() => buildDosingPlan(props.analysis.parameters, volume.value))
 const plan = computed(() => corrections.value.filter(item => item.dose))
+const pendingItems = computed(() => corrections.value.filter(item => !item.dose && item.mode !== 'water' && item.key !== 'phosphorus'))
 const selectedItem = computed(() => plan.value.find((item) => item.key === selectedKey.value) || plan.value[0] || null)
 const selectedIndex = computed(() => Math.max(0, plan.value.findIndex((item) => item.key === selectedItem.value?.key)))
 
