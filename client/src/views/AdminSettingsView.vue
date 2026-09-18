@@ -112,7 +112,7 @@
             <section class="dosing-form-section">
               <div class="section-label"><span>01</span><div><strong>Empfohlenes Produkt</strong><small>Unabhängig von einer Dosierformel in Berichten sichtbar</small></div></div>
               <div class="dosing-fields product-fields">
-                <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="Produktname eingeben" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productName" class="field-error">{{ selectedDosingErrors.productName }}</small></label>
+                <label class="wide"><span>Produktname</span><input v-model="selectedDosing.productName" type="text" placeholder="Produktname eingeben" @input="selectedDosing.productOverride = true; selectedDosing.verified = false" /><small v-if="selectedDosingErrors.productName" class="field-error">{{ selectedDosingErrors.productName }}</small></label>
                 <label class="wide"><span>Shop-Link · optional</span><input v-model="selectedDosing.productUrl" type="text" inputmode="url" placeholder="https://shop.atiaquaristik.com/…" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productUrl" class="field-error">{{ selectedDosingErrors.productUrl }}</small></label>
                 <label class="wide"><span>Bild-Link · optional</span><input v-model="selectedDosing.productImage" type="text" inputmode="url" placeholder="https://…" @input="selectedDosing.productOverride = true" /><small v-if="selectedDosingErrors.productImage" class="field-error">{{ selectedDosingErrors.productImage }}</small></label>
               </div>
@@ -123,15 +123,17 @@
             <section class="dosing-form-section">
               <div class="section-label"><span>02</span><div><strong>Dosierformel · optional</strong><small>Produktwirkung bezogen auf 100 Liter Aquarienwasser</small></div></div>
               <label class="dosing-switch"><input v-model="selectedDosing.enabled" type="checkbox" /><span>Konkrete Dosierung konfigurieren</span></label>
+              <p v-if="selectedDosingSource.verificationSource === 'manufacturer'" class="formula-explanation">ATI-Herstellerangaben · geprüft am 18.09.2026 · Einheit {{ selectedDosingSource.unit }}. Diese Angaben gelten automatisch für alle passenden Analysen. <a :href="selectedDosingSource.sourceUrl" target="_blank" rel="noreferrer">Produktdaten ansehen ↗</a></p>
+              <p v-if="!selectedDosing.productName" class="formula-explanation">Noch kein Produkt mit bestätigter Wirkung und Tageslimit hinterlegt. Eigene Produktdaten können hier ergänzt werden.</p>
               <fieldset v-show="selectedDosing.enabled" :disabled="!selectedDosing.enabled" class="formula-fields">
               <div class="formula-builder">
-                <label><span>Produktmenge</span><div><input v-model.number="selectedDosing.mlPer100Liters" type="number" min="0" step="any" /><b>ml / 100 l</b></div></label>
+                <label><span>Produktmenge</span><div><input v-model.number="selectedDosing.mlPer100Liters" type="number" min="0" step="any" @input="selectedDosing.verified = false" /><b>ml / 100 l</b></div></label>
                 <i>erhöht</i>
-                <label><span>{{ selectedDosingMeta.label }}</span><div><input v-model.number="selectedDosing.raisesBy" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }}</b></div></label>
+                <label><span>{{ selectedDosingMeta.label }}</span><div><input v-model.number="selectedDosing.raisesBy" type="number" min="0" step="any" @input="selectedDosing.verified = false" /><b>{{ selectedDosing.unit || selectedDosingMeta.unit }}</b></div></label>
                 <i>maximal</i>
-                <label><span>Tagesanstieg</span><div><input v-model.number="selectedDosing.maxDailyIncrease" type="number" min="0" step="any" /><b>{{ selectedDosingMeta.unit }} / Tag</b></div></label>
+                <label><span>Tagesanstieg</span><div><input v-model.number="selectedDosing.maxDailyIncrease" type="number" min="0" step="any" @input="selectedDosing.verified = false" /><b>{{ selectedDosing.unit || selectedDosingMeta.unit }} / Tag</b></div></label>
               </div>
-              <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Laborgeprüfte Formel</b><small>Erst mit dieser Freigabe erscheint eine ml-Menge im Kundenbericht.</small></span></label>
+              <label class="verification-field"><input v-model="selectedDosing.verified" type="checkbox" /><span><b>Dosierangaben geprüft</b><small>Einmalige Prüfung des Produkts. Alle passenden Analysen berechnen ihre Dosierung automatisch.</small></span></label>
               </fieldset>
               <p v-if="selectedDosing.enabled" class="formula-explanation">{{ dosingFormulaExplanation }}</p>
               <ul v-if="selectedDosing.enabled && formulaErrors.length" class="formula-errors"><li v-for="error in formulaErrors" :key="error">{{ error }}</li></ul>
@@ -314,6 +316,7 @@ import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
 import { createRecommendationRule, evaluateRecommendationRules, loadRecommendationRules, RECOMMENDATION_SCOPES, saveRecommendationRules } from '@/services/recommendationRules'
 import { DOSING_PARAMETERS, loadDosingConfig, resetDosingEntry, saveDosingConfig, recommendedProductsForKeys } from '@/services/dosingConfig'
 import { buildDosingPlan } from '@/services/dosingPlan'
+import { normalizeDosingEntry } from '@/services/atiDosingDefaults'
 import { getAllAnalysisRecords, getAnalysis } from '@/services/analysisStore'
 import { dosingEntryErrors, elementEntryError } from '@/services/adminValidation'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
@@ -378,6 +381,7 @@ const selectedContent = computed(() => content[selectedKey.value])
 const selectedElementError = computed(() => elementEntryError(selectedContent.value))
 const selectedDosingMeta = computed(() => DOSING_PARAMETERS.find((item) => item.key === selectedDosingKey.value) || DOSING_PARAMETERS[0])
 const selectedDosing = computed(() => dosingConfig[selectedDosingKey.value])
+const selectedDosingSource = computed(() => normalizeDosingEntry(selectedDosing.value, selectedDosingKey.value))
 const selectedDosingErrors = computed(() => dosingEntryErrors(selectedDosing.value))
 const formulaErrors = computed(() => ['mlPer100Liters', 'raisesBy', 'maxDailyIncrease'].map((key) => selectedDosingErrors.value[key]).filter(Boolean))
 const adminProductPreview = computed(() => selectedDosing.value.productName.trim() ? [{
@@ -410,7 +414,8 @@ const dosingPreview = computed(() => {
 const dosingPreviewReason = computed(() => {
   if (!selectedDosing.value.enabled) return 'Das Produkt kann empfohlen werden. Eine konkrete Dosierung ist nicht konfiguriert.'
   if (Object.keys(selectedDosingErrors.value).length) return Object.values(selectedDosingErrors.value).join(' ')
-  if (!selectedDosing.value.verified) return 'Die Formel ist noch nicht laborgeprüft freigegeben. Kunden sehen das Produkt ohne ml-Angabe.'
+  if (!selectedDosing.value.verified) return 'Die Dosierangaben müssen einmalig geprüft werden. Danach berechnen alle passenden Analysen die Mengen automatisch.'
+  if (selectedDosing.value.unit && selectedDosing.value.unit !== content[selectedDosingKey.value]?.unit) return 'Produkteinheit und Analyseeinheit stimmen nicht überein. Bitte die Messwert-Konfiguration prüfen.'
   return 'Wählen Sie ein gültiges Aquariumvolumen und einen aktuellen Wert unter dem Zielwert.'
 })
 
