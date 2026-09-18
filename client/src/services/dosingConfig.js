@@ -1,6 +1,7 @@
 import { ELEMENT_DEFINITIONS } from '@/services/analysisCatalog'
 import { ATI_PRODUCT_CATALOG } from '@/services/atiProductCatalog'
 import { eligibleProductKeys } from '@/services/productEligibility'
+import { defaultDosingEntry, normalizeDosingEntry } from '@/services/atiDosingDefaults'
 
 const STORAGE_KEY = 'ati_dosing_config:v1'
 const NON_DOSING_KEYS = new Set(['salinity', 'chloride', 'sodium', 'sulfur', 'phosphorus'])
@@ -8,53 +9,18 @@ const NON_DOSING_KEYS = new Set(['salinity', 'chloride', 'sodium', 'sulfur', 'ph
 export const DOSING_PARAMETERS = ELEMENT_DEFINITIONS.filter((parameter) => parameter.groupKey !== 'pollutants' && !NON_DOSING_KEYS.has(parameter.key))
 
 function defaultEntry(key = '') {
-  const product = ATI_PRODUCT_CATALOG[key]
-  return {
-    enabled: false,
-    verified: false,
-    productOverride: false,
-    productName: product?.name || '',
-    productUrl: product?.url || '',
-    productImage: product?.image || '',
-    mlPer100Liters: 0,
-    raisesBy: 0,
-    maxDailyIncrease: 0,
-    instructions: '',
-  }
+  return defaultDosingEntry(key)
 }
 
 function defaults() {
   return Object.fromEntries(DOSING_PARAMETERS.map((parameter) => [parameter.key, defaultEntry(parameter.key)]))
 }
 
-function normalizeUrl(raw) {
-  const value = String(raw || '').trim()
-  if (!value) return ''
-  return /^https?:\/\//i.test(value) ? value : `https://${value}`
-}
-
-function normalizeEntry(entry = {}, key = '') {
-  const standard = defaultEntry(key)
-  const productOverride = entry.productOverride ?? Boolean(entry.enabled && entry.productName)
-  return {
-    enabled: Boolean(entry.enabled),
-    verified: Boolean(entry.verified),
-    productOverride: Boolean(productOverride),
-    productName: productOverride ? String(entry.productName || '').trim() : standard.productName,
-    productUrl: productOverride ? normalizeUrl(entry.productUrl) : standard.productUrl,
-    productImage: productOverride ? normalizeUrl(entry.productImage) : standard.productImage,
-    mlPer100Liters: Math.max(0, Number(entry.mlPer100Liters) || 0),
-    raisesBy: Math.max(0, Number(entry.raisesBy) || 0),
-    maxDailyIncrease: Math.max(0, Number(entry.maxDailyIncrease) || 0),
-    instructions: String(entry.instructions || '').trim(),
-  }
-}
-
 export function loadDosingConfig() {
   const result = defaults()
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-    for (const parameter of DOSING_PARAMETERS) result[parameter.key] = normalizeEntry(stored[parameter.key], parameter.key)
+    for (const parameter of DOSING_PARAMETERS) result[parameter.key] = normalizeDosingEntry(stored[parameter.key], parameter.key)
   } catch {
     // Invalid or unavailable browser storage falls back to an empty configuration.
   }
@@ -64,7 +30,7 @@ export function loadDosingConfig() {
 export function saveDosingConfig(config) {
   const safeConfig = Object.fromEntries(DOSING_PARAMETERS.map((parameter) => [
     parameter.key,
-    normalizeEntry(config[parameter.key], parameter.key),
+    normalizeDosingEntry(config[parameter.key], parameter.key),
   ]))
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig))
   return safeConfig
@@ -110,7 +76,7 @@ export function recommendedDosingProducts(items = [], parameters = []) {
       parameterKey: item.key,
       productName: item.dose.productName,
       productUrl: item.dose.productUrl || '',
-      productImage: '',
+      productImage: recommendedProductsForKeys([item.key], parameters).find(product => product.productName === item.dose.productName)?.productImage || '',
     }] : recommendedProductsForKeys([item.key], parameters)
     return products.filter((product) => {
       const key = product.productName.toLocaleLowerCase('de-DE')

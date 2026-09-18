@@ -1,9 +1,7 @@
 // Reale ATI-Produkte je Element, aus dem offiziellen Shop (shop.atiaquaristik.com,
 // Kategorie „ICP Elements") übernommen. Dient als Standard-Verlinkung/Bild für die
-// Produktempfehlung. Die exakte ml-Dosierformel bleibt bewusst getrennt und weiterhin
-// Sache der laborgeprüften Konfiguration in dosingConfig.js — die reale Wirkstoff-
-// konzentration lässt sich nicht aus dem Produktblatt ableiten und wird hier nicht
-// erfunden, um keine falsche Genauigkeit vorzutäuschen.
+// Produktempfehlung. Bestätigte Herstellerformeln stehen getrennt in
+// atiDosingDefaults.js und bilden die editierbaren zentralen Admin-Vorgaben.
 export const ATI_PRODUCT_CATALOG = Object.freeze({
   kh: { name: 'ICP Element Alkalinity 1.000ml', url: 'https://shop.atiaquaristik.com/en/icp-element-alkalinity-1.000ml/3520029/', image: 'https://shop.atiaquaristik.com/media/8c/f2/b0/1749650547/ATI_Alkalnity_1000ml_3000x2000px_110_2MB_1230.png' },
   fluoride: { name: 'ICP Element Fluorine 1.000ml', url: 'https://shop.atiaquaristik.com/en/icp-element-fluorine-1.000ml/3520026/', image: 'https://shop.atiaquaristik.com/media/23/10/85/1749650360/ATI_Fluorine_1000ml_3000x2000px_110_2MB_1227.png' },

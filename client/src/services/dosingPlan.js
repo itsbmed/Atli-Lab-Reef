@@ -81,13 +81,17 @@ function fallbackProfile(parameter) {
 
 function verifiedDose(parameter, deficit, volume, dosingConfig) {
   const centralDosing = dosingConfig[parameter.key]
-  const dosing = centralDosing?.enabled ? centralDosing : parameter.dosingRecommendation || parameter.dosing
+  if (centralDosing && !centralDosing.enabled) return null
+  const dosing = centralDosing || parameter.dosingRecommendation || parameter.dosing
+  if (dosing?.unit && dosing.unit !== parameter.unit) return null
   if (!dosing?.verified || !dosing.productName || !['raisesBy', 'mlPer100Liters', 'maxDailyIncrease'].every((key) => Number.isFinite(Number(dosing[key])) && Number(dosing[key]) > 0) || !Number.isFinite(volume) || !(volume > 0)) return null
   const split = splitDose({ deficit, raisesBy: dosing.raisesBy, mlPer100Liters: dosing.mlPer100Liters, maxDailyIncrease: dosing.maxDailyIncrease, volume })
   if (!split) return null
   return {
     productName: String(dosing.productName),
     productUrl: String(dosing.productUrl || ''),
+    verificationSource: dosing.verificationSource || 'lab',
+    sourceUrl: String(dosing.sourceUrl || ''),
     ...split,
     instructions: String(dosing.instructions || ''),
   }
