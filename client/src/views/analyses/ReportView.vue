@@ -10,6 +10,7 @@
     </section>
 
     <template v-else>
+      <p v-if="analysis.simulation" class="simulation-notice">Simulation · Messwerte sind Testdaten. Produkte und Dosierangaben stammen vom Hersteller. Aquarium und Nettovolumen kommen aus dem verknüpften Profil.</p>
       <section :class="['report-hero', analysis.severity]">
         <div>
           <span class="hero-kicker">{{ analysis.packageLabel }} · {{ analysis.reportNumber }}</span>
@@ -785,6 +786,10 @@ function markPdf() {
   setTimeout(() => { actionMsg.value = '' }, 2600)
 }
 </script>
+
+<style scoped>
+.simulation-notice { padding: 14px 18px; border: 1px solid #afd0e5; border-radius: 14px; background: #eef7ff; color: #034c80; font-size: 13px; line-height: 1.6; margin-bottom: 18px; }
+</style>
 
 <style scoped>
 .report { display: grid; gap: 18px; }

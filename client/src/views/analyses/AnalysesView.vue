@@ -148,7 +148,7 @@
             <div class="analysis-card-body">
               <span class="card-kicker">{{ analysis.waterType }} · {{ analysis.packageLabel }}</span>
               <h2>{{ analysis.aquariumName }}</h2>
-              <p>{{ analysis.reasonLabel }} · {{ formatDate(analysis.createdAt) }} · {{ analysis.barcode }}</p>
+              <p>{{ analysis.simulation ? 'Simulation' : analysis.reasonLabel }} · {{ formatDate(analysis.createdAt) }} · {{ analysis.barcode }}</p>
               <div v-if="analysis.status === 'completed'" class="issue-preview">
                 <span v-for="issue in previewIssues(analysis)" :key="issue">{{ issue }}</span>
               </div>
