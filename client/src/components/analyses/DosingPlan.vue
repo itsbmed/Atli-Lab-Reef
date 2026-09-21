@@ -24,6 +24,7 @@
     </div>
 
     <template v-else>
+      <DosingCalendar :items="plan" :aquarium-name="analysis.aquariumName" :report-number="analysis.reportNumber" :volume="volume" :simulation="analysis.simulation" />
       <section class="plan-summary" aria-label="Zusammenfassung des Korrekturplans">
         <div><span>Zu korrigieren</span><strong>{{ plan.length }}</strong><small>{{ plan.length === 1 ? 'Messwert' : 'Messwerte' }}</small></div>
         <div><span>Kursdauer</span><strong>{{ Math.max(...plan.map(item => item.dose.days)) }}</strong><small>Tage</small></div>
@@ -105,6 +106,7 @@ import { computed, ref } from 'vue'
 import { buildDosingPlan, formatMass } from '@/services/dosingPlan'
 import { recommendedDosingProducts } from '@/services/dosingConfig'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
 const selectedKey = ref('')
