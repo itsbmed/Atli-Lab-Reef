@@ -395,6 +395,7 @@
       </div>
 
       <div v-if="selectedDosingAnalysis && dosingCandidates.length" class="card dosing-card">
+        <DosingCalendar :items="dosingCandidates" :aquarium-name="selectedProfile?.name" :report-number="selectedDosingAnalysis.reportNumber || selectedDosingAnalysis.barcode" :volume="Number(selectedProfile?.net_volume) || 0" :start-date="weekStart(doseWeek)" :simulation="selectedDosingAnalysis.simulation" />
         <div class="chart-heading">
           <div>
             <h3>{{ dosingRows.length ? 'Wochendosierung' : 'Korrekturen aus der Analyse' }}</h3>
@@ -458,6 +459,8 @@ import {
 } from 'chart.js'
 import { useAuthStore } from '@/stores/auth'
 import { buildDosingPlan } from '@/services/dosingPlan'
+import { weekStart } from '@/services/dosingCalendar'
+import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 import { analysisApi, profileApi } from '@/services/toolsData'
 import { loadDosingProgress, saveDosingProgress } from '@/services/toolsDosingStore'
 import {
