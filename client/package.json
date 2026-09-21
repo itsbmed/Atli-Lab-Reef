@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test:tools": "node --test src/services/toolsCalculations.test.js src/services/dosingCalendar.test.js",
     "test:admin": "node --test src/services/adminValidation.test.js src/services/atiDosingDefaults.test.js",
-    "test:recommendations": "node --test src/services/recommendationsHub.test.js src/services/productEligibility.test.js src/services/realAtiAnalysis.test.js"
+    "test:recommendations": "node --test src/services/recommendationsHub.test.js src/services/productEligibility.test.js src/services/realAtiAnalysis.test.js src/services/evaluationScales.test.js src/services/directRecommendations.test.js"
   },
   "dependencies": {
     "vue": "^3.5.34",
