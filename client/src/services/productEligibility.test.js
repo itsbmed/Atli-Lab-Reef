@@ -26,3 +26,12 @@ test('grouped suggestions preserve multiple low parameters and support legacy ta
   assert.deepEqual(eligibleProductKeys(['calcium', 'iodine', 'magnesium', 'iron'], parameters), ['calcium', 'iodine', 'magnesium'])
   assert.deepEqual(eligibleProductKeys(['calcium']), [])
 })
+
+test('the source laboratory status prevents false dosing for undetectable normal results', () => {
+  const parameters = [
+    { key: 'copper', value: 0, tone: 'good', sourceDirection: 'in_range', referenceRange: { min: 0.5 } },
+    { key: 'iron', value: 0, tone: 'watch', sourceDirection: 'low', referenceRange: { min: 0.5 } },
+    { key: 'cobalt', value: 1.34, tone: 'watch', sourceDirection: 'high', referenceRange: { min: 0.05 } },
+  ]
+  assert.deepEqual(eligibleProductKeys(parameters.map((parameter) => parameter.key), parameters), ['iron'])
+})

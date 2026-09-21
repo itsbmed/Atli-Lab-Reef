@@ -105,7 +105,9 @@ export function buildDosingPlan(parameters = [], volumeLiters = 0, dosingConfig 
   const volume = Math.max(0, Number(volumeLiters) || 0)
   return parameters.filter(isLowParameter).map((parameter) => {
     const range = numericRange(parameter)
-    const targetValue = range.min
+    const targetValue = Number.isFinite(Number(parameter.correctionTarget))
+      ? Number(parameter.correctionTarget)
+      : range.min
     const deficit = Math.max(0, targetValue - Number(parameter.value))
     const unitFactor = parameter.unit === 'µg/l' ? 0.001 : parameter.unit === 'mg/l' ? 1 : null
     const requiredMassMg = unitFactor === null || volume <= 0 ? null : round(deficit * volume * unitFactor, 2)

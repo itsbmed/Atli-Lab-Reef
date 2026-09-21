@@ -4,6 +4,7 @@ export function eligibleProductKeys(keys = [], parameters = []) {
   const requested = new Set(keys)
   return parameters.filter((parameter) => {
     if (!requested.has(parameter.key) || INVALID_STATUSES.has(parameter.resultStatus) || parameter.groupKey === 'pollutants') return false
+    if (parameter.tone === 'good' || (parameter.sourceDirection && parameter.sourceDirection !== 'low')) return false
     if (parameter.value === null || parameter.value === undefined || parameter.value === '') return false
     const rawValue = String(parameter.value).trim()
     if (!rawValue) return false

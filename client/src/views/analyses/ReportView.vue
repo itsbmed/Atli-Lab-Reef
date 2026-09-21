@@ -49,10 +49,13 @@
           Übersicht &amp; Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
-          Dosierungsplan <b v-if="approvedDosingItems.length">{{ approvedDosingItems.length }}</b>
+          Dosierungsplan <b v-if="dosingItemCount">{{ dosingItemCount }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
+        </button>
+        <button v-if="analysis.osmosisParameters?.length" type="button" :class="{ active: activeTab === 'osmosis' }" @click="activeTab = 'osmosis'">
+          Osmosewasser <b>{{ analysis.osmosisParameters.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
           Favoriten <b v-if="favoriteParameters.length">{{ favoriteParameters.length }}</b>
@@ -124,7 +127,7 @@
                       <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
                       <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
                     </span>
-                    <span class="element-reading"><strong>{{ parameter.value }}</strong><small>{{ parameter.unit }}</small></span>
+                    <span class="element-reading"><strong>{{ displayParameterValue(parameter) }}</strong><small>{{ parameter.unit }}</small></span>
                     <span class="element-chevron" aria-hidden="true">⌄</span>
                   </button>
                   <button
@@ -333,7 +336,7 @@
                     <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
                   </span>
                   <span class="element-reading">
-                    <strong>{{ parameter.value }}</strong>
+                    <strong>{{ displayParameterValue(parameter) }}</strong>
                     <small>{{ parameter.unit }}</small>
                   </span>
                   <span class="element-chevron" aria-hidden="true">⌄</span>
@@ -386,6 +389,32 @@
         </div>
       </section>
 
+      <section v-if="analysis.status === 'completed' && analysis.osmosisParameters?.length" v-show="activeTab === 'osmosis'" class="panel osmosis-results">
+        <div class="explorer-head">
+          <div>
+            <span>Osmosewasser</span>
+            <h2>Ergebnisse der Osmoseprobe</h2>
+            <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe.</p>
+          </div>
+          <b class="osmosis-sample-label">ATI Laborbericht 393026</b>
+        </div>
+
+        <div class="osmosis-grid">
+          <article v-for="parameter in analysis.osmosisParameters" :key="parameter.key" :class="['osmosis-result', parameter.tone]">
+            <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+            <span class="osmosis-result-name">
+              <strong>{{ parameter.label }}</strong>
+              <small>{{ labStatusLabel(parameter) }}</small>
+            </span>
+            <span class="osmosis-result-value">
+              <strong>{{ displayParameterValue(parameter) }}</strong>
+              <small>{{ parameter.unit }}</small>
+            </span>
+            <span class="osmosis-result-target">Soll {{ parameter.target }} {{ parameter.unit }}</span>
+          </article>
+        </div>
+      </section>
+
       <section v-if="analysis.status === 'completed'" v-show="activeTab === 'favorites'" class="panel favorites-panel">
         <div class="explorer-head">
           <div>
@@ -415,7 +444,7 @@
                 <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
               </span>
               <span class="element-reading">
-                <strong>{{ parameter.value }}</strong>
+                <strong>{{ displayParameterValue(parameter) }}</strong>
                 <small>{{ parameter.unit }}</small>
               </span>
               <span class="element-chevron" aria-hidden="true">⌄</span>
@@ -550,7 +579,8 @@ const parameterGroups = computed(() => {
     ...group,
     total: group.parameters.length,
     issueParameters: group.parameters.filter((item) => item.tone !== 'good'),
-    score: Math.round(((group.parameters.length - group.issueCount) / group.parameters.length) * 100),
+    score: analysis.value?.groupScores?.[group.key]
+      ?? Math.round(((group.parameters.length - group.issueCount) / group.parameters.length) * 100),
     tone: group.parameters.some((item) => item.tone === 'critical') ? 'critical' : group.issueCount ? 'watch' : 'good',
   }))
 })
@@ -576,6 +606,7 @@ const explorerSummary = computed(() => {
 })
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
 const approvedDosingItems = computed(() => buildDosingPlan(analysis.value?.parameters || [], Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0)).filter(item => item.dose))
+const dosingItemCount = computed(() => approvedDosingItems.value.length + (analysis.value?.parameters || []).filter((parameter) => parameter.managedDose).length)
 const individualCareActions = computed(() => issueParameters.value
   .map((parameter, index) => buildCareAction(parameter, index))
   .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
@@ -669,7 +700,9 @@ function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
 }
 function labStatusLabel(parameter) {
+  if (parameter.sourceStatusLabel) return parameter.sourceStatusLabel
   if (parameter.resultStatus === 'invalid') return 'Ungültig'
+  if (parameter.resultStatus === 'below_detection') return 'Nicht nachweisbar'
   return { InRange: 'Messbereich OK', UnderRange: 'Unter Messbereich', OverRange: 'Über Messbereich' }[parameter.calibrationStatus] || 'Validiert'
 }
 function toneRank(tone) {
@@ -680,11 +713,19 @@ function targetBounds(target) {
   return values.length >= 2 ? [values[0], values[1]] : [0, Math.max(values[0] || 1, 1)]
 }
 function gaugePosition(parameter) {
+  if (parameter.sourceDirection) {
+    if (parameter.sourceDirection === 'in_range') return 50
+    if (parameter.sourceDirection === 'low') return parameter.tone === 'critical' ? 4 : 18
+    return parameter.tone === 'critical' ? 96 : 82
+  }
   const [minimum, maximum] = targetBounds(parameter.target)
   const span = Math.max(maximum - minimum, Math.abs(maximum) * 0.15, 0.01)
   const scaleMinimum = minimum - span
   const scaleMaximum = maximum + span
   return Math.min(96, Math.max(4, ((Number(parameter.value) - scaleMinimum) / (scaleMaximum - scaleMinimum)) * 100))
+}
+function displayParameterValue(parameter) {
+  return parameter.reportedValue ?? parameter.value ?? '—'
 }
 function toggleParameter(key) {
   expandedParameters[key] = !expandedParameters[key]
@@ -697,6 +738,10 @@ function selectParameterDetail(key, panel) {
 }
 function parameterInsight(parameter) {
   if (parameter.tone === 'good') return `${parameter.label} liegt im vorgesehenen Zielbereich und unterstützt die aktuelle Systemstabilität.`
+  if (parameter.sourceDirection) {
+    const direction = parameter.sourceDirection === 'low' ? 'unter' : 'über'
+    return `${parameter.label} wurde im ATI-Originalbericht ${direction} dem Sollwert eingeordnet. Die Bewertung des Ursprungslabors bleibt für diesen importierten Bericht maßgeblich.`
+  }
   const [minimum, maximum] = targetBounds(parameter.target)
   const direction = Number(parameter.value) > maximum ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'nahe an'
   return `${parameter.label} liegt ${direction} dem Zielbereich. Verlauf und mögliche gemeinsame Ursachen mit weiteren auffälligen Werten berücksichtigen.`
@@ -731,8 +776,8 @@ function buildCareAction(parameter, index) {
     || analysis.value?.recommendations?.[index]
     || `${parameter.label} kontrolliert in den Zielbereich zurückführen.`
   const [minimum, maximum] = targetBounds(parameter.target)
-  const isHigh = Number(parameter.value) > maximum
-  const direction = isHigh ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'am Rand von'
+  const isHigh = parameter.sourceDirection ? parameter.sourceDirection === 'high' : Number(parameter.value) > maximum
+  const direction = parameter.sourceDirection === 'low' ? 'unter' : isHigh ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'am Rand von'
   const priority = groupedRecommendation?.priority || (parameter.tone === 'critical' ? 'Hoch' : 'Mittel')
   const days = groupedRecommendation?.recheckDays || (parameter.tone === 'critical' ? 7 : 14)
   return {
@@ -745,7 +790,7 @@ function buildCareAction(parameter, index) {
     days,
     title: groupedRecommendation?.title || `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
     summary: recommendation,
-    why: `${parameter.label} liegt mit ${parameter.value} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
+    why: `${parameter.label} liegt mit ${displayParameterValue(parameter)} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
     steps: groupedRecommendation?.steps || careSteps(parameter, isHigh),
     recheck: `Kontrolle in ${days} Tagen`,
   }
@@ -1106,6 +1151,22 @@ function markPdf() {
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
 .favorites-panel { display: grid; gap: 18px; }
+.osmosis-results { display: grid; gap: 18px; }
+.osmosis-sample-label { align-self: center; padding: 8px 11px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; }
+.osmosis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 9px; }
+.osmosis-result { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 14px; background: #fff; }
+.osmosis-result.watch { border-left-color: #f59e0b; background: #fffbeb; }
+.osmosis-result.critical { border-left-color: #e85d4f; background: #fff7f5; }
+.osmosis-result-name { min-width: 0; }
+.osmosis-result-name strong,
+.osmosis-result-name small { display: block; }
+.osmosis-result-name strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.osmosis-result-name small,
+.osmosis-result-target { color: var(--text-muted); font-size: 9.5px; font-weight: 700; }
+.osmosis-result-value { text-align: right; white-space: nowrap; }
+.osmosis-result-value strong { color: var(--text); font-size: 14px; }
+.osmosis-result-value small { margin-left: 3px; color: var(--text-muted); font-size: 9px; }
+.osmosis-result-target { grid-column: 2 / -1; padding-top: 7px; border-top: 1px solid rgba(136,193,233,0.24); }
 .favorite-list { margin-top: 2px; }
 .favorites-empty { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); text-align: center; }
 .favorites-empty > span { color: #f59e0b; font-size: 42px; line-height: 1; }
