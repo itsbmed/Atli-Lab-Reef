@@ -1,4 +1,4 @@
-import { daysAgoDate } from '@/services/dashboardDemo'
+import { daysAgoDate } from './dashboardDemo.js'
 
 export const ANALYSIS_GROUPS = Object.freeze([
   { key: 'basis', label: 'Basiswerte', color: '#1686d9', description: 'Grundlage für Härte, Dichte und die chemische Stabilität.' },

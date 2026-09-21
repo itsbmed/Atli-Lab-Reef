@@ -2,13 +2,14 @@ import { getAquarium, getAquariums } from '@/services/aquariumStore'
 import { daysAgoDate } from '@/services/dashboardDemo'
 import { createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSimulatedDosingAnalysis } from '@/services/simulatedDosingAnalysis'
+import { createRealAtiAnalysis, REAL_ATI_ANALYSIS_ID } from '@/services/realAtiAnalysis'
 import { loadAnalysisContent } from '@/services/analysisContent'
 import { evaluateRecommendationRules } from '@/services/recommendationRules'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
-export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-5', 'demo-analysis-dosing'])
+export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-5', 'demo-analysis-dosing', REAL_ATI_ANALYSIS_ID])
 const approvedCompletedAnalysisIds = new Set(APPROVED_COMPLETED_ANALYSIS_IDS)
 
 export const ANALYSIS_PACKAGES = [
@@ -138,7 +139,9 @@ function enrichAnalysis(analysis) {
     dosingRecommendation: parameter.dosingRecommendation || analysis.dosingRecommendations?.[parameter.key] || null,
     unit: configuredContent[parameter.key]?.unit || parameter.unit,
     precision: configuredContent[parameter.key]?.precision ?? parameter.precision,
-    target: configuredContent[parameter.key]
+    target: analysis.preserveSourceEvaluation
+      ? parameter.target
+      : configuredContent[parameter.key]
       ? `${configuredContent[parameter.key].targetMin} - ${configuredContent[parameter.key].targetMax}`
       : parameter.target,
     referenceRange: configuredContent[parameter.key]
@@ -151,8 +154,11 @@ function enrichAnalysis(analysis) {
       : parameter.referenceRange,
     history: parameter.history || analysis.parameterHistory?.[parameter.key] || demoParameterHistory(analysis.id, parameter.key),
   }))
-  const usesRecommendationRules = analysis.status === 'completed'
-  const recommendationGroups = usesRecommendationRules
+  const usesSourceRecommendations = analysis.status === 'completed' && analysis.preserveSourceRecommendations
+  const usesRecommendationRules = analysis.status === 'completed' && !usesSourceRecommendations
+  const recommendationGroups = usesSourceRecommendations
+    ? (analysis.recommendationGroups || [])
+    : usesRecommendationRules
     ? evaluateRecommendationRules({ ...analysis, waterType, parameters })
     : (analysis.recommendationGroups || [])
 
@@ -176,8 +182,9 @@ function enrichAnalysis(analysis) {
     reportNumber: analysis.reportNumber || analysis.barcode?.replaceAll('-', ''),
     issueCount: analysis.issueCount ?? analysis.issues?.length ?? 0,
     parameters,
-    recommendationEngineApplied: usesRecommendationRules,
-    recommendations: usesRecommendationRules ? recommendationGroups.map((item) => item.summary) : (analysis.recommendations || []),
+    recommendationEngineApplied: usesRecommendationRules || usesSourceRecommendations,
+    recommendationSource: usesSourceRecommendations ? 'ATI-Originalbericht' : usesRecommendationRules ? 'Regelwerk' : '',
+    recommendations: (usesRecommendationRules || usesSourceRecommendations) ? recommendationGroups.map((item) => item.summary) : (analysis.recommendations || []),
     recommendationGroups,
   }
 }
@@ -192,6 +199,7 @@ const DEMO_ANALYSES = [
   createDemoAnalysis('demo-analysis-2', 'medium'),
   createDemoAnalysis('demo-analysis-5', 'bad'),
   createSimulatedDosingAnalysis(),
+  createRealAtiAnalysis(),
   { id: 'demo-analysis-3', barcode: 'ATI-2407-1044', reportNumber: 'ICP-1044', aquariumName: 'Wohnzimmer Reef', waterType: 'Meerwasser', package: 'standard', reason: 'routine', status: 'in_analysis', score: null, issueCount: 0, createdAt: daysAgoDate(1), issues: [], recommendations: [] },
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
@@ -205,6 +213,7 @@ export function syncDemoAnalyses(ownerId) {
     medium: demoAquariums.find((aquarium) => aquarium.name === 'Wohnzimmer Reef'),
     bad: demoAquariums.find((aquarium) => aquarium.name === 'Nano SPS Cube'),
     'dosing-test': demoAquariums.find((aquarium) => aquarium.name === 'Wohnzimmer Reef'),
+    'real-ati-393026': demoAquariums.find((aquarium) => aquarium.name === 'Basement System'),
   }
   const liveExamples = DEMO_ANALYSES.filter((analysis) =>
     analysis.status !== 'completed' || approvedCompletedAnalysisIds.has(analysis.id)

@@ -91,13 +91,18 @@ const DEMO_AQUARIUMS = [
   { id: DEMO_OSMOSIS_ID, name: 'Osmoseanlage Keller', water_type: 'Osmosewasser', net_volume: 60, notes: 'RO/DI Quelle für Wasserwechsel und Nachfüllwasser.', image_theme: 'osmosis', water_details: { ro_product: 'ATI Umkehrosmose', ro_capacity_lpd: 380, resin_filter: true, resin_product: 'ATI Harzfilter', resin_volume_l: 2, storage_tank: true, storage_volume_l: 60 } },
   { name: 'Wohnzimmer Reef', water_type: 'Meerwasser', net_volume: 350, aquarium_type: 'Mischbecken', dimensions: '120×55×55 cm', target_mode: 'ati', stocking_density: 'Mittel', lighting_type: 'LED', supply_system: 'ATI Essentials', sump: true, refugium: true, skimmer: true, skimmer_model: 'ATI PowerCone 250', notes: 'Hauptbecken im Wohnzimmer.', image_theme: 'reef-mixed', osmosis_source_id: DEMO_OSMOSIS_ID },
   { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps', osmosis_source_id: DEMO_OSMOSIS_ID },
+  { id: 'demo-basement-osmosis', name: 'Basement System · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 393026.', image_theme: 'osmosis', water_details: { resin_filter: true } },
+  { id: 'demo-basement-system', name: 'Basement System', water_type: 'Meerwasser', net_volume: 454, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 393026.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-basement-osmosis' },
 ]
 
 export function ensureDemoAquariums() {
   const all = read(AQUARIUMS_KEY, [])
-  if (all.some((a) => a.ownerId === DEMO_OWNER)) return
+  let changed = false
   for (const a of DEMO_AQUARIUMS) {
+    const exists = all.some((item) => item.ownerId === DEMO_OWNER && (a.id ? item.id === a.id : item.name === a.name))
+    if (exists) continue
     all.push({ ...emptyAquarium(), ...a, id: a.id || makeId(), ownerId: DEMO_OWNER, createdAt: new Date().toISOString() })
+    changed = true
   }
-  write(AQUARIUMS_KEY, all)
+  if (changed) write(AQUARIUMS_KEY, all)
 }
