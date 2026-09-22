@@ -37,6 +37,13 @@
             </div>
           </div>
           <div class="form-group">
+            <label>Bewertungsgrundlage</label>
+            <select v-model="form.evaluation_scale_id" required>
+              <option v-for="scale in evaluationScales" :key="scale.id" :value="scale.id">{{ scale.name }}</option>
+            </select>
+            <small class="aqn-hint">{{ selectedScaleDescription }}</small>
+          </div>
+          <div class="form-group">
             <label>Foto (optional)</label>
             <div class="aqn-photo">
               <div class="aqn-photo-thumb">
@@ -143,6 +150,7 @@ import { useAquariumsStore } from '@/stores/aquariums'
 import OsmosisSourcePicker from '@/components/aquariums/OsmosisSourcePicker.vue'
 import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
 import { emptyAquarium } from '@/services/aquariumStore'
+import { loadEvaluationScales } from '@/services/evaluationScales'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
 import { WATER_TYPES } from '@/services/waterTypeFields'
@@ -155,6 +163,8 @@ const form = ref(emptyAquarium())
 
 onMounted(() => aquariums.load())
 
+const evaluationScales = loadEvaluationScales()
+const selectedScaleDescription = computed(() => evaluationScales.find((scale) => scale.id === form.value.evaluation_scale_id)?.description || 'Legt fest, ab wann ein Messwert als niedrig, optimal oder erhöht bewertet wird.')
 const photoError = ref('')
 const selectedPresetId = ref('')
 const showPresetPicker = ref(false)

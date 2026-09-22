@@ -171,6 +171,7 @@ function enrichAnalysis(analysis) {
       aquariumType: aquarium.aquarium_type || 'Nicht angegeben',
       livestock: aquarium.stocking_density || 'Nicht angegeben',
       supplySystem: aquarium.supply_system || 'Nicht angegeben',
+      evaluationScaleId: aquarium.evaluation_scale_id || '',
       filtration: [aquarium.skimmer && 'Eiweißabschäumer', aquarium.refugium && 'Refugium', aquarium.sump && 'Technikbecken'].filter(Boolean),
     } : (analysis.aquariumProfile || null),
     aquariumName: analysis.aquariumName || aquarium?.name || 'Aquarium',

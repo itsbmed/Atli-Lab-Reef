@@ -3,6 +3,8 @@
 // Datei", bis das Backend steht. Jedes Aquarium gehört einem Nutzer
 // (ownerId) und wird nur diesem angezeigt.
 
+import { DEFAULT_SCALE_ID } from '@/services/evaluationScales'
+
 const AQUARIUMS_KEY = 'reef-pilot:aquariums'
 
 function read(key, fallback) {
@@ -29,7 +31,7 @@ export function emptyAquarium() {
     stocking_density: '', lighting_type: '', supply_system: '',
     sump: false, refugium: false, skimmer: false, skimmer_model: '',
     notes: '', image_theme: 'reef-mixed', image: null, water_details: {},
-    osmosis_source_id: '',
+    osmosis_source_id: '', evaluation_scale_id: DEFAULT_SCALE_ID,
   }
 }
 
