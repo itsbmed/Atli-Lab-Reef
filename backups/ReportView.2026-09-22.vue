@@ -46,7 +46,7 @@
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-          Übersicht &amp; Empfehlungen <b v-if="openActionCount">{{ openActionCount }}</b>
+          Übersicht &amp; Empfehlungen <b v-if="carePlan.length">{{ carePlan.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
           Dosierungsplan <b v-if="dosingItemCount">{{ dosingItemCount }}</b>
@@ -63,78 +63,123 @@
       </nav>
 
       <section v-show="activeTab === 'overview'" class="combined-report-flow">
+        <header class="chapter-heading">
+          <b>01</b>
+          <div><span>Analyseübersicht</span><h2>Ergebnisse auf einen Blick</h2><p>Zuerst den Zustand und die betroffenen Gruppen verstehen.</p></div>
+          <strong>{{ analysis.parameters.length || '—' }} Messwerte</strong>
+        </header>
+
         <div class="report-layout">
           <main class="report-main">
-          <section class="panel direct-actions">
-            <div class="actions-head">
+          <section class="panel group-overview">
+            <div class="section-head group-overview-head">
               <div>
-                <span>Empfehlungen</span>
-                <h2>{{ directRecommendations.length ? 'Das ist jetzt zu tun' : 'Kein Eingriff notwendig' }}</h2>
-                <p>{{ actionsIntro }}</p>
+                <span>Gruppen</span>
+                <h2>Gruppenstatus im Bericht</h2>
+                <p>Statusfarben zeigen die Bewertung. Die Elementgruppe wird direkt beim Namen genannt.</p>
               </div>
-              <div v-if="directRecommendations.length" class="actions-count">
-                <strong>{{ openActionCount }}</strong>
-                <small>von {{ directRecommendations.length }} offen</small>
-              </div>
+              <strong>{{ analysis.parameters.length || '—' }} Werte</strong>
             </div>
 
-            <div v-if="!directRecommendations.length" class="actions-clean">
-              <span aria-hidden="true">✓</span>
-              <div>
-                <strong>Alle Werte liegen im Zielbereich</strong>
-                <p>Pflege und Dosierung können unverändert fortgeführt werden. Nutzen Sie diesen Bericht als Referenz für die nächste Messung.</p>
-              </div>
-            </div>
-
-            <TransitionGroup v-else name="action-rise" tag="div" class="action-cards" appear>
-              <article
-                v-for="(item, index) in directRecommendations"
-                :key="item.key"
-                :class="['action-card', item.tone, { done: completedActions[item.key], open: expandedCareCards[item.key] }]"
-                :style="{ '--rise-delay': `${index * 90}ms` }"
+            <div v-if="analysis.parameters.length" class="group-deck">
+              <button
+                v-for="group in parameterGroups"
+                :key="group.key"
+                type="button"
+                :class="['group-card', group.tone, `group-${group.key}`, { active: selectedOverviewGroup === group.key }]"
+                @click="selectedOverviewGroup = selectedOverviewGroup === group.key ? '' : group.key"
               >
-                <div class="action-top">
-                  <span class="action-icon" aria-hidden="true">{{ item.icon }}</span>
-                  <div class="action-heading">
-                    <small><em :class="['priority-chip', item.tone]">Priorität {{ item.priority }}</em>{{ item.kicker }}</small>
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.summary }}</p>
-                  </div>
+                <span class="group-dial" :style="groupDialStyle(group)"><b>{{ group.score }}</b><em>%</em></span>
+                <span class="group-copy">
+                  <strong>{{ group.label }}</strong>
+                  <em :class="['status-chip', group.tone]">{{ parameterStatusLabel(group.tone) }}</em>
+                  <small>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Keine Auffälligkeit' }} · {{ group.total }} Werte</small>
+                </span>
+                <small>{{ groupDescription(group.key) }}</small>
+              </button>
+            </div>
+            <p v-else class="muted">Die Laborwerte werden angezeigt, sobald der Bericht fertig ist.</p>
+
+            <div v-if="selectedOverviewGroupData" class="group-detail-panel">
+              <div class="group-detail-head">
+                <div><span>Aufschlüsselung</span><h3>{{ selectedOverviewGroupData.label }}</h3></div>
+                <div class="group-detail-actions">
+                  <button type="button" class="soft-link" @click="openGroupInExplorer(selectedOverviewGroupData.key)">Im Explorer öffnen</button>
+                  <button type="button" class="group-close" aria-label="Gruppe schließen" title="Schließen" @click="selectedOverviewGroup = ''">×</button>
+                </div>
+              </div>
+              <div v-if="selectedOverviewGroupData.issueParameters.length" class="element-list overview-elements">
+                <article
+                  v-for="parameter in selectedOverviewGroupData.issueParameters"
+                  :key="parameter.key"
+                  :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[`overview-${parameter.key}`] }]"
+                >
+                  <button class="element-head" type="button" @click="toggleParameter(`overview-${parameter.key}`)">
+                    <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+                    <span class="element-name">
+                      <strong>{{ parameter.label }}</strong>
+                      <span class="element-meta">
+                        <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
+                        <small class="element-group">{{ parameterGroup(parameter).label }}</small>
+                      </span>
+                    </span>
+                    <span class="target-gauge">
+                      <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                      <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+                    </span>
+                    <span class="element-reading"><strong>{{ displayParameterValue(parameter) }}</strong><small>{{ parameter.unit }}</small></span>
+                    <span class="element-chevron" aria-hidden="true">⌄</span>
+                  </button>
                   <button
                     type="button"
-                    class="action-done"
-                    :aria-pressed="Boolean(completedActions[item.key])"
-                    :title="completedActions[item.key] ? 'Als offen markieren' : 'Als erledigt markieren'"
-                    @click="toggleCareAction(item.key)"
-                  >{{ completedActions[item.key] ? '✓' : '' }}</button>
-                </div>
-
-                <div class="action-elements">
-                  <span v-for="element in item.elements" :key="element.key" :class="['element-pill', element.tone]">
-                    <b>{{ element.symbol }}</b>
-                    <span><strong>{{ element.label }}</strong><small>{{ element.value }} {{ element.unit }} · {{ element.band }}</small></span>
-                    <i :title="`Score ${element.score} von 9`">{{ element.score }}</i>
-                  </span>
-                </div>
-
-                <div class="action-footer">
-                  <button type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
-                  <button type="button" class="btn btn-ghost" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
-                    {{ expandedCareCards[item.key] ? 'Weniger anzeigen' : 'So gehen Sie vor' }}
-                  </button>
-                  <em>Kontrolle in {{ item.recheckDays }} Tagen</em>
-                </div>
-
-                <Transition name="action-expand">
-                  <div v-show="expandedCareCards[item.key]" class="action-steps">
-                    <ol>
-                      <li v-for="(step, stepIndex) in item.steps" :key="step"><b>{{ stepIndex + 1 }}</b><p>{{ step }}</p></li>
-                    </ol>
-                    <ProductSuggestions v-if="recommendationProducts(item).length" class="action-products" :products="recommendationProducts(item)" />
+                    :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
+                    :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
+                    :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                    @click="analyses.toggleFavorite(parameter.key)"
+                  >★</button>
+                  <div v-if="expandedParameters[`overview-${parameter.key}`]" class="element-detail">
+                    <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
+                      <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(`overview-${parameter.key}`) === detail.key" :class="{ active: parameterDetailPanel(`overview-${parameter.key}`) === detail.key }" @click="selectParameterDetail(`overview-${parameter.key}`, detail.key)">
+                        <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
+                        <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
+                      </button>
+                    </div>
+                    <div v-if="parameterDetailPanel(`overview-${parameter.key}`) === 'info'" class="parameter-info-panel">
+                      <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
+                      <div class="parameter-spec-grid">
+                        <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
+                        <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
+                        <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
+                        <div><span>Laborstatus</span><strong>{{ labStatusLabel(parameter) }}</strong></div>
+                      </div>
+                      <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
+                      <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
+                    </div>
+                    <div v-else-if="parameterDetailPanel(`overview-${parameter.key}`) === 'action'" class="parameter-recommendation-panel">
+                      <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
+                      <div class="level-recommendations">
+                        <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
+                        <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
+                      </div>
+                    </div>
+                    <div v-else class="parameter-trend">
+                      <div class="trend-heading">
+                        <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                        <strong>{{ historyChange(parameter) }}</strong>
+                      </div>
+                      <ParameterTrendChart :parameter="parameter" />
+                    </div>
                   </div>
-                </Transition>
-              </article>
-            </TransitionGroup>
+                </article>
+              </div>
+              <div v-else class="group-clean-state">
+                <i aria-hidden="true">✓</i>
+                <div>
+                  <strong>Alles in Ordnung</strong>
+                  <p>Alle Werte dieser Gruppe liegen im vorgesehenen Bereich.</p>
+                </div>
+              </div>
+            </div>
           </section>
 
           </main>
@@ -181,6 +226,56 @@
             </section>
           </aside>
         </div>
+
+        <section v-if="analysis.status === 'completed'" class="panel care-plan">
+          <div class="care-head">
+            <div class="care-title">
+              <b class="chapter-number">02</b>
+              <div class="care-title-copy">
+                <span>Empfehlungen</span>
+                <h2>{{ carePlan.length ? 'Ihr Pflegeplan' : issueParameters.length ? 'Keine passende Regel ausgelöst' : 'Kein Eingriff notwendig' }}</h2>
+                <p v-if="!carePlan.length && !issueParameters.length">Alle gemessenen Werte liegen stabil. Pflege und Dosierung können unverändert fortgeführt werden.</p>
+                <p v-else-if="!carePlan.length">Es gibt auffällige Messwerte, aber aktuell keine aktive Empfehlungsregel mit passenden Bedingungen.</p>
+              </div>
+            </div>
+            <div v-if="carePlan.length" class="care-mode" role="group" aria-label="Darstellung des Pflegeplans">
+              <button type="button" :class="{ active: careMode === 'quick' }" @click="setCareMode('quick')">Schnell</button>
+              <button type="button" :class="{ active: careMode === 'detail' }" @click="setCareMode('detail')">Ausführlich</button>
+            </div>
+          </div>
+
+          <div v-if="!carePlan.length" class="care-clean">
+            <span aria-hidden="true">{{ issueParameters.length ? '!' : '✓' }}</span>
+            <div><strong>{{ issueParameters.length ? 'Regelprüfung erforderlich' : 'System stabil' }}</strong><p>{{ issueParameters.length ? 'Prüfen Sie die aktiven Regeln in den Admin-Einstellungen.' : 'Nutzen Sie diesen Bericht als Referenz für die nächste Messung.' }}</p></div>
+          </div>
+
+          <div v-else class="care-groups">
+            <section v-for="group in carePlanGroups" :key="group.key" :class="['care-group', `group-${group.key}`]">
+              <header class="care-group-head">
+                <div><span>{{ group.label }}</span></div>
+                <strong>{{ group.items.length }} {{ group.items.length === 1 ? 'Empfehlung' : 'Empfehlungen' }}</strong>
+              </header>
+              <div class="care-details">
+                <article v-for="(item, index) in group.items" :key="item.key" :class="['care-card', item.tone, { done: completedActions[item.key], expanded: expandedCareCards[item.key] }]">
+                  <div class="care-card-head">
+                    <button type="button" class="care-check" :aria-label="`${item.title} als erledigt markieren`" @click="toggleCareAction(item.key)">{{ completedActions[item.key] ? '✓' : String(index + 1).padStart(2, '0') }}</button>
+                    <button type="button" class="care-card-toggle" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
+                      <span class="care-card-copy"><small>{{ parameterStatusLabel(item.tone) }} · Priorität {{ item.priority }} · {{ item.parameters.length }} {{ item.parameters.length === 1 ? 'Wert' : 'Werte' }}</small><strong>{{ item.title }}</strong><em>{{ item.summary }}</em><span class="care-elements"><b v-for="parameter in item.parameters" :key="parameter">{{ parameter }}</b></span></span>
+                      <span class="care-card-meta"><em>{{ item.recheck }}</em><i aria-hidden="true">⌄</i></span>
+                    </button>
+                  </div>
+                  <Transition name="care-slide">
+                    <div v-show="expandedCareCards[item.key]" class="care-card-grid">
+                      <div><span class="care-label">Warum</span><p v-for="reason in item.whys" :key="reason">{{ reason }}</p></div>
+                      <div><span class="care-label">So gehen Sie vor</span><ol><li v-for="step in item.steps" :key="step">{{ step }}</li></ol></div>
+                    </div>
+                  </Transition>
+                  <ProductSuggestions v-if="careItemProducts(item).length" class="care-product-section" :products="careItemProducts(item)" />
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
       </section>
 
       <DosingPlan v-if="analysis.status === 'completed'" v-show="activeTab === 'dosing'" class="panel" :analysis="analysis" />
@@ -410,7 +505,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { useAuthStore } from '@/stores/auth'
 import { WORKFLOW_STEPS } from '@/services/analysisStore'
@@ -419,8 +514,6 @@ import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCata
 import { buildDosingPlan } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
 import { recommendedProductsForKeys } from '@/services/dosingConfig'
-import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
-import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directRecommendations'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
@@ -433,15 +526,16 @@ const PARAMETER_DETAIL_TABS = [
 const ISSUE_PREVIEW_LIMIT = 5
 
 const route = useRoute()
-const router = useRouter()
 const analyses = useAnalysesStore()
 const auth = useAuthStore()
 const parameterContent = loadAnalysisContent()
 const actionMsg = ref('')
 const activeTab = ref('overview')
 const selectedGroup = ref('')
+const selectedOverviewGroup = ref('')
 const parameterSearch = ref('')
 const parameterStatus = ref('all')
+const careMode = ref('quick')
 const expandedParameters = reactive({})
 const parameterDetailPanels = reactive({})
 const expandedCareCards = reactive({})
@@ -490,6 +584,7 @@ const parameterGroups = computed(() => {
     tone: group.parameters.some((item) => item.tone === 'critical') ? 'critical' : group.issueCount ? 'watch' : 'good',
   }))
 })
+const selectedOverviewGroupData = computed(() => parameterGroups.value.find((group) => group.key === selectedOverviewGroup.value) || null)
 const visibleParameters = computed(() => {
   const query = parameterSearch.value.trim().toLowerCase()
   return (analysis.value?.parameters || [])
@@ -512,29 +607,70 @@ const explorerSummary = computed(() => {
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
 const approvedDosingItems = computed(() => buildDosingPlan(analysis.value?.parameters || [], Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0)).filter(item => item.dose))
 const dosingItemCount = computed(() => approvedDosingItems.value.length + (analysis.value?.parameters || []).filter((parameter) => parameter.managedDose).length)
-const evaluationScales = loadEvaluationScales()
-const activeScale = computed(() => findScale(evaluationScales, analysis.value?.aquariumProfile?.evaluationScaleId || loadActiveScaleId()))
-const evaluatedParameters = computed(() => evaluateAnalysis(analysis.value?.parameters || [], activeScale.value))
-const directRecommendations = computed(() => buildDirectRecommendations(evaluatedParameters.value, {
-  dosingKeys: new Set(approvedDosingItems.value.map((item) => item.key)),
-}))
-const openActionCount = computed(() => directRecommendations.value.filter((item) => !completedActions[item.key]).length)
-const actionsIntro = computed(() => {
-  if (!directRecommendations.value.length) return 'Keine Maßnahme ist erforderlich. Alle bewerteten Messwerte liegen in ihrem Optimumfenster.'
-  const names = directRecommendations.value.flatMap((item) => item.elements.map((element) => element.label))
-  return `Bewertet nach ${activeScale.value?.name || 'ATI Standard'}. Betroffen: ${[...new Set(names)].join(', ')}.`
-})
-function recommendationProducts(item) {
-  return recommendedProductsForKeys(item.elements.map((element) => element.key), analysis.value?.parameters || [])
+const individualCareActions = computed(() => issueParameters.value
+  .map((parameter, index) => buildCareAction(parameter, index))
+  .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)))
+function careItemProducts(item) {
+  return recommendedProductsForKeys(item.parameterKeys || (item.parameterKey ? [item.parameterKey] : []), analysis.value?.parameters || [])
 }
-function runRecommendation(item) {
-  if (item.action.tab) {
-    activeTab.value = item.action.tab
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    return
+const evaluatedCareActions = computed(() => (analysis.value?.recommendationGroups || []).map((item) => ({
+  ...item,
+  key: item.key || `rule-${item.ruleId}`,
+  parameters: item.parameters?.length
+    ? item.parameters
+    : (item.parameterKeys || []).map((key) => analysis.value?.parameters?.find((parameter) => parameter.key === key)?.label || key),
+  whys: item.whys?.filter(Boolean).length ? item.whys.filter(Boolean) : [item.why].filter(Boolean),
+  days: item.days || item.recheckDays || 14,
+  recheck: item.recheck || `Kontrolle in ${item.recheckDays || 14} Tagen`,
+})))
+const carePlanGroups = computed(() => {
+  if (analysis.value?.recommendationEngineApplied) {
+    return parameterGroups.value
+      .map((group) => ({
+        ...group,
+        items: evaluatedCareActions.value
+          .filter((item) => item.groupKey === group.key)
+          .sort((a, b) => toneRank(a.tone) - toneRank(b.tone)),
+      }))
+      .filter((group) => group.items.length)
   }
-  router.push({ path: '/tools', query: { tool: item.action.tool, aquarium: analysis.value?.aquariumId, analysis: analysis.value?.id } })
-}
+
+  return parameterGroups.value.map((group) => {
+    const recommendations = new Map()
+    for (const action of individualCareActions.value.filter((item) => item.groupKey === group.key)) {
+      const recommendationKey = action.summary.trim().toLocaleLowerCase('de-DE')
+      if (!recommendations.has(recommendationKey)) {
+        recommendations.set(recommendationKey, {
+          ...action,
+          key: `${group.key}-${action.parameterKey}`,
+          parameters: [action.parameterLabel],
+          parameterKeys: [action.parameterKey],
+          whys: [action.why],
+        })
+        continue
+      }
+      const merged = recommendations.get(recommendationKey)
+      merged.key += `-${action.parameterKey}`
+      merged.parameters.push(action.parameterLabel)
+      merged.parameterKeys.push(action.parameterKey)
+      merged.whys.push(action.why)
+      merged.steps = [...new Set([...merged.steps, ...action.steps])]
+      if (toneRank(action.tone) < toneRank(merged.tone)) {
+        merged.tone = action.tone
+        merged.priority = action.priority
+      }
+      if (action.days < merged.days) {
+        merged.days = action.days
+        merged.recheck = action.recheck
+      }
+      merged.title = `${merged.parameters.join(' & ')} gemeinsam stabilisieren`
+    }
+    const items = [...recommendations.values()].sort((a, b) => toneRank(a.tone) - toneRank(b.tone))
+    return { ...group, items }
+  })
+    .filter((group) => group.items.length)
+})
+const carePlan = computed(() => carePlanGroups.value.flatMap((group) => group.items))
 const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
 
 const GROUP_META = Object.fromEntries(ANALYSIS_GROUPS.map((group) => [group.key, group]))
@@ -548,6 +684,17 @@ function parameterGuide(parameter) {
 }
 function parameterSymbol(parameter) {
   return parameter.symbol || ELEMENT_DEFINITION_MAP[parameter.key]?.symbol || parameter.label.slice(0, 2)
+}
+function groupDescription(key) {
+  return GROUP_META[key]?.description || 'Parameter dieser Laborgruppe gemeinsam betrachten.'
+}
+function groupDialStyle(group) {
+  const color = group.tone === 'critical' ? '#e85d4f' : group.tone === 'watch' ? '#f59e0b' : '#10b981'
+  return { background: `conic-gradient(${color} ${group.score * 3.6}deg, #e7eef6 0deg)` }
+}
+function openGroupInExplorer(key) {
+  selectedGroup.value = key
+  activeTab.value = 'values'
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
@@ -622,9 +769,45 @@ function historyChange(parameter) {
   const prefix = percent > 0 ? '+' : ''
   return `${prefix}${percent.toLocaleString('de-DE', { maximumFractionDigits: 1 })}%`
 }
+function buildCareAction(parameter, index) {
+  const groupedRecommendation = analysis.value?.recommendationGroups?.find((item) => item.parameterKeys?.includes(parameter.key))
+  const recommendation = groupedRecommendation?.summary
+    || analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+    || analysis.value?.recommendations?.[index]
+    || `${parameter.label} kontrolliert in den Zielbereich zurückführen.`
+  const [minimum, maximum] = targetBounds(parameter.target)
+  const isHigh = parameter.sourceDirection ? parameter.sourceDirection === 'high' : Number(parameter.value) > maximum
+  const direction = parameter.sourceDirection === 'low' ? 'unter' : isHigh ? 'über' : Number(parameter.value) < minimum ? 'unter' : 'am Rand von'
+  const priority = groupedRecommendation?.priority || (parameter.tone === 'critical' ? 'Hoch' : 'Mittel')
+  const days = groupedRecommendation?.recheckDays || (parameter.tone === 'critical' ? 7 : 14)
+  return {
+    key: parameter.key,
+    parameterKey: parameter.key,
+    parameterLabel: parameter.label,
+    groupKey: parameterGroup(parameter).key,
+    tone: parameter.tone,
+    priority,
+    days,
+    title: groupedRecommendation?.title || `${parameter.label} ${isHigh ? 'senken' : 'stabilisieren'}`,
+    summary: recommendation,
+    why: `${parameter.label} liegt mit ${displayParameterValue(parameter)} ${parameter.unit} ${direction} dem Zielbereich ${parameter.target} ${parameter.unit}. Langsame, nachvollziehbare Korrekturen schützen das System vor zusätzlichen Schwankungen.`,
+    steps: groupedRecommendation?.steps || careSteps(parameter, isHigh),
+    recheck: `Kontrolle in ${days} Tagen`,
+  }
+}
+function careSteps(parameter, isHigh) {
+  const steps = isHigh
+    ? [`Aktive ${parameter.label}-Zufuhr und mögliche Eintragsquellen prüfen.`, 'Nur eine Korrektur gleichzeitig beginnen und den Zeitpunkt dokumentieren.']
+    : [`Versorgung von ${parameter.label} prüfen und mit niedriger Dosierung starten.`, 'Tagesmenge in kleinen Schritten anpassen und starke Sprünge vermeiden.']
+  return [...steps, `Nach der Anpassung ${parameter.label} erneut messen und mit diesem Bericht vergleichen.`]
+}
 function toggleCareAction(key) {
   completedActions[key] = !completedActions[key]
   saveRecommendationProgress(auth.user?.id, analysis.value?.id, completedActions)
+}
+function setCareMode(mode) {
+  careMode.value = mode
+  for (const item of carePlan.value) expandedCareCards[item.key] = mode === 'detail'
 }
 function toggleCareCard(key) {
   expandedCareCards[key] = !expandedCareCards[key]
@@ -697,6 +880,14 @@ function markPdf() {
 .report-tabs b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 5px; padding: 0 6px; border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 11px; }
 .report-tabs button.active b { background: rgba(255,255,255,0.2); }
 .combined-report-flow { display: grid; gap: 20px; min-width: 0; }
+.chapter-heading { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 17px 20px; border: 1px solid rgba(136,193,233,0.3); border-left: 4px solid var(--brand-blue); border-radius: 17px; background: linear-gradient(105deg, #fff, #f3f9fd); box-shadow: 0 8px 24px rgba(10,27,67,0.05); }
+.chapter-heading > b,
+.chapter-number { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 900; box-shadow: 0 6px 15px rgba(0,114,206,0.2); }
+.chapter-heading span,
+.care-title-copy > span { color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+.chapter-heading h2 { margin-top: 2px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
+.chapter-heading p { margin-top: 2px; color: var(--text-muted); font-size: 11px; }
+.chapter-heading > strong { padding: 7px 10px; border-radius: 999px; background: #e6f2fa; color: #536b7d; font-size: 10px; white-space: nowrap; }
 .report-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
 .report-main { display: grid; gap: 18px; }
 .report-side { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); }
@@ -721,80 +912,117 @@ function markPdf() {
 .parameter-card strong { margin-top: 5px; color: var(--text); font-size: 24px; }
 .parameter-card small { color: var(--text-muted); font-size: 12px; }
 .parameter-card em { margin-top: 5px; color: var(--text-muted); font-style: normal; font-size: 12px; font-weight: 700; }
+.group-overview { display: grid; gap: 16px; }
+.group-overview-head { margin-bottom: 0; }
+.group-overview-head p { max-width: 620px; margin-top: 5px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.group-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.group-card { min-height: 116px; display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 4px 12px; padding: 14px; text-align: left; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; color: var(--text); cursor: pointer; }
+.group-card:hover { border-color: var(--teal-400); transform: translateY(-1px); }
+.group-card.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
+.group-card.critical.active { border-color: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.1); }
+.group-card.watch.active { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+.group-card.good { border-left-color: #10b981; }
+.group-card.watch { border-left-color: #f59e0b; }
+.group-card.critical { border-left-color: #e85d4f; }
+.group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 50px; height: 50px; border-radius: 50%; }
+.group-dial::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #fff; }
+.group-card.active .group-dial::after { background: var(--teal-50); }
+.group-dial b,
+.group-dial em { position: relative; z-index: 1; }
+.group-dial b { font-size: 14px; }
+.group-dial em { margin: 4px 0 0 1px; color: var(--text-muted); font-size: 8px; font-style: normal; }
+.group-copy strong,
+.group-copy em { display: block; }
+.group-copy strong { display: flex; align-items: center; gap: 7px; font-size: 14px; }
+.group-copy .status-chip { display: inline-flex; margin-top: 7px; }
+.group-copy > small { display: block; margin-top: 5px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .status-chip { display: inline-flex; align-items: center; width: fit-content; padding: 3px 7px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 9px; font-style: normal; font-weight: 850; line-height: 1.25; }
 .status-chip.watch { background: #fff4df; color: #9a4d0a; }
 .status-chip.critical { background: #fdecea; color: #b53a2e; }
+.group-card > small { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.group-detail-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: #f8fbfe; }
+.group-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.group-detail-head span { color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.group-detail-head h3 { margin-top: 3px; color: var(--text); font-size: 20px; }
+.group-detail-actions { display: flex; align-items: center; gap: 8px; }
+.soft-link { padding: 6px 4px; border: 0; appearance: none; background: transparent; color: var(--brand-blue); font-size: 12px; font-weight: 800; cursor: pointer; }
+.soft-link:hover { color: var(--teal-700); text-decoration: underline; }
+.soft-link:focus-visible { border-radius: 6px; outline: 3px solid rgba(0, 114, 206, 0.2); outline-offset: 2px; }
+.group-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+.group-close:hover { border-color: var(--brand-blue); color: var(--brand-blue); }
+.overview-elements .element-row { background: #fff; }
+.group-clean-state { display: flex; align-items: center; gap: 12px; min-height: 92px; padding: 16px; border: 1px solid #bbf7d0; border-radius: 14px; background: #ecfdf5; color: #047857; }
+.group-clean-state > i { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: #10b981; color: #fff; font-size: 17px; font-style: normal; font-weight: 900; }
+.group-clean-state strong { display: block; color: #065f46; font-size: 14px; }
+.group-clean-state p { margin-top: 3px; color: #047857; font-size: 12px; line-height: 1.45; }
 .issue-list { display: grid; gap: 8px; }
 .muted { color: var(--text-muted); line-height: 1.55; }
 .overview-sidebar { overflow: hidden; padding: 0; }.sidebar-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; background: #0a1b43; color: #fff; }.sidebar-summary span { color: var(--teal-200); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.sidebar-summary h2 { margin-top: 5px; font-size: 23px; line-height: 1.15; }.sidebar-summary > b { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 14px; background: #10b981; font-size: 16px; }.sidebar-summary > b.watch { background: #f59e0b; }.sidebar-summary > b.critical { background: #e85d4f; }.sidebar-issues { display: grid; gap: 12px; padding: 18px 20px; }.sidebar-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.sidebar-section-title strong { color: var(--text); font-size: 13px; }.sidebar-section-title span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.issue-list.expanded { max-height: min(340px, 40vh); padding-right: 4px; overflow-y: auto; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.issue-list span { padding: 10px 11px; border-left: 3px solid #f59e0b; border-radius: 9px; background: #fff7ed; color: #92400e; font-size: 11.5px; font-weight: 800; line-height: 1.4; }.issues-clean { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 11px; background: #ecfdf5; color: #047857; }.issues-clean i { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 50%; background: #10b981; color: #fff; font-style: normal; font-weight: 900; }.issues-clean p { font-size: 11.5px; line-height: 1.5; }.issue-toggle { justify-self: start; padding: 6px 0; border: 0; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }.issue-toggle:hover { text-decoration: underline; }.context-disclosure { border-top: 1px solid var(--border); }.context-disclosure summary { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 9px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; }.context-disclosure summary::-webkit-details-marker { display: none; }.context-disclosure summary > span { color: var(--text); font-size: 12.5px; font-weight: 850; }.context-disclosure summary > small { max-width: 155px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.context-disclosure summary > i { color: var(--brand-blue); font-size: 17px; font-style: normal; transition: transform .2s; }.context-disclosure[open] summary { background: #f8fbfe; }.context-disclosure[open] summary > i { transform: rotate(180deg); }.context-rows { display: grid; gap: 0; padding: 4px 20px 16px; }.context-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e8eff5; }.context-rows span { color: var(--text-muted); font-size: 10.5px; line-height: 1.35; }.context-rows strong { max-width: 195px; color: var(--text); font-size: 11.5px; line-height: 1.4; text-align: right; }.context-rows > p { margin-top: 9px; padding: 11px; border-radius: 10px; background: #f4f9fd; color: var(--text-muted); font-size: 10.5px; line-height: 1.55; }
-.direct-actions { display: grid; gap: 18px; min-width: 0; padding: 26px; border-top: 4px solid var(--teal-500); box-shadow: 0 12px 32px rgba(10,27,67,0.07); }
-.actions-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-.actions-head > div:first-child > span { color: var(--teal-700); font-size: 11px; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
-.actions-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 850; letter-spacing: -0.02em; }
-.actions-head p { max-width: 620px; margin-top: 6px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
-.actions-count { flex: none; padding: 11px 16px; border: 1px solid var(--border); border-radius: 14px; background: #f6fafc; text-align: center; }
-.actions-count strong { display: block; color: var(--brand-blue); font-size: 26px; line-height: 1; }
-.actions-count small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10px; font-weight: 800; }
-.actions-clean { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 14px; border-radius: 16px; background: #ecfdf5; color: #047857; text-align: left; }
-.actions-clean > span { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 22px; font-weight: 900; }
-.actions-clean strong { display: block; color: #065f46; font-size: 18px; }
-.actions-clean p { max-width: 430px; margin-top: 3px; color: #047857; font-size: 13px; line-height: 1.5; }
-.action-cards { display: grid; gap: 12px; }
-.action-card { overflow: hidden; padding: 18px; border: 1px solid var(--border); border-left: 4px solid #f59e0b; border-radius: 17px; background: #fff; transition: border-color .18s, box-shadow .18s, transform .18s, opacity .18s; }
-.action-card.critical { border-left-color: #e85d4f; }
-.action-card:hover { border-color: #b9cadd; box-shadow: 0 10px 26px rgba(10,27,67,0.09); transform: translateY(-2px); }
-.action-card.open { box-shadow: 0 12px 30px rgba(10,27,67,0.1); }
-.action-card.done { opacity: 0.55; }
-.action-card.done .action-heading h3 { text-decoration: line-through; }
-.action-top { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: start; gap: 14px; }
-.action-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(145deg, #fff4df, #ffe9c2); color: #9a5b0a; font-size: 17px; font-weight: 900; }
-.action-card.critical .action-icon { background: linear-gradient(145deg, #fdecea, #fbd9d4); color: #b53a2e; }
-.action-heading { min-width: 0; }
-.action-heading > small { display: flex; align-items: center; gap: 8px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
-.priority-chip { padding: 3px 8px; border-radius: 999px; background: #fff4df; color: #9a4d0a; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: 0.04em; }
-.priority-chip.critical { background: #fdecea; color: #b53a2e; }
-.action-heading h3 { margin-top: 6px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
-.action-heading p { margin-top: 5px; color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
-.action-done { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 2px solid var(--border); border-radius: 11px; background: #fff; color: transparent; font-size: 15px; font-weight: 900; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
-.action-done:hover { border-color: #10b981; }
-.action-card.done .action-done { border-color: #10b981; background: #10b981; color: #fff; }
-.action-elements { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0 66px; }
-.element-pill { display: inline-flex; align-items: center; gap: 9px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 12px; background: #f8fbfe; }
-.element-pill.critical { border-color: #f8c9c4; background: #fff7f5; }
-.element-pill > b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #e6eef4; color: #536b7d; font-size: 10px; }
-.element-pill strong, .element-pill small { display: block; }
-.element-pill strong { color: var(--text); font-size: 12px; }
-.element-pill small { margin-top: 1px; color: var(--text-muted); font-size: 10px; }
-.element-pill > i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 11px; font-style: normal; font-weight: 900; }
-.element-pill.critical > i { background: #e85d4f; }
-.element-pill.good > i { background: #10b981; }
-.action-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0 66px; }
-.action-cta { box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
-.action-cta span { display: inline-block; transition: transform .18s; }
-.action-cta:hover span { transform: translateX(3px); }
-.action-footer > em { margin-left: auto; color: var(--text-muted); font-size: 11px; font-style: normal; }
-.action-steps { margin: 16px 0 0 66px; padding-top: 15px; border-top: 1px solid var(--border); }
-.action-steps ol { display: grid; gap: 8px; padding: 0; list-style: none; }
-.action-steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; background: #f7fafc; }
-.action-steps li > b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: #e3f1f9; color: var(--brand-blue); font-size: 11px; }
-.action-steps li > p { color: var(--text); font-size: 13px; line-height: 1.5; }
-.action-products { margin-top: 14px; }
-.action-rise-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); transition-delay: var(--rise-delay, 0ms); }
-.action-rise-enter-from { opacity: 0; transform: translateY(16px) scale(0.985); }
-.action-rise-leave-active { position: absolute; transition: opacity .2s ease; }
-.action-rise-leave-to { opacity: 0; }
-.action-expand-enter-active,
-.action-expand-leave-active { overflow: hidden; transition: max-height .32s ease, opacity .32s ease, transform .32s ease; }
-.action-expand-enter-from,
-.action-expand-leave-to { max-height: 0; opacity: 0; transform: translateY(-8px); }
-.action-expand-enter-to,
-.action-expand-leave-from { max-height: 900px; opacity: 1; transform: translateY(0); }
-@media (prefers-reduced-motion: reduce) {
-  .action-rise-enter-active,
-  .action-expand-enter-active,
-  .action-expand-leave-active { transition: none; }
-  .action-card:hover { transform: none; }
-}
+.care-plan { display: grid; gap: 20px; min-width: 0; padding: 26px; border-top: 4px solid var(--teal-500); box-shadow: 0 12px 32px rgba(10,27,67,0.07); }
+.care-head { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.care-title { min-width: 0; display: flex; align-items: center; gap: 14px; }
+.care-title-copy { min-width: 0; }
+.care-title-copy > span,
+.care-label { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.care-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 800; }
+.care-head p { margin-top: 6px; color: var(--text-muted); font-size: 13px; }
+.care-head .chapter-number { background: var(--teal-500); box-shadow: 0 6px 15px rgba(15,159,143,0.2); }
+.care-mode { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #eef5fb; }
+.care-mode button { min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+.care-mode button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 2px 8px rgba(10,27,67,0.08); }
+.care-clean { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 16px; border-radius: 16px; background: #ecfdf5; color: #047857; text-align: left; }
+.care-clean > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 24px; font-weight: 900; }
+.care-clean strong { display: block; color: #065f46; font-size: 18px; }
+.care-clean p { margin-top: 3px; color: #047857; font-size: 13px; }
+.care-groups { display: grid; gap: 22px; }
+.care-group { display: grid; gap: 10px; }
+.care-group-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 3px; }
+.care-group-head > div { display: flex; align-items: center; gap: 9px; }
+.care-group-head span { color: var(--text); font-size: 14px; font-weight: 850; }
+.care-group-head strong { padding: 5px 9px; border-radius: 999px; background: #eef3f7; color: #526477; font-size: 10px; font-weight: 850; }
+.care-details { display: grid; gap: 10px; }
+.care-card.done { opacity: 0.62; }
+.care-card.done .care-card-copy > strong { text-decoration: line-through; }
+.care-check { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; cursor: pointer; }
+.done .care-check { border-color: #10b981; background: #10b981; color: #fff; }
+.care-card { overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 16px; background: #fff; transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
+.care-card:hover { border-color: #b9cadd; box-shadow: 0 7px 20px rgba(10,27,67,0.07); }
+.care-card.good { border-left-color: #10b981; }
+.care-card.watch { border-left-color: #f59e0b; }
+.care-card.critical { border-left-color: #e85d4f; }
+.care-card.expanded { box-shadow: 0 9px 24px rgba(10,27,67,0.09); }
+.care-card-head { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 14px; }
+.care-card-toggle { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 3px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.care-card-copy,
+.care-card-copy > small,
+.care-card-copy > strong,
+.care-card-copy > em { display: block; }
+.care-card-copy > small { color: var(--teal-700); font-size: 10px; font-weight: 850; font-style: normal; letter-spacing: 0.07em; text-transform: uppercase; }
+.care-card-copy > strong { margin-top: 3px; color: var(--text); font-size: 17px; font-weight: 850; }
+.care-card-copy > em { margin-top: 4px; color: var(--text-muted); font-size: 12px; font-style: normal; line-height: 1.45; }
+.care-elements { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.care-elements b { padding: 4px 7px; border-radius: 7px; background: #eef3f7; color: #526477; font-size: 9px; font-weight: 850; }
+.care-card-meta { display: flex; align-items: center; gap: 12px; }
+.care-card-meta em { color: var(--text-muted); font-size: 10px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.care-card-meta i { color: var(--brand-blue); font-size: 20px; font-style: normal; transition: transform 0.25s ease; }
+.care-card.expanded .care-card-meta i { transform: rotate(180deg); }
+.care-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 18px 20px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
+.care-card-grid p,
+.care-card-grid ol { margin-top: 7px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.care-card-grid p + p { padding-top: 8px; border-top: 1px solid var(--border); }
+.care-card-grid ol { padding-left: 18px; }
+.care-card-grid li + li { margin-top: 5px; }
+.care-product-section { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface-soft); }
+.product-shop-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px 6px 6px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 850; text-decoration: none; transition: background 0.15s, color 0.15s; }
+.product-shop-link img { width: 26px; height: 26px; object-fit: contain; border-radius: 999px; background: var(--teal-50); flex-shrink: 0; }
+.product-shop-link:hover { background: var(--brand-blue); color: #fff; }
+.product-plain { padding: 7px 13px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; font-weight: 850; }
+.care-slide-enter-active,
+.care-slide-leave-active { overflow: hidden; transition: max-height 0.3s ease, opacity 0.22s ease, transform 0.3s ease; }
+.care-slide-enter-from,
+.care-slide-leave-to { max-height: 0; opacity: 0; transform: translateY(-8px); }
+.care-slide-enter-to,
+.care-slide-leave-from { max-height: 900px; opacity: 1; transform: translateY(0); }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
@@ -974,6 +1202,13 @@ function markPdf() {
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
 @media (max-width: 600px) {
+  .chapter-heading { grid-template-columns: 40px minmax(0, 1fr); gap: 11px; padding: 14px; }
+  .chapter-heading > b,
+  .chapter-number { width: 38px; height: 38px; }
+  .chapter-heading > strong { grid-column: 2; justify-self: start; }
+  .care-plan { padding: 18px; }
+  .care-title { align-items: flex-start; }
+  .care-head h2 { font-size: 22px; }
   .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
   .parameter-tab-copy strong { font-size: 10px; }
   .parameter-spec-grid { grid-template-columns: 1fr; }
