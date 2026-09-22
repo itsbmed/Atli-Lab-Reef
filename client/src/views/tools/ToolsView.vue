@@ -395,7 +395,7 @@
       </div>
 
       <div v-if="selectedDosingAnalysis && dosingCandidates.length" class="card dosing-card">
-        <DosingCalendar :items="dosingCandidates" :aquarium-name="selectedProfile?.name" :report-number="selectedDosingAnalysis.reportNumber || selectedDosingAnalysis.barcode" :volume="Number(selectedProfile?.net_volume) || 0" :start-date="weekStart(doseWeek)" :simulation="selectedDosingAnalysis.simulation" />
+        <DosingCalendar :items="dosingCandidates" :aquarium-name="selectedProfile?.name" :report-number="selectedDosingAnalysis.reportNumber || selectedDosingAnalysis.barcode" :volume="Number(selectedProfile?.net_volume) || 0" :simulation="selectedDosingAnalysis.simulation" />
         <div class="chart-heading">
           <div>
             <h3>{{ dosingRows.length ? 'Wochendosierung' : 'Korrekturen aus der Analyse' }}</h3>

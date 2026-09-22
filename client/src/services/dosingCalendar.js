@@ -25,15 +25,21 @@ export function weekStart(value) {
   return dateValue(date)
 }
 
-export function calendarWeeks(items, start) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '')) return []
-  const first = new Date(`${start}T12:00:00`)
-  if (Number.isNaN(first.getTime()) || dateValue(first) !== start) return []
-  const count = Math.max(0, ...items.map(item => item.dose?.days || 0))
-  return Array.from({ length: Math.ceil(count / 7) }, (_, week) => Array.from({ length: 7 }, (_, day) => {
-    const index = week * 7 + day
-    const date = new Date(first)
-    date.setDate(first.getDate() + index)
-    return { date: dateValue(date), label: date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }), doses: items.flatMap(item => index < item.dose.dailyAmounts.length && item.dose.dailyAmounts[index] > 0 ? [{ key: item.key, label: item.label, product: item.dose.productName, ml: item.dose.dailyAmounts[index] }] : []) }
-  }))
+// Relative course days instead of calendar dates: the plan stays valid whenever the customer starts.
+export function doseSchedule(items = []) {
+  const rows = items.filter(item => item.dose?.dailyAmounts?.length)
+  const days = Math.max(0, ...rows.map(item => item.dose.dailyAmounts.length))
+  return {
+    days,
+    rows: rows.map(item => ({
+      key: item.key,
+      label: item.label,
+      unit: item.unit,
+      productName: item.dose.productName,
+      totalMl: item.dose.totalMl,
+      dailyMl: item.dose.dailyMl,
+      maxDailyMl: item.dose.maxDailyMl,
+      amounts: Array.from({ length: days }, (_, index) => item.dose.dailyAmounts[index] ?? null),
+    })),
+  }
 }
