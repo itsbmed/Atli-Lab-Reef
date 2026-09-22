@@ -13,6 +13,7 @@
       <button type="button" :class="{ active: activeArea === 'elements' }" @click="activeArea = 'elements'"><span>Elemente</span><small>Messwerte &amp; Empfehlungen</small></button>
       <button type="button" :class="{ active: activeArea === 'dosing' }" @click="activeArea = 'dosing'"><span>Produkte &amp; Dosierung</span><small>Produktkarten &amp; freigegebene Formeln</small></button>
       <button v-if="recommendationRulesEnabled" type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
+      <button type="button" :class="{ active: activeArea === 'scales' }" @click="activeArea = 'scales'"><span>Bewertungsgrundlagen</span><small>Score-Stufen je Element</small></button>
       <button type="button" :class="{ active: activeArea === 'support' }" @click="activeArea = 'support'"><span>Hilfe &amp; Support</span><small>FAQs verwalten</small></button>
       <button v-if="canManageUsers" type="button" :class="{ active: activeArea === 'users' }" @click="openUserManagement"><span>Benutzer</span><small>Konten &amp; Berechtigungen</small></button>
     </nav>
@@ -64,6 +65,29 @@
               <label class="high"><span>Wert zu hoch</span><small>Was soll geprüft und wie soll korrigiert werden?</small><textarea v-model="selectedContent.high" rows="6"></textarea></label>
               <label class="low"><span>Wert zu niedrig</span><small>Was soll geprüft und wie soll korrigiert werden?</small><textarea v-model="selectedContent.low" rows="6"></textarea></label>
             </div>
+          </div>
+
+          <div class="editor-section">
+            <div class="section-label"><span>04</span><div><strong>Bewertungsgrundlage</strong><small>Neun Stufen von kritisch niedrig bis kritisch hoch</small></div></div>
+            <div class="scale-switch">
+              <label><span>Grundlage</span><select v-model="selectedScaleId"><option v-for="scale in scales" :key="scale.id" :value="scale.id">{{ scale.name }}</option></select></label>
+              <p>{{ selectedScale.description || 'Keine Beschreibung hinterlegt.' }}</p>
+            </div>
+            <div class="threshold-fields">
+              <label v-for="field in THRESHOLD_FIELDS" :key="field.key" :class="['threshold-field', `band-${field.band}`]">
+                <span>{{ field.label }}</span>
+                <input v-model.number="selectedThresholds[field.key]" type="number" step="any" />
+              </label>
+            </div>
+            <p v-if="thresholdError" class="field-error" role="status">{{ thresholdError }}</p>
+            <div class="band-preview" aria-label="Bewertungsstufen">
+              <span v-for="band in SCORE_BANDS" :key="band.score" :class="['band-chip', band.tone]">
+                <b>{{ band.score }}</b>
+                <em>{{ band.short }}</em>
+                <small>{{ bandRangeLabel(band.score) }}</small>
+              </span>
+            </div>
+            <p class="technical-note">Der Score steuert, welche direkte Empfehlung im Bericht erscheint. Score 5 ist das Optimum, Dosierungen zielen auf {{ correctionTarget }} {{ selectedContent.unit }}.</p>
           </div>
 
           <section class="content-preview">
@@ -234,6 +258,62 @@
       <footer class="rule-save-footer"><p :class="['save-message', recommendationSaveState.type]" role="status">{{ recommendationSaveState.message }}</p><span>{{ recommendationRules.filter((rule) => rule.active).length }} von {{ recommendationRules.length }} Regeln aktiv</span></footer>
     </section>
 
+    <section v-show="activeArea === 'scales'" class="editor-shell">
+      <header class="editor-heading">
+        <div><span>Bewertungsgrundlagen</span><h2>Score-Stufen verwalten</h2><p>Eine Grundlage legt für jedes Element fest, ab wann ein Wert als niedrig, optimal oder erhöht gilt. Kunden wählen sie beim Anlegen eines Aquariums.</p></div>
+        <div class="editor-state" :class="{ unsaved: dirtyAreas.scales }"><i></i><span>{{ dirtyAreas.scales ? 'Ungespeicherte Änderungen' : 'Gespeicherter Inhalt' }}</span></div>
+      </header>
+
+      <div class="editor-layout">
+        <aside class="element-browser">
+          <button type="button" class="btn btn-primary scale-add" @click="addScale">Neue Grundlage anlegen</button>
+          <nav aria-label="Bewertungsgrundlage auswählen">
+            <button v-for="scale in scales" :key="scale.id" type="button" :class="{ active: selectedScaleId === scale.id }" @click="selectedScaleId = scale.id">
+              <span>{{ scale.name.slice(0, 2).toUpperCase() }}</span>
+              <div><strong>{{ scale.name }}</strong><small>{{ scale.builtIn ? 'Standard' : 'Eigene Grundlage' }}</small></div><i>›</i>
+            </button>
+          </nav>
+        </aside>
+
+        <main class="content-editor">
+          <header>
+            <div class="element-identity"><span>{{ selectedScale.name.slice(0, 2).toUpperCase() }}</span><div><small>{{ selectedScale.builtIn ? 'Standardgrundlage' : 'Eigene Grundlage' }}</small><h3>{{ selectedScale.name }}</h3></div></div>
+            <button v-if="!selectedScale.builtIn" type="button" class="reset-button" @click="removeScale(selectedScale.id)">Grundlage löschen</button>
+          </header>
+
+          <div class="editor-section">
+            <div class="section-label"><span>01</span><div><strong>Stammdaten</strong><small>Name und Beschreibung für die Aquarium-Auswahl</small></div></div>
+            <div class="technical-fields">
+              <label class="wide"><span>Name</span><input v-model="selectedScale.name" type="text" /></label>
+              <label class="wide"><span>Beschreibung</span><input v-model="selectedScale.description" type="text" placeholder="Wofür eignet sich diese Grundlage?" /></label>
+            </div>
+            <p class="technical-note">{{ selectedScale.builtIn ? 'Standardgrundlagen lassen sich bearbeiten, aber nicht löschen.' : 'Eigene Grundlage · jederzeit löschbar.' }}</p>
+          </div>
+
+          <div class="editor-section">
+            <div class="section-label"><span>02</span><div><strong>Schwellenwerte</strong><small>{{ ANALYSIS_PARAMETERS.length }} Elemente · acht Grenzen je Element</small></div></div>
+            <label class="scale-filter"><span>Element suchen</span><input v-model="scaleSearch" type="search" placeholder="Name, Symbol, Gruppe…" /></label>
+            <div class="scale-table-wrap">
+              <table class="scale-table">
+                <thead>
+                  <tr><th scope="col">Element</th><th v-for="field in THRESHOLD_FIELDS" :key="field.key" scope="col">{{ field.label }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="parameter in filteredScaleParameters" :key="parameter.key">
+                    <th scope="row"><strong>{{ parameter.label }}</strong><small>{{ parameter.symbol }} · {{ content[parameter.key]?.unit || parameter.unit }}</small></th>
+                    <td v-for="field in THRESHOLD_FIELDS" :key="field.key">
+                      <input v-model.number="selectedScale.thresholds[parameter.key][field.key]" type="number" step="any" :aria-label="`${parameter.label} · ${field.label}`" />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-if="scaleTableError" class="field-error" role="status">{{ scaleTableError }}</p>
+          </div>
+        </main>
+      </div>
+    </section>
+
     <section v-show="activeArea === 'support'" class="editor-shell support-editor-shell">
       <header class="editor-heading support-editor-heading">
         <div><span>Hilfe &amp; Support</span><h2>FAQ-Verwaltung</h2><p>Fragen ergänzen, Antworten aktualisieren oder nicht mehr benötigte Einträge entfernen.</p></div>
@@ -319,6 +399,7 @@ import { buildDosingPlan } from '@/services/dosingPlan'
 import { normalizeDosingEntry } from '@/services/atiDosingDefaults'
 import { getAllAnalysisRecords, getAnalysis } from '@/services/analysisStore'
 import { dosingEntryErrors, elementEntryError } from '@/services/adminValidation'
+import { SCORE_BANDS, THRESHOLD_FIELDS, bandRange, correctionTargetFor, createScale, findScale, loadEvaluationScales, saveEvaluationScales, thresholdOrderError } from '@/services/evaluationScales'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 import '@/assets/styles/report-base.css'
 
@@ -343,6 +424,10 @@ const simulatorReportId = ref('')
 const simulatorReports = ref(loadSimulatorReports())
 const selectedDosingKey = ref(DOSING_PARAMETERS[0].key)
 const dosingSearch = ref('')
+const scales = reactive(loadEvaluationScales())
+const selectedScaleId = ref(scales[0]?.id || '')
+const scaleSearch = ref('')
+const scaleSaveState = reactive({ message: '', type: '' })
 const previewVolume = ref(420)
 const initialDosingTarget = Number(content[DOSING_PARAMETERS[0].key].targetMin) || 0
 const initialDosingMaximum = Number(content[DOSING_PARAMETERS[0].key].targetMax) || initialDosingTarget
@@ -419,18 +504,66 @@ const dosingPreviewReason = computed(() => {
   return 'Wählen Sie ein gültiges Aquariumvolumen und einen aktuellen Wert unter dem Zielwert.'
 })
 
-const areaData = { elements: content, dosing: dosingConfig, recommendations: recommendationRules, support: supportContent }
+const selectedScale = computed(() => findScale(scales, selectedScaleId.value) || scales[0])
+const selectedThresholds = computed(() => selectedScale.value.thresholds[selectedKey.value])
+const thresholdError = computed(() => thresholdOrderError(selectedThresholds.value))
+const correctionTarget = computed(() => correctionTargetFor(selectedThresholds.value))
+const filteredScaleParameters = computed(() => {
+  const query = scaleSearch.value.trim().toLowerCase()
+  return ANALYSIS_PARAMETERS.filter((parameter) => !query || `${parameter.label} ${parameter.symbol} ${parameter.group}`.toLowerCase().includes(query))
+})
+const scaleTableError = computed(() => {
+  for (const parameter of ANALYSIS_PARAMETERS) {
+    const error = thresholdOrderError(selectedScale.value.thresholds[parameter.key])
+    if (error) return `${parameter.label}: ${error}`
+  }
+  return ''
+})
+function bandRangeLabel(score) {
+  const [from, to] = bandRange(score, selectedThresholds.value)
+  const unit = selectedContent.value.unit
+  if (from === null) return `< ${to} ${unit}`
+  if (to === null) return `> ${from} ${unit}`
+  return `${from} – ${to} ${unit}`
+}
+function addScale() {
+  const scale = createScale(`Grundlage ${scales.length + 1}`, selectedScale.value)
+  scales.push(scale)
+  selectedScaleId.value = scale.id
+}
+function removeScale(id) {
+  const index = scales.findIndex((scale) => scale.id === id)
+  if (index < 0 || scales[index].builtIn) return
+  scales.splice(index, 1)
+  selectedScaleId.value = scales[0]?.id || ''
+}
+function saveScales() {
+  if (scaleTableError.value) {
+    scaleSaveState.message = scaleTableError.value
+    scaleSaveState.type = 'error'
+    return
+  }
+  saveEvaluationScales(scales)
+  markSaved('scales')
+  scaleSaveState.message = `${scales.length} Bewertungsgrundlagen gespeichert.`
+  scaleSaveState.type = 'success'
+}
+
+const areaData = { elements: content, dosing: dosingConfig, recommendations: recommendationRules, support: supportContent, scales }
 const savedSnapshots = reactive(Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value)])))
 const dirtyAreas = computed(() => Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value) !== savedSnapshots[key]])))
-const activeSaveState = computed(() => ({ elements: saveState, dosing: dosingSaveState, recommendations: recommendationSaveState, support: supportSaveState }[activeArea.value] || {}))
-const saveButtonLabel = computed(() => ({ elements: 'Alle Elementänderungen speichern', dosing: 'Alle Produktänderungen speichern', recommendations: 'Alle Regeln speichern', support: 'Alle FAQs speichern' }[activeArea.value]))
+const activeSaveState = computed(() => ({ elements: saveState, dosing: dosingSaveState, recommendations: recommendationSaveState, support: supportSaveState, scales: scaleSaveState }[activeArea.value] || {}))
+const saveButtonLabel = computed(() => ({ elements: 'Alle Elementänderungen speichern', dosing: 'Alle Produktänderungen speichern', recommendations: 'Alle Regeln speichern', support: 'Alle FAQs speichern', scales: 'Alle Bewertungsgrundlagen speichern' }[activeArea.value]))
 const saveScope = computed(() => 'Speichert alle Änderungen in diesem Bereich. Andere Bereiche bleiben unverändert.')
-function saveCurrentArea() { ({ elements: save, dosing: saveDosing, recommendations: saveRecommendations, support: saveSupport }[activeArea.value])?.() }
+function saveCurrentArea() { ({ elements: save, dosing: saveDosing, recommendations: saveRecommendations, support: saveSupport, scales: saveScales }[activeArea.value])?.() }
 function markSaved(area) { savedSnapshots[area] = JSON.stringify(areaData[area]) }
 function discardCurrentArea() {
   const area = activeArea.value
   const saved = JSON.parse(savedSnapshots[area])
-  if (area === 'recommendations') {
+  if (area === 'scales') {
+    scales.splice(0, scales.length, ...saved)
+    if (!scales.some((scale) => scale.id === selectedScaleId.value)) selectedScaleId.value = scales[0]?.id || ''
+  } else if (area === 'recommendations') {
     recommendationRules.splice(0, recommendationRules.length, ...saved)
     if (!recommendationRules.some((rule) => rule.id === selectedRecommendationRuleId.value)) selectedRecommendationRuleId.value = recommendationRules[0]?.id || ''
   } else {
@@ -663,6 +796,47 @@ function formatAdminDate(value) {
 .editor-layout { display: grid; grid-template-columns: 230px minmax(0,1fr); gap: 18px; align-items: start; }.element-browser { position: sticky; top: calc(var(--topbar-height, 68px) + 18px); display: grid; grid-template-rows: auto minmax(0,1fr); gap: 10px; max-height: calc(100vh - var(--topbar-height, 68px) - 36px); min-height: 0; }.element-browser > label { display: grid; gap: 5px; }.element-browser label span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.element-browser input { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; outline: 0; }.element-browser input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.element-browser nav { display: grid; align-content: start; gap: 6px; min-height: 0; padding: 2px 5px 8px 2px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.element-browser nav::-webkit-scrollbar { width: 6px; }.element-browser nav::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--teal-400); }.element-browser nav button { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 9px; border: 1px solid transparent; border-radius: 12px; background: #f5f9fc; color: var(--text); text-align: left; cursor: pointer; }.element-browser nav button:hover { border-color: var(--teal-400); }.element-browser nav button.active { border-color: var(--brand-blue); background: var(--teal-50); box-shadow: inset 3px 0 var(--brand-blue); }.element-browser nav button > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 900; }.element-browser nav strong,.element-browser nav small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.element-browser nav strong { font-size: 12px; }.element-browser nav small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }.element-browser nav i { color: var(--text-muted); font-style: normal; }
 .content-editor { min-width: 0; display: grid; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 18px; background: #f8fbfe; }.content-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 13px; border-bottom: 1px solid var(--border); }.element-identity { display: flex; align-items: center; gap: 11px; }.element-identity > span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; font-weight: 900; }.element-identity small { color: var(--teal-700); font-size: 9px; font-weight: 800; text-transform: uppercase; }.element-identity h3 { margin-top: 2px; color: var(--text); font-size: 22px; }.reset-button { padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 800; cursor: pointer; }.reset-button:hover { border-color: var(--brand-blue); }
 .editor-section { display: grid; gap: 11px; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }.section-label { display: flex; align-items: center; gap: 9px; }.section-label > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--brand-blue); color: #fff; font-size: 9px; font-weight: 900; }.section-label strong,.section-label small { display: block; }.section-label strong { color: var(--text); font-size: 13px; }.section-label small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }.editor-section > label,.recommendation-fields label { display: grid; gap: 5px; }.editor-section label > span { color: var(--text); font-size: 11px; font-weight: 850; }.editor-section label > small { color: var(--text-muted); font-size: 9px; }.editor-section textarea { width: 100%; min-width: 0; resize: vertical; padding: 10px 11px; border: 1px solid var(--border); border-radius: 10px; background: #f8fbfe; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; outline: 0; }.editor-section textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.recommendation-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }.recommendation-fields label { padding: 11px; border-top: 3px solid #e85d4f; border-radius: 11px; background: #fff7f5; }.recommendation-fields label.low { border-top-color: #1686d9; background: #f4f9fd; }
+.technical-fields label.wide { grid-column: span 2; }
+.scale-switch { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); align-items: center; gap: 12px; padding: 11px; border-radius: 11px; background: #f4f8fb; }
+.scale-switch label { display: grid; gap: 5px; }
+.scale-switch span { color: var(--text); font-size: 10px; font-weight: 850; }
+.scale-switch select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
+.scale-switch select:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.scale-switch p { color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
+.threshold-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.threshold-field { display: grid; gap: 5px; padding: 9px; border-top: 3px solid #e85d4f; border-radius: 10px; background: #fff7f5; }
+.threshold-field > span { color: var(--text); font-size: 9.5px; font-weight: 850; }
+.threshold-field input { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font: inherit; font-size: 12px; outline: 0; }
+.threshold-field input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.threshold-field.band-2 { border-top-color: #f0784a; background: #fff7f2; }
+.threshold-field.band-3, .threshold-field.band-4 { border-top-color: #f59e0b; background: #fffbeb; }
+.threshold-field.band-5 { border-top-color: #10b981; background: #ecfdf5; }
+.threshold-field.band-6, .threshold-field.band-7 { border-top-color: #f59e0b; background: #fffbeb; }
+.threshold-field.band-8 { border-top-color: #f0784a; background: #fff7f2; }
+.band-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+.band-chip { display: grid; justify-items: center; gap: 3px; padding: 8px 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; text-align: center; }
+.band-chip > b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 10px; }
+.band-chip.good > b { background: #10b981; }
+.band-chip.critical > b { background: #e85d4f; }
+.band-chip > em { color: var(--text); font-size: 9.5px; font-style: normal; font-weight: 850; }
+.band-chip > small { color: var(--text-muted); font-size: 8.5px; line-height: 1.3; overflow-wrap: anywhere; }
+.scale-add { width: 100%; margin-bottom: 10px; }
+.scale-filter { display: grid; gap: 5px; }
+.scale-filter span { color: var(--text); font-size: 10px; font-weight: 850; }
+.scale-filter input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; font: inherit; font-size: 12px; outline: 0; }
+.scale-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.scale-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.scale-table th, .scale-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.scale-table thead th { position: sticky; top: 0; background: #f4f8fb; color: var(--text-muted); font-size: 9px; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; }
+.scale-table tbody th { position: sticky; left: 0; background: #fff; }
+.scale-table tbody th strong { display: block; color: var(--text); font-size: 11.5px; }
+.scale-table tbody th small { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; }
+.scale-table td input { width: 92px; padding: 6px 7px; border: 1px solid var(--border); border-radius: 7px; background: #f8fbfe; font: inherit; font-size: 11px; outline: 0; }
+.scale-table td input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+@media (max-width: 900px) {
+  .scale-switch { grid-template-columns: 1fr; }
+  .threshold-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .technical-fields { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }.technical-fields label { display: grid; gap: 5px; }.technical-fields span { color: var(--text); font-size: 10px; font-weight: 850; }.technical-fields input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; outline: 0; }.technical-fields input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.technical-note { color: var(--text-muted); font-size: 10px; }.technical-note b { color: var(--teal-700); }
 .content-preview { display: grid; gap: 9px; padding: 15px; border-radius: 14px; background: #0a1b43; color: #fff; }.content-preview > div:first-child { display: flex; align-items: center; justify-content: space-between; }.content-preview span { color: var(--teal-200); font-size: 9px; font-weight: 800; text-transform: uppercase; }.content-preview > p { color: rgba(255,255,255,.7); font-size: 11px; line-height: 1.5; }.preview-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.preview-actions article { padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.07); }.preview-actions p { margin-top: 4px; color: rgba(255,255,255,.64); font-size: 9px; line-height: 1.45; }
 .content-editor > footer { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }.save-message { margin-right: auto; color: var(--text-muted); font-size: 11px; }.save-message.success { color: #047857; }.save-message.error { color: #b53a2e; }
