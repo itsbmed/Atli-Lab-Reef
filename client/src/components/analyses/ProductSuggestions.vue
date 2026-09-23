@@ -1,6 +1,6 @@
 <template>
   <section v-if="products.length" class="product-suggestions" aria-label="Empfohlene Produkte">
-    <header>Passende Produkte für niedrige Messwerte</header>
+    <header>Passende Produkte</header>
     <div class="product-list">
       <component
         :is="product.productUrl ? 'a' : 'div'"
@@ -26,12 +26,12 @@ const failedImages = reactive({})
 </script>
 
 <style scoped>
-.product-suggestions { display: grid; gap: 10px; }
-.product-suggestions header { color: var(--teal-700); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.product-suggestions { display: grid; gap: 11px; padding: 16px 18px; border: 1px solid #bae6fd; border-left: 4px solid var(--brand-blue); border-radius: 13px; background: #eff8ff; }
+.product-suggestions header { color: var(--brand-blue); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .product-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 8px; }
-.suggested-product { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 13px; background: #fff; text-decoration: none; }
+.suggested-product { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 11px 13px; border: 1px solid #cfe4f3; border-radius: 13px; background: #fff; text-decoration: none; }
 a.suggested-product:hover { border-color: var(--brand-blue); background: var(--teal-50); }
-.suggested-product img,.product-placeholder { flex: none; width: 48px; height: 48px; border-radius: 10px; background: var(--surface-soft); object-fit: contain; }
+.suggested-product img,.product-placeholder { flex: none; width: 48px; height: 48px; border-radius: 10px; background: var(--surface-soft, #f5f8fc); object-fit: contain; }
 .product-placeholder { display: grid; place-items: center; color: var(--brand-blue); font-size: 13px; font-weight: 800; }
 .product-copy { min-width: 0; }
 .product-copy strong { display: block; color: var(--text); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }

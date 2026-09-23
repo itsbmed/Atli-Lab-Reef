@@ -46,7 +46,7 @@
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-          Übersicht &amp; Empfehlungen <b v-if="openActionCount">{{ openActionCount }}</b>
+          Empfehlungen <b v-if="openActionCount">{{ openActionCount }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
           Dosierungsplan <b v-if="dosingItemCount">{{ dosingItemCount }}</b>
@@ -90,7 +90,7 @@
               <article
                 v-for="(item, index) in directRecommendations"
                 :key="item.key"
-                :class="['action-card', item.tone, { done: completedActions[item.key], open: expandedCareCards[item.key] }]"
+                :class="['action-card', item.tone, { done: completedActions[item.key] }]"
                 :style="{ '--rise-delay': `${index * 90}ms` }"
               >
                 <div class="action-top">
@@ -98,7 +98,7 @@
                   <div class="action-heading">
                     <small><em :class="['priority-chip', item.tone]">Priorität {{ item.priority }}</em>{{ item.kicker }}</small>
                     <h3>{{ item.title }}</h3>
-                    <p>{{ item.summary }}</p>
+                    <p><template v-for="(part, partIndex) in item.summaryParts" :key="partIndex"><strong v-if="part.bold">{{ part.text }}</strong><template v-else>{{ part.text }}</template></template></p>
                   </div>
                   <button
                     type="button"
@@ -109,30 +109,43 @@
                   >{{ completedActions[item.key] ? '✓' : '' }}</button>
                 </div>
 
-                <div class="action-elements">
-                  <span v-for="element in item.elements" :key="element.key" :class="['element-pill', element.tone]">
-                    <b>{{ element.symbol }}</b>
-                    <span><strong>{{ element.label }}</strong><small>{{ element.value }} {{ element.unit }} · {{ element.band }}</small></span>
-                    <i :title="`Score ${element.score} von 9`">{{ element.score }}</i>
-                  </span>
+                <div v-if="item.options.length" :class="['action-options', { single: item.options.length === 1 }]">
+                  <article v-for="option in item.options" :key="option.text">
+                    <span v-if="option.label">{{ option.label }}</span>
+                    <p>{{ option.text }}</p>
+                    <button v-if="option.actionLabel" type="button" class="option-cta" @click="runRecommendation(item)">
+                      {{ option.actionLabel }} <span aria-hidden="true">→</span>
+                    </button>
+                  </article>
                 </div>
+
+                <div v-if="item.detailLabel && item.detailItems.length" class="action-detail-block">
+                  <span class="action-detail-label">{{ item.detailLabel }}</span>
+                  <ul>
+                    <li v-for="entry in item.detailItems" :key="entry.label">
+                      <span>{{ entry.label }}</span>
+                      <b v-if="entry.value">{{ entry.value }}</b>
+                    </li>
+                  </ul>
+                  <button v-if="item.detailAction" type="button" class="detail-more" @click="runRecommendation(item, item.detailAction)">
+                    {{ item.detailAction.label }} <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+
+                <aside v-if="item.tips.length" class="action-tips">
+                  <i aria-hidden="true">✦</i>
+                  <div>
+                    <span>{{ item.tips.length === 1 ? 'Tipp' : 'Tipps' }}</span>
+                    <p v-for="tip in item.tips" :key="tip">{{ tip }}</p>
+                  </div>
+                </aside>
+
+                <ProductSuggestions v-if="recommendationProducts(item).length" class="action-products" :products="recommendationProducts(item)" />
 
                 <div class="action-footer">
-                  <button type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
-                  <button type="button" class="btn btn-ghost" :aria-expanded="Boolean(expandedCareCards[item.key])" @click="toggleCareCard(item.key)">
-                    {{ expandedCareCards[item.key] ? 'Weniger anzeigen' : 'So gehen Sie vor' }}
-                  </button>
+                  <button v-if="!item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
                   <em>Kontrolle in {{ item.recheckDays }} Tagen</em>
                 </div>
-
-                <Transition name="action-expand">
-                  <div v-show="expandedCareCards[item.key]" class="action-steps">
-                    <ol>
-                      <li v-for="(step, stepIndex) in item.steps" :key="step"><b>{{ stepIndex + 1 }}</b><p>{{ step }}</p></li>
-                    </ol>
-                    <ProductSuggestions v-if="recommendationProducts(item).length" class="action-products" :products="recommendationProducts(item)" />
-                  </div>
-                </Transition>
               </article>
             </TransitionGroup>
           </section>
@@ -205,8 +218,12 @@
         </div>
 
         <div class="parameter-groups" aria-label="Parametergruppen">
-          <button type="button" :class="{ active: !selectedGroup }" @click="selectedGroup = ''">
-            <span>Alle Gruppen</span><b class="group-count">{{ analysis.parameters.length }} Werte</b>
+          <button type="button" :class="[analysis.severity, { active: !selectedGroup }]" @click="selectedGroup = ''">
+            <span class="group-dial" :style="groupDialStyle(overallScore, analysis.severity)" aria-hidden="true"><b>{{ overallScore }}</b><em>%</em></span>
+            <span class="group-filter-copy">
+              <span class="group-filter-label">Alle Gruppen</span>
+              <b class="group-count">{{ analysis.parameters.length }} Werte</b>
+            </span>
           </button>
           <button
             v-for="group in parameterGroups"
@@ -215,9 +232,12 @@
             :class="[group.tone, `group-${group.key}`, { active: selectedGroup === group.key }]"
             @click="selectedGroup = selectedGroup === group.key ? '' : group.key"
           >
-            <span class="group-filter-label">{{ group.label }}</span>
-            <b :class="['status-chip', group.tone]">{{ parameterStatusLabel(group.tone) }}</b>
-            <small>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Keine Auffälligkeit' }}</small>
+            <span class="group-dial" :style="groupDialStyle(group.score, group.tone)" aria-hidden="true"><b>{{ group.score }}</b><em>%</em></span>
+            <span class="group-filter-copy">
+              <span class="group-filter-label">{{ group.label }}</span>
+              <b :class="['status-chip', group.tone]">{{ parameterStatusLabel(group.tone) }}</b>
+              <small>{{ group.issueCount ? `${group.issueCount} prüfen` : 'Keine Auffälligkeit' }}</small>
+            </span>
           </button>
         </div>
 
@@ -444,7 +464,6 @@ const parameterSearch = ref('')
 const parameterStatus = ref('all')
 const expandedParameters = reactive({})
 const parameterDetailPanels = reactive({})
-const expandedCareCards = reactive({})
 const completedActions = reactive({})
 const showAllIssues = ref(false)
 onMounted(() => analyses.load())
@@ -521,20 +540,27 @@ const directRecommendations = computed(() => buildDirectRecommendations(evaluate
 const openActionCount = computed(() => directRecommendations.value.filter((item) => !completedActions[item.key]).length)
 const actionsIntro = computed(() => {
   if (!directRecommendations.value.length) return 'Keine Maßnahme ist erforderlich. Alle bewerteten Messwerte liegen in ihrem Optimumfenster.'
-  const names = directRecommendations.value.flatMap((item) => item.elements.map((element) => element.label))
+  const names = directRecommendations.value.flatMap((item) => item.elements)
   return `Bewertet nach ${activeScale.value?.name || 'ATI Standard'}. Betroffen: ${[...new Set(names)].join(', ')}.`
 })
 function recommendationProducts(item) {
-  return recommendedProductsForKeys(item.elements.map((element) => element.key), analysis.value?.parameters || [])
+  return recommendedProductsForKeys(item.elementKeys, analysis.value?.parameters || [])
 }
-function runRecommendation(item) {
-  if (item.action.tab) {
-    activeTab.value = item.action.tab
+function runRecommendation(item, override) {
+  const action = override || item.action
+  if (action.tab) {
+    activeTab.value = action.tab
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return
   }
-  router.push({ path: '/tools', query: { tool: item.action.tool, aquarium: analysis.value?.aquariumId, analysis: analysis.value?.id } })
+  router.push({ path: '/tools', query: { tool: action.tool, aquarium: analysis.value?.aquariumId, analysis: analysis.value?.id } })
 }
+const overallScore = computed(() => {
+  if (Number.isFinite(Number(analysis.value?.score))) return Number(analysis.value.score)
+  const parameters = analysis.value?.parameters || []
+  if (!parameters.length) return 0
+  return Math.round((parameters.filter((parameter) => parameter.tone === 'good').length / parameters.length) * 100)
+})
 const favoriteParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => analyses.isFavorite(parameter.key)))
 
 const GROUP_META = Object.fromEntries(ANALYSIS_GROUPS.map((group) => [group.key, group]))
@@ -548,6 +574,10 @@ function parameterGuide(parameter) {
 }
 function parameterSymbol(parameter) {
   return parameter.symbol || ELEMENT_DEFINITION_MAP[parameter.key]?.symbol || parameter.label.slice(0, 2)
+}
+function groupDialStyle(score, tone) {
+  const color = tone === 'critical' ? '#e85d4f' : tone === 'watch' ? '#f59e0b' : '#10b981'
+  return { background: `conic-gradient(${color} ${Math.max(0, Math.min(100, Number(score) || 0)) * 3.6}deg, #e7eef6 0deg)` }
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
@@ -625,9 +655,6 @@ function historyChange(parameter) {
 function toggleCareAction(key) {
   completedActions[key] = !completedActions[key]
   saveRecommendationProgress(auth.user?.id, analysis.value?.id, completedActions)
-}
-function toggleCareCard(key) {
-  expandedCareCards[key] = !expandedCareCards[key]
 }
 
 function formatDate(iso) {
@@ -739,60 +766,61 @@ function markPdf() {
 .actions-clean > span { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 22px; font-weight: 900; }
 .actions-clean strong { display: block; color: #065f46; font-size: 18px; }
 .actions-clean p { max-width: 430px; margin-top: 3px; color: #047857; font-size: 13px; line-height: 1.5; }
-.action-cards { display: grid; gap: 12px; }
-.action-card { overflow: hidden; padding: 18px; border: 1px solid var(--border); border-left: 4px solid #f59e0b; border-radius: 17px; background: #fff; transition: border-color .18s, box-shadow .18s, transform .18s, opacity .18s; }
+.action-cards { display: grid; gap: 14px; }
+.action-card { overflow: hidden; padding: 24px; border: 1px solid var(--border); border-left: 4px solid #f59e0b; border-radius: 17px; background: #fff; transition: border-color .18s, box-shadow .18s, transform .18s, opacity .18s; }
 .action-card.critical { border-left-color: #e85d4f; }
 .action-card:hover { border-color: #b9cadd; box-shadow: 0 10px 26px rgba(10,27,67,0.09); transform: translateY(-2px); }
-.action-card.open { box-shadow: 0 12px 30px rgba(10,27,67,0.1); }
 .action-card.done { opacity: 0.55; }
 .action-card.done .action-heading h3 { text-decoration: line-through; }
-.action-top { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: start; gap: 14px; }
+.action-top { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: start; gap: 16px; }
 .action-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(145deg, #fff4df, #ffe9c2); color: #9a5b0a; font-size: 17px; font-weight: 900; }
 .action-card.critical .action-icon { background: linear-gradient(145deg, #fdecea, #fbd9d4); color: #b53a2e; }
 .action-heading { min-width: 0; }
 .action-heading > small { display: flex; align-items: center; gap: 8px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
 .priority-chip { padding: 3px 8px; border-radius: 999px; background: #fff4df; color: #9a4d0a; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: 0.04em; }
 .priority-chip.critical { background: #fdecea; color: #b53a2e; }
-.action-heading h3 { margin-top: 6px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
-.action-heading p { margin-top: 5px; color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
+.action-heading h3 { margin-top: 8px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
+.action-heading p { margin-top: 7px; color: var(--text-muted); font-size: 13.5px; line-height: 1.65; }
 .action-done { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 2px solid var(--border); border-radius: 11px; background: #fff; color: transparent; font-size: 15px; font-weight: 900; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
 .action-done:hover { border-color: #10b981; }
 .action-card.done .action-done { border-color: #10b981; background: #10b981; color: #fff; }
-.action-elements { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0 66px; }
-.element-pill { display: inline-flex; align-items: center; gap: 9px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 12px; background: #f8fbfe; }
-.element-pill.critical { border-color: #f8c9c4; background: #fff7f5; }
-.element-pill > b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #e6eef4; color: #536b7d; font-size: 10px; }
-.element-pill strong, .element-pill small { display: block; }
-.element-pill strong { color: var(--text); font-size: 12px; }
-.element-pill small { margin-top: 1px; color: var(--text-muted); font-size: 10px; }
-.element-pill > i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 11px; font-style: normal; font-weight: 900; }
-.element-pill.critical > i { background: #e85d4f; }
-.element-pill.good > i { background: #10b981; }
-.action-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0 66px; }
+.action-heading p strong { color: var(--text); font-weight: 850; }
+.action-options { display: grid; gap: 10px; margin: 18px 0 0 68px; padding: 17px 19px; border: 1px solid #bae6fd; border-left: 4px solid var(--brand-blue); border-radius: 13px; background: #eff8ff; }
+.action-options article { padding: 14px 15px; border: 1px solid #cfe4f3; border-radius: 11px; background: #fff; }
+.action-options.single article { padding: 0; border: 0; background: transparent; }
+.action-options article > span { display: block; margin-bottom: 6px; color: var(--brand-blue); font-size: 11px; font-weight: 850; letter-spacing: 0.03em; }
+.action-options p { color: #0c4a6e; font-size: 13px; line-height: 1.6; }
+.option-cta { margin-top: 12px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 850; cursor: pointer; box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
+.option-cta:hover { background: #005ba8; }
+.option-cta span { display: inline-block; transition: transform .18s; }
+.option-cta:hover span { transform: translateX(3px); }
+.action-detail-block { margin: 14px 0 0 68px; padding: 17px 19px; border: 1px solid #cfe4f3; border-radius: 13px; background: #f4fafe; }
+.action-detail-label { display: block; margin-bottom: 11px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.action-detail-block ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.action-detail-block li { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #cfe4f3; border-radius: 10px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 700; }
+.action-detail-block li > b { padding: 2px 7px; border-radius: 999px; background: #0072ce; color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
+.action-card.critical .action-detail-block li > b { background: #e85d4f; }
+.detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 850; cursor: pointer; transition: background .15s, color .15s; }
+.detail-more:hover { background: var(--brand-blue); color: #fff; }
+.detail-more span { display: inline-block; transition: transform .18s; }
+.detail-more:hover span { transform: translateX(3px); }
+.action-tips { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 13px; margin: 14px 0 0 68px; padding: 16px 18px; border-left: 3px solid #f59e0b; border-radius: 11px; background: #fff8e8; }
+.action-tips > i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: #f59e0b; color: #fff; font-size: 13px; font-style: normal; }
+.action-tips span { display: block; color: #92400e; font-size: 10px; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
+.action-tips p { margin-top: 5px; color: #9a5b0a; font-size: 12.5px; line-height: 1.6; }
+.action-tips p + p { margin-top: 6px; }
+.action-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0 0 68px; }
 .action-cta { box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
 .action-cta span { display: inline-block; transition: transform .18s; }
 .action-cta:hover span { transform: translateX(3px); }
 .action-footer > em { margin-left: auto; color: var(--text-muted); font-size: 11px; font-style: normal; }
-.action-steps { margin: 16px 0 0 66px; padding-top: 15px; border-top: 1px solid var(--border); }
-.action-steps ol { display: grid; gap: 8px; padding: 0; list-style: none; }
-.action-steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; background: #f7fafc; }
-.action-steps li > b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: #e3f1f9; color: var(--brand-blue); font-size: 11px; }
-.action-steps li > p { color: var(--text); font-size: 13px; line-height: 1.5; }
-.action-products { margin-top: 14px; }
+.action-products { margin: 18px 0 0 68px; }
 .action-rise-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1); transition-delay: var(--rise-delay, 0ms); }
 .action-rise-enter-from { opacity: 0; transform: translateY(16px) scale(0.985); }
 .action-rise-leave-active { position: absolute; transition: opacity .2s ease; }
 .action-rise-leave-to { opacity: 0; }
-.action-expand-enter-active,
-.action-expand-leave-active { overflow: hidden; transition: max-height .32s ease, opacity .32s ease, transform .32s ease; }
-.action-expand-enter-from,
-.action-expand-leave-to { max-height: 0; opacity: 0; transform: translateY(-8px); }
-.action-expand-enter-to,
-.action-expand-leave-from { max-height: 900px; opacity: 1; transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
-  .action-rise-enter-active,
-  .action-expand-enter-active,
-  .action-expand-leave-active { transition: none; }
+  .action-rise-enter-active { transition: none; }
   .action-card:hover { transform: none; }
 }
 .element-explorer { display: grid; gap: 18px; }
@@ -809,14 +837,20 @@ function markPdf() {
 .explorer-controls input:focus,
 .explorer-controls select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 .parameter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
-.parameter-groups button { min-height: 84px; display: grid; align-content: center; gap: 6px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
+.parameter-groups button { min-height: 84px; display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
+.group-filter-copy { display: grid; gap: 5px; min-width: 0; }
+.group-dial { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; white-space: nowrap; width: 46px; height: 46px; border-radius: 50%; }
+.group-dial::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #f8fbfe; }
+.parameter-groups button.active .group-dial::after { background: var(--teal-50); }
+.group-dial b, .group-dial em { position: relative; z-index: 1; }
+.group-dial b { color: var(--text); font-size: 13px; font-weight: 850; }
+.group-dial em { margin: 3px 0 0 1px; color: var(--text-muted); font-size: 8px; font-style: normal; }
 .parameter-groups button:hover { border-color: var(--teal-400); }
 .parameter-groups button.active { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); background: var(--teal-50); }
 .parameter-groups button.critical { border-left: 4px solid #e85d4f; }
 .parameter-groups button.watch { border-left: 4px solid #f59e0b; }
 .parameter-groups button.good { border-left: 4px solid #10b981; }
-.parameter-groups span { font-size: 13px; font-weight: 800; }
-.parameter-groups .group-filter-label { display: flex; align-items: center; gap: 7px; }
+.parameter-groups .group-filter-label { overflow: hidden; color: var(--text); font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .parameter-groups .group-count { color: var(--text-muted); font-size: 11px; }
 .parameter-groups b.status-chip { font-size: 9px; }
 .parameter-groups button > small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
