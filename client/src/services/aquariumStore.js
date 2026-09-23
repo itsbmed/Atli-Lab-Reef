@@ -95,6 +95,7 @@ const DEMO_AQUARIUMS = [
   { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps', osmosis_source_id: DEMO_OSMOSIS_ID },
   { id: 'demo-basement-osmosis', name: 'Basement System · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 393026.', image_theme: 'osmosis', water_details: { resin_filter: true } },
   { id: 'demo-basement-system', name: 'Basement System', water_type: 'Meerwasser', net_volume: 454, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 393026.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-basement-osmosis' },
+  { id: 'demo-all-cases-system', name: 'Referenzbecken Alle Fälle', water_type: 'Meerwasser', net_volume: 500, aquarium_type: 'Mischbecken', target_mode: 'ati', stocking_density: 'Mittel', supply_system: 'ATI Essentials', sump: true, refugium: false, skimmer: true, notes: 'Testbecken: löst jede Empfehlungsart gleichzeitig aus.', image_theme: 'reef-mixed', osmosis_source_id: DEMO_OSMOSIS_ID },
 ]
 
 export function ensureDemoAquariums() {

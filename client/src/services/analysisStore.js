@@ -3,13 +3,14 @@ import { daysAgoDate } from '@/services/dashboardDemo'
 import { createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSimulatedDosingAnalysis } from '@/services/simulatedDosingAnalysis'
 import { createRealAtiAnalysis, REAL_ATI_ANALYSIS_ID } from '@/services/realAtiAnalysis'
+import { ALL_CASES_ANALYSIS_ID, createAllCasesAnalysis } from '@/services/allCasesAnalysis'
 import { loadAnalysisContent } from '@/services/analysisContent'
 import { evaluateRecommendationRules } from '@/services/recommendationRules'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
-export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-5', 'demo-analysis-dosing', REAL_ATI_ANALYSIS_ID])
+export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze(['demo-analysis-1', 'demo-analysis-2', 'demo-analysis-5', 'demo-analysis-dosing', REAL_ATI_ANALYSIS_ID, ALL_CASES_ANALYSIS_ID])
 const approvedCompletedAnalysisIds = new Set(APPROVED_COMPLETED_ANALYSIS_IDS)
 
 export const ANALYSIS_PACKAGES = [
@@ -201,6 +202,7 @@ const DEMO_ANALYSES = [
   createDemoAnalysis('demo-analysis-5', 'bad'),
   createSimulatedDosingAnalysis(),
   createRealAtiAnalysis(),
+  createAllCasesAnalysis(),
   { id: 'demo-analysis-3', barcode: 'ATI-2407-1044', reportNumber: 'ICP-1044', aquariumName: 'Wohnzimmer Reef', waterType: 'Meerwasser', package: 'standard', reason: 'routine', status: 'in_analysis', score: null, issueCount: 0, createdAt: daysAgoDate(1), issues: [], recommendations: [] },
   { id: 'demo-analysis-4', barcode: 'ATI-2407-9912', reportNumber: 'ICP-9912', aquariumName: 'Nano SPS Cube', waterType: 'Meerwasser', package: 'ultimate-ms', reason: 'stn', status: 'received', score: null, issueCount: 0, createdAt: daysAgoDate(2), issues: [], recommendations: [] },
 ]
