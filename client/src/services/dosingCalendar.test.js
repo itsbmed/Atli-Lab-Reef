@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { splitDose, doseSchedule, weekStart } from './dosingCalendar.js'
+import { splitDose, doseSchedule } from './dosingCalendar.js'
 
 test('split doses conserve total and never exceed the daily limit, including rounding boundaries', () => {
   for (const deficit of [1, 1.001, 2.999, 10.01]) {
@@ -28,8 +28,17 @@ test('the schedule pads every row to the longest course so the day columns stay 
   assert.equal(schedule.days, 10)
   assert.ok(schedule.rows.every(row => row.amounts.length === 10))
   assert.equal(schedule.rows[1].amounts.filter(amount => amount).length, 2)
+  assert.equal(schedule.rows[1].courseDays, 2, 'the course length stays the real one, not the padded width')
   assert.equal(schedule.rows[1].amounts[5], null)
   assert.equal(schedule.rows[0].maxDailyMl, long.maxDailyMl)
   assert.deepEqual(doseSchedule([]), { days: 0, rows: [] })
-  assert.equal(weekStart('2026-W38'), '2026-09-14')
+})
+
+test('a course shorter than a week still lays out seven day columns', () => {
+  const dose = splitDose({ deficit: 2, raisesBy: 1, mlPer100Liters: 10, maxDailyIncrease: 1, volume: 100 })
+  const schedule = doseSchedule([{ key: 'calcium', label: 'Calcium', dose: { ...dose, productName: 'Calcium' } }])
+  assert.equal(schedule.days, 7)
+  assert.equal(schedule.rows[0].courseDays, 2)
+  assert.equal(schedule.rows[0].amounts.filter(Boolean).length, 2)
+  assert.equal(schedule.rows[0].amounts.length, 7)
 })

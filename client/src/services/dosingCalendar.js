@@ -13,22 +13,13 @@ export function splitDose({ deficit, raisesBy, mlPer100Liters, maxDailyIncrease,
   return { totalMl: totalUnits / scale, days, dailyMl: (base + (remainder ? 1 : 0)) / scale, dailyAmounts, maxDailyMl: limitUnits / scale, maxDailyIncrease: Number(maxDailyIncrease) }
 }
 
-export function dateValue(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-export function weekStart(value) {
-  const match = /^(\d{4})-W(\d{2})$/.exec(value || '')
-  if (!match || Number(match[2]) < 1 || Number(match[2]) > 53) return ''
-  const date = new Date(Number(match[1]), 0, 4, 12)
-  date.setDate(date.getDate() - ((date.getDay() + 6) % 7) + (Number(match[2]) - 1) * 7)
-  return dateValue(date)
-}
+const WEEK = 7
 
 // Relative course days instead of calendar dates: the plan stays valid whenever the customer starts.
 export function doseSchedule(items = []) {
   const rows = items.filter(item => item.dose?.dailyAmounts?.length)
-  const days = Math.max(0, ...rows.map(item => item.dose.dailyAmounts.length))
+  // Always lay out a full week so short courses still read as a plan, not a stub.
+  const days = rows.length ? Math.max(WEEK, ...rows.map(item => item.dose.dailyAmounts.length)) : 0
   return {
     days,
     rows: rows.map(item => ({
@@ -36,6 +27,7 @@ export function doseSchedule(items = []) {
       label: item.label,
       unit: item.unit,
       productName: item.dose.productName,
+      courseDays: item.dose.dailyAmounts.length,
       totalMl: item.dose.totalMl,
       dailyMl: item.dose.dailyMl,
       maxDailyMl: item.dose.maxDailyMl,

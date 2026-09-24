@@ -10,39 +10,56 @@
     <div ref="printContent" class="plan-document">
       <div class="print-heading"><b>ATI · REEFING MADE SIMPLE</b><h1>Dosierungsplan</h1><p>{{ aquariumName }} · {{ reportNumber }} · {{ volume }} l netto</p><p v-if="simulation">SIMULATION · Keine reale Labormessung. Dosierung nach Herstellerangaben.</p></div>
 
-      <div class="dose-table-wrap">
-        <table class="dose-table">
-          <thead>
-            <tr>
-              <th scope="col" class="col-element">Element · Produkt</th>
-              <th v-for="day in schedule.days" :key="day" scope="col" class="col-day">Tag {{ day }}</th>
-              <th scope="col" class="col-max">Max-Dosis</th>
-              <th scope="col" class="col-daily">Tagesdosis</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in schedule.rows" :key="row.key">
-              <th scope="row" class="col-element"><strong>{{ row.label }}</strong><small>{{ row.productName }}</small></th>
-              <td v-for="(amount, index) in row.amounts" :key="index" :class="['col-day', { empty: !amount }]">
-                <span v-if="amount" class="tick-box" aria-hidden="true"></span>{{ amount ? `${number(amount)} ml` : '–' }}
-              </td>
-              <td class="col-max">{{ number(row.maxDailyMl) }} ml</td>
-              <td class="col-daily">{{ number(row.dailyMl) }} ml</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="dose-scroll">
+        <div class="dosing-grid" :style="gridStyle">
+          <div class="dosing-head">Element</div>
+          <div v-for="day in schedule.days" :key="`head-${day}`" class="dosing-head">Tag {{ day }}</div>
+          <div class="dosing-head summary">Gesamt-Dosis</div>
+
+          <template v-for="row in schedule.rows" :key="row.key">
+            <div class="dosing-element">
+              {{ row.label }}
+              <span>{{ row.productName }}</span>
+              <small>{{ row.courseDays }} {{ row.courseDays === 1 ? 'Tag' : 'Tage' }} · Tageslimit {{ number(row.maxDailyMl) }} ml</small>
+            </div>
+            <div v-for="(amount, index) in row.amounts" :key="`${row.key}-${index}`" :class="['dose-cell', { inactive: !amount }]">
+              <label v-if="amount" class="dose-check">
+                <input v-model="ticked[`${row.key}-${index}`]" type="checkbox" :aria-label="`${row.label}, Tag ${index + 1}, ${number(amount)} ml`" />
+                <span></span>
+                <b>{{ number(amount) }} ml</b>
+              </label>
+              <span v-else class="dose-empty" aria-hidden="true">–</span>
+            </div>
+            <div class="dose-cell summary total">{{ number(row.totalMl) }} ml</div>
+          </template>
+        </div>
       </div>
 
-      <p class="plan-footer">Tag 1 ist der Tag, an dem Sie beginnen. Tagesmengen nach der Zugabe abhaken. Die Tagesdosis bleibt immer innerhalb der freigegebenen Max-Dosis. Nach Abschluss des Kurses erneut messen und den Kurs nicht automatisch wiederholen.</p>
+      <p class="plan-footer">Tag 1 ist der Tag, an dem Sie beginnen. Die Tagesdosis bleibt immer innerhalb des freigegebenen Tageslimits. Nach Abschluss des Kurses erneut messen und den Kurs nicht automatisch wiederholen.</p>
     </div>
+
+    <ProductSuggestions v-if="products.length" class="dose-products" :products="products" />
   </section>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { doseSchedule } from '@/services/dosingCalendar'
-const props = defineProps({ items: { type: Array, required: true }, aquariumName: String, reportNumber: String, volume: Number, simulation: Boolean })
+import { recommendedDosingProducts } from '@/services/dosingConfig'
+import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+
+const props = defineProps({
+  items: { type: Array, required: true },
+  parameters: { type: Array, default: () => [] },
+  aquariumName: String,
+  reportNumber: String,
+  volume: Number,
+  simulation: Boolean,
+})
 const schedule = computed(() => doseSchedule(props.items))
+const products = computed(() => recommendedDosingProducts(props.items, props.parameters))
+const gridStyle = computed(() => ({ gridTemplateColumns: `minmax(150px, 1.5fr) repeat(${schedule.value.days}, minmax(58px, 1fr)) minmax(104px, 0.95fr)` }))
+const ticked = reactive({})
 const printContent = ref(null)
 const error = ref('')
 const number = value => Number(value).toLocaleString('de-DE', { maximumFractionDigits: 6 })
@@ -56,9 +73,29 @@ function printPlan() {
   popup.focus()
   popup.setTimeout(() => popup.print(), 250)
 }
-const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dose-table{width:100%;border-collapse:collapse;margin:14px 0;table-layout:auto}.dose-table th,.dose-table td{padding:6px 7px;border:1px solid #cbd9e7;text-align:center;white-space:nowrap}.dose-table thead th{background:#eef7ff;color:#0072ce;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.dose-table .col-element{text-align:left;white-space:normal}.dose-table tbody .col-element strong{display:block;font-size:11px}.dose-table tbody .col-element small{color:#526780}.dose-table .col-max,.dose-table .col-daily{background:#f6fafc;font-weight:bold}.dose-table .empty{color:#98a8ba}.tick-box{display:inline-block;width:8px;height:8px;border:1px solid #526780;margin-right:4px}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}`
+const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dosing-grid{display:grid;border:1px solid #cbd9e7;border-radius:8px;overflow:hidden;margin:14px 0}.dosing-head,.dosing-element,.dose-cell{min-height:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid #cbd9e7;border-bottom:1px solid #cbd9e7;padding:5px}.dosing-head{background:#eef7ff;color:#0072ce;font-size:8px;text-transform:uppercase}.dosing-element{flex-direction:column;align-items:flex-start;padding:7px 9px;font-weight:bold}.dosing-element span{font-size:9px;color:#526780;font-weight:normal}.dosing-element small{color:#0072ce;font-size:8px}.dose-cell.summary{background:#f6fafc;font-weight:bold}.dose-check{display:flex;align-items:center;justify-content:center;gap:4px}.dose-check input{display:none}.dose-check span{width:9px;height:9px;border:1px solid #526780;flex:none}.dose-check b{font-size:9px}.dose-empty{color:#98a8ba}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}`
 </script>
 
 <style scoped>
-.dose-plan{display:grid;gap:16px;min-width:0}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.dose-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:#fff}.dose-table{width:100%;border-collapse:collapse;font-size:13px}.dose-table th,.dose-table td{padding:11px 12px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap}.dose-table tbody tr:last-child th,.dose-table tbody tr:last-child td{border-bottom:0}.dose-table thead th{position:sticky;top:0;background:#f4f8fb;color:var(--text-muted);font-size:10px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.dose-table .col-element{position:sticky;left:0;z-index:1;min-width:180px;background:#fff;text-align:left;white-space:normal}.dose-table thead .col-element{z-index:2;background:#f4f8fb}.dose-table tbody .col-element strong{display:block;color:var(--text);font-size:14px}.dose-table tbody .col-element small{color:var(--text-muted);font-size:11px}.dose-table .col-max,.dose-table .col-daily{background:#f8fbfe;font-weight:800;color:var(--brand-blue)}.dose-table .col-max{color:var(--text-muted)}.dose-table td.empty{color:#a8b7c6}.tick-box{display:inline-block;width:10px;height:10px;margin-right:6px;border:1px solid var(--text-muted);vertical-align:middle}.plan-footer{color:var(--text-muted);font-size:12px;line-height:1.5}@media(max-width:1000px){.dose-plan>header{align-items:stretch;flex-direction:column}}
+.dose-plan{display:grid;gap:16px;min-width:0}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.dose-scroll{overflow-x:auto;padding-bottom:2px}
+.dosing-grid{display:grid;min-width:620px;border:1px solid var(--border);border-radius:18px;overflow:hidden}
+.dosing-head,.dosing-element,.dose-cell{min-height:62px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,.84)}
+.dosing-head{background:rgba(234,249,252,.9);color:var(--text-muted);font-size:11px;font-weight:var(--fw-label,800);letter-spacing:.04em;text-transform:uppercase}
+.dosing-head.summary{background:#e3f1f9;color:var(--brand-blue)}
+.dosing-element{flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;font-weight:var(--fw-label,800)}
+.dosing-element span{font-size:11px;color:var(--text-muted);font-weight:var(--fw-ui,500)}
+.dosing-element small{margin-top:3px;color:var(--teal-700);font-size:9.5px;font-weight:var(--fw-bold,700)}
+.dose-cell{position:relative}.dose-cell.inactive{background:#f5f8fa}
+.dose-cell.summary{background:#f8fbfe;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.dose-cell.total{color:var(--brand-blue)}
+.dose-check{display:grid;place-items:center;gap:6px;width:100%;min-height:62px;padding:9px 4px;align-content:center;cursor:pointer}
+.dose-check input{position:absolute;opacity:0}
+.dose-check>span{width:22px;height:22px;border-radius:7px;border:2px solid var(--border-strong,#b8c9dd);background:#fff;transition:border-color .15s,background .15s}
+.dose-check input:checked+span{border-color:var(--teal-500,#0f9f8f);background:var(--teal-500,#0f9f8f);box-shadow:inset 0 0 0 5px #fff}
+.dose-check input:focus-visible+span{outline:3px solid rgba(0,114,206,.2);outline-offset:3px}
+.dose-check b{color:var(--text-muted);font-size:10.5px;font-weight:800;white-space:nowrap}
+.dose-check input:checked~b{color:var(--teal-700)}
+.dose-empty{color:#b9c7d1;font-size:16px}
+.plan-footer{color:var(--text-muted);font-size:12px;line-height:1.5}.dose-products{margin-top:2px}
+@media(max-width:1000px){.dose-plan>header{align-items:stretch;flex-direction:column}}
 </style>
