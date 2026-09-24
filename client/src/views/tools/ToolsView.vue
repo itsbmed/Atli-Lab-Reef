@@ -355,95 +355,76 @@
       </EmptyState>
     </section>
 
-    <!-- ============ DOSIERPLAN ============ -->
+    <!-- ============ MÖGLICHE QUELLEN ============ -->
     <section
       v-else
-      id="tool-panel-dosing"
+      id="tool-panel-sources"
       class="tool-layout"
       role="tabpanel"
-      aria-labelledby="tool-tab-dosing"
+      aria-labelledby="tool-tab-sources"
     >
       <div class="card tool-panel">
-        <div class="panel-kicker">Planung</div>
-        <h2>Dosierplan</h2>
-        <p class="panel-copy">Wöchentlicher Plan für freigegebene ICP-Dosierungen mit erledigten Dosen und Fortschritt.</p>
+        <div class="panel-kicker">Ursachensuche</div>
+        <h2>Mögliche Quellen</h2>
+        <p class="panel-copy">Bekannte Eintragswege für unerwünschte Elemente. Wählen Sie eine Analyse, um nur die Quellen zu sehen, die zu den erhöhten Werten passen.</p>
         <div class="form-group">
-          <label for="dosing-profile">Aquarium-Profil</label>
-          <select id="dosing-profile" v-model="selectedProfileId">
+          <label for="sources-profile">Aquarium-Profil</label>
+          <select id="sources-profile" v-model="selectedProfileId">
             <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="dosing-analysis">Laboranalyse</label>
-          <select id="dosing-analysis" v-model="dosingAnalysisId" :disabled="!dosingAnalysisOptions.length">
-            <option v-if="!dosingAnalysisOptions.length" value="">Keine abgeschlossene Analyse</option>
-            <option v-for="analysis in dosingAnalysisOptions" :key="analysis.id" :value="analysis.id">
-              {{ analysisOptionLabel(analysis) }}{{ analysis.id === latestAnalysis?.id ? ' · Neueste' : '' }}
-            </option>
+          <label for="sources-analysis">Laboranalyse</label>
+          <select id="sources-analysis" v-model="sourceAnalysisId">
+            <option value="">Alle Quellen anzeigen</option>
+            <option v-for="analysis in analysisOptions" :key="analysis.id" :value="analysis.id">{{ analysisOptionLabel(analysis) }}</option>
           </select>
-          <small class="field-hint">{{ dosingAnalysisHint }}</small>
-          <small v-if="pendingDosingItems.length" class="field-hint">{{ pendingDosingItems.map(item => item.label).join(', ') }}: niedrig, aber ohne aktive geprüfte Produktformel. Weitere Maßnahmen stehen im Quellbericht.</small>
+          <small class="field-hint">{{ sourceFilterHint }}</small>
         </div>
-        <div class="form-group">
-          <label for="dosing-week">Woche</label>
-          <input id="dosing-week" v-model="doseWeek" type="week" />
+        <div v-if="sourceSuspects.length" class="source-suspects">
+          <span>Erhöhte Werte</span>
+          <div><b v-for="element in sourceSuspects" :key="element.key">{{ element.label }}</b></div>
         </div>
         <div class="tool-summary">
-          <div><strong>{{ completedDoses }}/{{ totalDoses }}</strong><span>erledigt</span></div>
-          <div><strong>{{ doseCompletion }}%</strong><span>Wochenfortschritt</span></div>
+          <div><strong>{{ visibleSources.length }}</strong><span>Quellen</span></div>
+          <div><strong>{{ POLLUTANT_SOURCES.length }}</strong><span>insgesamt bekannt</span></div>
         </div>
       </div>
 
-      <div v-if="selectedDosingAnalysis && dosingCandidates.length" class="card dosing-card">
-        <DosingCalendar :items="dosingCandidates" :aquarium-name="selectedProfile?.name" :report-number="selectedDosingAnalysis.reportNumber || selectedDosingAnalysis.barcode" :volume="Number(selectedProfile?.net_volume) || 0" :simulation="selectedDosingAnalysis.simulation" />
+      <div class="card source-card">
         <div class="chart-heading">
           <div>
-            <h3>{{ dosingRows.length ? 'Wochendosierung' : 'Korrekturen aus der Analyse' }}</h3>
-            <small>{{ dosingRows.length }} erforderliche Produktdosierungen · Tageslimit berücksichtigt</small>
+            <h3>{{ sourceAnalysisId ? 'Passende Eintragswege' : 'Alle bekannten Eintragswege' }}</h3>
+            <small>{{ sourceAnalysisId ? 'Gefiltert nach den erhöhten Werten dieser Analyse' : 'Ohne Analysefilter — die vollständige Liste' }}</small>
           </div>
-          <span v-if="dosingRows.length" class="badge badge-created">{{ doseCompletion }}% erledigt</span>
         </div>
 
-        <div v-if="dosingRows.length" class="dosing-course-note">
-          <i>i</i>
-          <p><strong>Einmaliger Korrekturkurs:</strong> Nur markierte Tage gehören zum berechneten Kurs. Nicht automatisch in der nächsten Woche wiederholen; danach wie im Bericht angegeben kontrollieren.</p>
+        <div v-if="visibleSources.length" class="source-list">
+          <article v-for="source in visibleSources" :key="source.key" class="source-item">
+            <header>
+              <div>
+                <span>{{ source.category }}</span>
+                <h4>{{ source.name }}</h4>
+              </div>
+              <div v-if="source.matches?.length" class="source-matches">
+                <b v-for="key in source.matches" :key="key">{{ elementLabel(key) }}</b>
+              </div>
+            </header>
+            <p>{{ source.description }}</p>
+            <ul>
+              <li v-for="check in source.checks" :key="check">{{ check }}</li>
+            </ul>
+          </article>
         </div>
-
-        <div v-if="dosingRows.length" class="dosing-grid">
-          <div class="dosing-head">Element</div>
-          <div v-for="day in days" :key="day" class="dosing-head">{{ day }}</div>
-          <template v-for="row in dosingRows" :key="row.key">
-            <div class="dosing-element">
-              {{ row.element }}
-              <span>{{ row.amount }} · {{ row.product }}</span>
-              <small>{{ row.course }}</small>
-            </div>
-            <div v-for="day in days" :key="`${row.key}-${day}`" :class="['dose-cell', { inactive: !row.active[day] }]">
-              <label v-if="row.active[day]" class="dose-check">
-                <input v-model="row.done[day]" type="checkbox" :aria-label="`${row.element}, ${day}, ${row.amount}`" />
-                <span></span>
-              </label>
-              <span v-else class="dose-empty" aria-hidden="true">–</span>
-            </div>
-          </template>
-        </div>
-
-        <ProductSuggestions class="dosing-products" :products="dosingProducts(dosingCandidates)" />
-
+        <EmptyState
+          v-else
+          kicker="Keine Treffer"
+          title="Keine passende Quelle"
+          message="In dieser Analyse liegt kein unerwünschtes Element über seinem Zielbereich. Wählen Sie „Alle Quellen anzeigen“, um die vollständige Liste zu sehen."
+          mark="QUE"
+          tone="compact"
+        />
       </div>
-      <EmptyState
-        v-else
-        :kicker="selectedDosingAnalysis ? 'Keine Produktdosierung' : 'Keine Analyse'"
-        :title="selectedDosingAnalysis ? 'Keine freigegebene Dosierung verfügbar' : 'Noch kein Dosierplan verfügbar'"
-        :message="dosingEmptyMessage"
-        mark="DOS"
-        tone="compact"
-      >
-        <template #actions>
-          <RouterLink v-if="selectedDosingAnalysis" :to="`/analyses/${selectedDosingAnalysis.id}`" class="btn btn-ghost">Quellbericht öffnen</RouterLink>
-          <RouterLink v-else to="/analyses/activate" class="btn btn-primary">Analyse registrieren</RouterLink>
-        </template>
-      </EmptyState>
     </section>
     </template>
   </div>
@@ -458,17 +439,14 @@ import {
   BarElement, Tooltip, Legend, Filler
 } from 'chart.js'
 import { useAuthStore } from '@/stores/auth'
-import { buildDosingPlan } from '@/services/dosingPlan'
-import { weekStart } from '@/services/dosingCalendar'
-import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
+import { POLLUTANT_SOURCES, sourcesForElements, suspectElements } from '@/services/pollutantSources'
+import { evaluateAnalysis } from '@/services/directRecommendations'
+import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
 import { analysisApi, profileApi } from '@/services/toolsData'
-import { loadDosingProgress, saveDosingProgress } from '@/services/toolsDosingStore'
 import {
-  buildDoseWeekSchedule,
   buildAnalysisSeries,
   calculateConsumption,
   clampNumber,
-  isoWeekValue,
   parameterFromAnalysis,
   scoreParameters,
   scoreValue,
@@ -477,8 +455,6 @@ import {
 } from '@/services/toolsCalculations'
 import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
-import { recommendedDosingProducts } from '@/services/dosingConfig'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler)
 
@@ -486,7 +462,7 @@ const tools = [
   { key: 'waterchange', label: 'Wasserwechsel', caption: 'Simulator' },
   { key: 'consumption', label: 'Rezeptfinder', caption: 'Verbrauch + Dosis' },
   { key: 'trends', label: 'Verläufe', caption: 'Diagramme' },
-  { key: 'dosing', label: 'Dosierplan', caption: 'Wochenplan' },
+  { key: 'sources', label: 'Mögliche Quellen', caption: 'Eintragswege' },
 ]
 
 const activeTool = ref('waterchange')
@@ -515,8 +491,6 @@ const dosingMode = ref('none')
 /* trends / dosing inputs */
 const trendGroup = ref('Mengenelemente')
 const trendRange = ref('12')
-const doseWeek = ref(isoWeekValue())
-const dosingAnalysisId = ref('')
 
 const waterParameterKeys = ['calcium', 'magnesium', 'kh', 'nitrate', 'phosphate']
 const defaultSaltValues = {
@@ -788,30 +762,31 @@ const trendChartData = computed(() => {
 })
 
 /* ---------- Dosierplan ---------- */
-const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
-const dosingAnalysisOptions = computed(() => [...selectedProfileAnalyses.value].reverse())
-const selectedDosingAnalysis = computed(() => (
-  selectedProfileAnalyses.value.find((analysis) => analysis.id === dosingAnalysisId.value) || null
+const analysisOptions = computed(() => [...selectedProfileAnalyses.value].reverse())
+
+/* ---------- Mögliche Quellen ---------- */
+const sourceAnalysisId = ref('')
+const evaluationScales = loadEvaluationScales()
+const selectedSourceAnalysis = computed(() => selectedProfileAnalyses.value.find((analysis) => analysis.id === sourceAnalysisId.value) || null)
+const sourceSuspects = computed(() => {
+  const analysis = selectedSourceAnalysis.value
+  if (!analysis) return []
+  const scale = findScale(evaluationScales, selectedProfile.value?.evaluation_scale_id || loadActiveScaleId())
+  const evaluated = evaluateAnalysis(analysis.parameters || [], scale)
+  const keys = new Set(suspectElements(evaluated))
+  return evaluated.filter((parameter) => keys.has(parameter.key))
+})
+const visibleSources = computed(() => (
+  selectedSourceAnalysis.value ? sourcesForElements(sourceSuspects.value.map((parameter) => parameter.key)) : POLLUTANT_SOURCES
 ))
-const dosingPlanItems = computed(() => buildDosingPlan(
-  selectedDosingAnalysis.value?.parameters || [],
-  Number(selectedProfile.value?.net_volume) || 0,
-))
-const dosingCandidates = computed(() => dosingPlanItems.value.filter((item) => item.dose))
-const pendingDosingItems = computed(() => dosingPlanItems.value.filter(item => !item.dose && item.mode !== 'water' && item.key !== 'phosphorus'))
-const dosingRows = ref([])
-const totalDoses = computed(() => dosingRows.value.reduce((sum, row) => sum + days.filter((day) => row.active[day]).length, 0))
-const completedDoses = computed(() => dosingRows.value.reduce(
-  (sum, row) => sum + days.filter((day) => row.active[day] && row.done[day]).length,
-  0,
-))
-const doseCompletion = computed(() => totalDoses.value ? Math.round((completedDoses.value / totalDoses.value) * 100) : 0)
-const dosingAnalysisHint = computed(() => selectedDosingAnalysis.value
-  ? `Dosierbedarf aus ${analysisOptionLabel(selectedDosingAnalysis.value)} und ${selectedProfile.value?.net_volume || 0} L Nettovolumen.`
-  : 'Wählen Sie ein Aquarium mit einer abgeschlossenen Analyse.')
-const dosingEmptyMessage = computed(() => selectedDosingAnalysis.value
-  ? dosingPlanItems.value.length ? 'Niedrige Werte benötigen eine freigegebene Produktformel und ein Tageslimit, bevor eine Dosierung berechnet werden kann. Weitere Maßnahmen finden Sie im Quellbericht.' : 'Alle dosierbaren Messwerte liegen mindestens am unteren Rand ihres Zielbereichs. Der Bericht bleibt die Grundlage für die nächste Kontrolle.'
-  : 'Für das ausgewählte Aquarium liegt noch keine abgeschlossene Analyse vor.')
+const sourceFilterHint = computed(() => {
+  if (!selectedSourceAnalysis.value) return 'Ohne Auswahl sehen Sie alle bekannten Eintragswege.'
+  if (!sourceSuspects.value.length) return 'In dieser Analyse liegt kein unerwünschtes Element über seinem Zielbereich.'
+  return `${sourceSuspects.value.length} erhöhte Werte · ${visibleSources.value.length} passende Quellen.`
+})
+function elementLabel(key) {
+  return sourceSuspects.value.find((parameter) => parameter.key === key)?.label || key
+}
 
 /* ---------- Workbench readout ---------- */
 const activeToolLabel = computed(() => tools.find(t => t.key === activeTool.value)?.label || 'Tools')
@@ -819,12 +794,11 @@ const workbenchMetricLabel = computed(() => ({
   waterchange: 'Simulierte Wasserqualität',
   consumption: 'Berechnungsverlässlichkeit',
   trends: 'Datenabdeckung',
-  dosing: 'Wochenfortschritt',
+  sources: 'Gefilterte Quellen',
 }[activeTool.value] || 'Werkzeugstatus'))
 const workbenchScore = computed(() => {
   if (activeTool.value === 'waterchange') return qualityAfter.value
   if (activeTool.value === 'consumption') return consumptionReliability.value
-  if (activeTool.value === 'dosing') return dosingRows.value.length ? doseCompletion.value : 0
   return Math.min(100, trendSeries.value.length * 25)
 })
 const workbenchRingStyle = computed(() => {
@@ -889,45 +863,10 @@ function syncRecipeSelection() {
   }
 }
 
-function syncDosingRows() {
-  const progress = loadDosingProgress(auth.user?.id, selectedProfileId.value, dosingAnalysisId.value, doseWeek.value)
-  dosingRows.value = dosingCandidates.value.map((item) => {
-    const schedule = buildDoseWeekSchedule(item.dose.days, days)
-    const activeDays = new Set(schedule.scheduledDays)
-    return {
-      key: item.key,
-      element: item.label,
-      product: item.dose.productName,
-      amount: `bis zu ${formatNumber(item.dose.dailyMl, 6)} ml/Tag`,
-      course: `${formatNumber(item.dose.totalMl, 6)} ml gesamt · ${item.dose.days} ${item.dose.days === 1 ? 'Tag' : 'Tage'}${schedule.remainingDays ? ` · ${schedule.remainingDays} weitere nach Sonntag` : ''}`,
-      active: Object.fromEntries(days.map((day) => [day, activeDays.has(day)])),
-      done: Object.fromEntries(days.map((day) => [day, activeDays.has(day) && Boolean(progress[item.key]?.[day])])),
-    }
-  })
-}
-
-function dosingProducts(items) {
-  return recommendedDosingProducts(items, selectedDosingAnalysis.value?.parameters || [])
-}
-
-function syncDosingAnalysis() {
-  if (!selectedProfileAnalyses.value.some((analysis) => analysis.id === dosingAnalysisId.value)) {
-    dosingAnalysisId.value = latestAnalysis.value?.id || ''
-  }
-}
-
 watch(selectedProfileId, () => {
   syncRecipeSelection()
-  syncDosingAnalysis()
-  syncDosingRows()
+  if (!selectedProfileAnalyses.value.some((analysis) => analysis.id === sourceAnalysisId.value)) sourceAnalysisId.value = ''
 })
-watch(doseWeek, syncDosingRows)
-watch(dosingAnalysisId, syncDosingRows)
-watch(dosingCandidates, syncDosingRows)
-watch(dosingRows, (rows) => {
-  const progress = Object.fromEntries(rows.map((row) => [row.key, row.done]))
-  saveDosingProgress(auth.user?.id, selectedProfileId.value, dosingAnalysisId.value, doseWeek.value, progress)
-}, { deep: true })
 
 onMounted(async () => {
   try {
@@ -943,10 +882,8 @@ onMounted(async () => {
     selectedProfileId.value = requestedProfile?.id || profiles.value[0]?.id || ''
     syncRecipeSelection()
     const requestedAnalysis = selectedProfileAnalyses.value.find((analysis) => String(analysis.id) === String(route.query.analysis))
-    dosingAnalysisId.value = requestedAnalysis?.id || ''
-    syncDosingAnalysis()
-    syncDosingRows()
     if (tools.some((tool) => tool.key === route.query.tool)) activeTool.value = route.query.tool
+    if (requestedAnalysis) sourceAnalysisId.value = requestedAnalysis.id
   } catch {
     profiles.value = []
   } finally {
@@ -1156,6 +1093,24 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 .field-hint { display: block; margin-top: 6px; color: #718198; font-size: 11px; line-height: 1.45; }
+
+/* ---------- Mögliche Quellen ---------- */
+.source-suspects { display: grid; gap: 7px; margin-top: 14px; padding: 12px 13px; border-radius: 12px; background: #fff7f5; }
+.source-suspects > span { color: #b53a2e; font-size: 10px; font-weight: var(--fw-label); letter-spacing: 0.07em; text-transform: uppercase; }
+.source-suspects > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.source-suspects b { padding: 4px 8px; border-radius: 7px; background: #fff; color: #b53a2e; font-size: 11px; }
+.source-card { min-width: 0; }
+.source-list { display: grid; gap: 10px; }
+.source-item { padding: 15px 16px; border: 1px solid var(--border); border-left: 4px solid var(--brand-blue); border-radius: 15px; background: rgba(255,255,255,0.84); }
+.source-item > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.source-item header span { color: var(--teal-700); font-size: 10px; font-weight: var(--fw-label); letter-spacing: 0.07em; text-transform: uppercase; }
+.source-item h4 { margin-top: 3px; color: var(--brand-navy); font-size: 17px; }
+.source-matches { display: flex; flex-wrap: wrap; gap: 5px; }
+.source-matches b { padding: 4px 9px; border-radius: 999px; background: #fdecea; color: #b53a2e; font-size: 11px; }
+.source-item > p { margin-top: 8px; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.source-item ul { display: grid; gap: 6px; margin-top: 11px; padding-left: 17px; }
+.source-item li { color: var(--text); font-size: 12.5px; line-height: 1.5; }
+
 .field-error { color: #c74338; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }
 .waterchange-inputs { align-items: end; }
@@ -1297,41 +1252,6 @@ onMounted(async () => {
 .r-dose small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--text-muted); font-weight: var(--fw-ui); }
 .r-prod { font-size: 12px; color: var(--text-muted); }
 
-.dosing-card { overflow-x: auto; padding: 24px; }
-.dosing-card .chart-heading > div small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 11px; }
-.dosing-course-note { display: flex; align-items: flex-start; gap: 10px; min-width: 620px; margin: 14px 0; padding: 12px 14px; border-radius: 12px; background: #eef7fd; color: #456378; font-size: 12px; line-height: 1.5; }
-.dosing-course-note i { display: grid; place-items: center; flex: none; width: 23px; height: 23px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-style: normal; font-weight: 900; }
-.dosing-grid {
-  display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) repeat(7, minmax(54px, 1fr));
-  min-width: 620px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  overflow: hidden;
-}
-.dosing-head,
-.dosing-element,
-.dose-cell {
-  min-height: 54px;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.84);
-}
-.dosing-head { background: rgba(234,249,252,0.9); color: var(--text-muted); font-size: 11px; font-weight: var(--fw-label); text-transform: uppercase; }
-.dosing-element { flex-direction: column; align-items: flex-start; padding: 10px 14px; font-weight: var(--fw-label); }
-.dosing-element span { font-size: 11px; color: var(--text-muted); font-weight: var(--fw-ui); }
-.dosing-element small { margin-top: 3px; color: var(--teal-700); font-size: 9px; font-weight: var(--fw-bold); }
-.dose-cell { position: relative; }
-.dose-cell.inactive { background: #f5f8fa; }
-.dose-check { display: grid; place-items: center; width: 100%; min-height: 54px; cursor: pointer; }
-.dose-check input { position: absolute; opacity: 0; }
-.dose-check span { width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--border-strong); }
-.dose-check input:checked + span { border-color: var(--teal-500); background: var(--teal-500); box-shadow: inset 0 0 0 5px #fff; }
-.dose-check input:focus-visible + span { outline: 3px solid rgba(0,114,206,.2); outline-offset: 3px; }
-.dose-empty { color: #b9c7d1; font-size: 16px; }
 .dosing-review { min-width: 620px; margin-top: 18px; padding: 18px; border: 1px solid #f5d998; border-radius: 15px; background: #fffaf0; }
 .dosing-review > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .dosing-review > header span { color: #9a5b0a; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
@@ -1346,7 +1266,6 @@ onMounted(async () => {
 .dosing-review-list article div strong { color: var(--text); font-size: 12px; }
 .dosing-review-list article div small { margin-top: 2px; color: var(--text-muted); font-size: 10px; }
 .dosing-review-list article > em { padding: 5px 8px; border-radius: 999px; background: #fff1c7; color: #8d5708; font-size: 9px; font-style: normal; font-weight: 850; }
-.dosing-products { margin-top: 16px; }
 .review-products { grid-column: 1 / -1; width: 100%; }
 
 @media (max-width: 980px) {
@@ -1368,7 +1287,6 @@ onMounted(async () => {
   .recipe-row { grid-template-columns: 1fr 1fr; gap: 8px; }
   .recipe-row.head { display: none; }
   .dose-adjustments { grid-template-columns: 1fr; }
-  .dosing-card { padding: 18px; }
 }
 @media (max-width: 430px) {
   .tools-hero { padding: 22px 20px; }
