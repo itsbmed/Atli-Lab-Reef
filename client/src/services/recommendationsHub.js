@@ -1,4 +1,10 @@
-function reportDate(analysis) {
+import { buildDirectRecommendations, evaluateAnalysis } from './directRecommendations.js'
+import { findScale, loadActiveScaleId, loadEvaluationScales } from './evaluationScales.js'
+import { templateMap } from './recommendationTemplates.js'
+
+const DAY = 86400000
+
+export function reportDate(analysis) {
   return new Date(analysis.completedAt || analysis.completed_at || analysis.createdAt || analysis.created_at)
 }
 
@@ -16,43 +22,68 @@ export function latestCompletedByAquarium(analyses = []) {
   return [...latest.values()].sort((left, right) => reportDate(right) - reportDate(left))
 }
 
-export function buildRecommendationItems(analyses = []) {
-  return analyses.flatMap((analysis) => (analysis.recommendationGroups || []).map((recommendation) => {
-    const days = Math.max(1, Number(recommendation.recheckDays || recommendation.days) || 14)
-    const sourceDate = reportDate(analysis)
-    const dueDate = new Date(sourceDate)
-    dueDate.setDate(dueDate.getDate() + days)
-    return {
-      id: `${analysis.id}:${recommendation.key || recommendation.ruleId}`,
-      key: recommendation.key || `rule-${recommendation.ruleId}`,
-      analysisId: analysis.id,
-      aquariumId: analysis.aquariumId || analysis.profile_id || '',
-      aquariumName: analysis.aquariumName || 'Aquarium',
-      reportNumber: analysis.reportNumber || analysis.barcode || analysis.id,
-      reportDate: sourceDate,
-      dueDate,
-      days,
-      title: recommendation.title,
-      summary: recommendation.summary,
-      priority: recommendation.priority || 'Mittel',
-      tone: recommendation.tone || (recommendation.priority === 'Hoch' ? 'critical' : 'watch'),
-      groupKey: recommendation.groupKey || 'other',
-      parameterKeys: recommendation.parameterKeys || [],
-      sourceParameters: analysis.parameters || [],
-      parameters: recommendation.parameters?.length
-        ? recommendation.parameters
-        : (recommendation.parameterKeys || []),
-      whys: recommendation.whys?.filter(Boolean).length
-        ? recommendation.whys.filter(Boolean)
-        : [recommendation.why].filter(Boolean),
-      steps: (recommendation.steps || []).filter(Boolean),
-    }
-  })).sort((left, right) => {
-    const priority = (value) => value === 'Hoch' ? 0 : 1
-    return priority(left.priority) - priority(right.priority)
-      || left.dueDate - right.dueDate
-      || left.title.localeCompare(right.title, 'de')
-  })
+export function startOfToday(now = new Date()) {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+// Overdue and today collapse into one bucket: both mean "do this now".
+export function dueBucket(dueDate, now = new Date()) {
+  const days = Math.floor((startOfToday(dueDate) - startOfToday(now)) / DAY)
+  if (days <= 0) return 'now'
+  if (days <= 7) return 'week'
+  return 'later'
+}
+
+export function dueLabel(dueDate, now = new Date()) {
+  const days = Math.floor((startOfToday(dueDate) - startOfToday(now)) / DAY)
+  if (days < 0) return `seit ${Math.abs(days)} ${Math.abs(days) === 1 ? 'Tag' : 'Tagen'} fällig`
+  if (days === 0) return 'heute fällig'
+  if (days === 1) return 'morgen fällig'
+  return `in ${days} Tagen`
+}
+
+// One task per recommendation of the newest report per aquarium, dated from that report.
+export function buildRecommendationItems(analyses = [], options = {}) {
+  const scales = options.scales || loadEvaluationScales()
+  const templates = options.templates || templateMap()
+  const activeScaleId = options.activeScaleId || loadActiveScaleId()
+  const dosingKeysFor = options.dosingKeysFor || (() => [])
+
+  return analyses.flatMap((analysis) => {
+    const scale = findScale(scales, analysis.aquariumProfile?.evaluationScaleId || activeScaleId)
+    const evaluated = evaluateAnalysis(analysis.parameters || [], scale)
+    const source = reportDate(analysis)
+    return buildDirectRecommendations(evaluated, { dosingKeys: dosingKeysFor(analysis), templates }).map((recommendation) => {
+      const dueDate = new Date(source)
+      dueDate.setDate(dueDate.getDate() + recommendation.recheckDays)
+      return {
+        id: `${analysis.id}:${recommendation.key}`,
+        key: recommendation.key,
+        analysisId: analysis.id,
+        aquariumId: analysis.aquariumId || analysis.profile_id || '',
+        aquariumName: analysis.aquariumName || 'Aquarium',
+        reportNumber: analysis.reportNumber || analysis.barcode || analysis.id,
+        reportDate: source,
+        dueDate,
+        icon: recommendation.icon,
+        title: recommendation.title,
+        summary: recommendation.summary,
+        summaryParts: recommendation.summaryParts,
+        options: recommendation.options,
+        detailLabel: recommendation.detailLabel,
+        detailItems: recommendation.detailItems,
+        tips: recommendation.tips,
+        priority: recommendation.priority,
+        tone: recommendation.tone,
+        elements: recommendation.elements,
+        elementKeys: recommendation.elementKeys,
+      }
+    })
+  }).sort((left, right) => left.dueDate - right.dueDate
+    || (left.tone === right.tone ? 0 : left.tone === 'critical' ? -1 : 1)
+    || left.title.localeCompare(right.title, 'de'))
 }
 
 export function recommendationProgressKey(item) {
