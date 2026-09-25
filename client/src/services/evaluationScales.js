@@ -20,14 +20,14 @@ export const SCORE_BAND_MAP = Object.freeze(Object.fromEntries(SCORE_BANDS.map((
 
 // Ascending order is what the classifier walks; the editor renders them in the same order.
 export const THRESHOLD_FIELDS = Object.freeze([
-  { key: 'critLow', label: 'Kritisch niedrig unter', band: 1 },
-  { key: 'tooLow', label: 'Zu niedrig unter', band: 2 },
-  { key: 'low', label: 'Niedrig unter', band: 3 },
-  { key: 'min', label: 'Optimum ab', band: 4 },
-  { key: 'max', label: 'Optimum bis', band: 5 },
-  { key: 'increased', label: 'Erhöht bis', band: 6 },
-  { key: 'high', label: 'Hoch bis', band: 7 },
-  { key: 'tooHigh', label: 'Zu hoch bis', band: 8 },
+  { key: 'critLow', label: 'Kritisch niedrig unter', short: 'Krit −', band: 1 },
+  { key: 'tooLow', label: 'Zu niedrig unter', short: 'Zu −', band: 2 },
+  { key: 'low', label: 'Niedrig unter', short: 'Niedrig', band: 3 },
+  { key: 'min', label: 'Optimum ab', short: 'Min', band: 4 },
+  { key: 'max', label: 'Optimum bis', short: 'Max', band: 5 },
+  { key: 'increased', label: 'Erhöht bis', short: 'Erhöht', band: 6 },
+  { key: 'high', label: 'Hoch bis', short: 'Hoch', band: 7 },
+  { key: 'tooHigh', label: 'Zu hoch bis', short: 'Zu +', band: 8 },
 ])
 
 export const THRESHOLD_KEYS = Object.freeze(THRESHOLD_FIELDS.map((field) => field.key))

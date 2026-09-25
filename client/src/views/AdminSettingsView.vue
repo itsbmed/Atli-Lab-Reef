@@ -14,6 +14,7 @@
       <button type="button" :class="{ active: activeArea === 'dosing' }" @click="activeArea = 'dosing'"><span>Produkte &amp; Dosierung</span><small>Produktkarten &amp; freigegebene Formeln</small></button>
       <button v-if="recommendationRulesEnabled" type="button" :class="{ active: activeArea === 'recommendations' }" @click="activeArea = 'recommendations'"><span>Regeln &amp; Empfehlungen</span><small>Auslöser &amp; Maßnahmen</small></button>
       <button type="button" :class="{ active: activeArea === 'scales' }" @click="activeArea = 'scales'"><span>Bewertungsgrundlagen</span><small>Score-Stufen je Element</small></button>
+      <button type="button" :class="{ active: activeArea === 'texts' }" @click="activeArea = 'texts'"><span>Empfehlungstexte</span><small>Maßnahmen &amp; Tipps</small></button>
       <button type="button" :class="{ active: activeArea === 'support' }" @click="activeArea = 'support'"><span>Hilfe &amp; Support</span><small>FAQs verwalten</small></button>
       <button v-if="canManageUsers" type="button" :class="{ active: activeArea === 'users' }" @click="openUserManagement"><span>Benutzer</span><small>Konten &amp; Berechtigungen</small></button>
     </nav>
@@ -68,18 +69,39 @@
           </div>
 
           <div class="editor-section">
-            <div class="section-label"><span>04</span><div><strong>Bewertungsgrundlage</strong><small>Neun Stufen von kritisch niedrig bis kritisch hoch</small></div></div>
-            <div class="scale-switch">
-              <label><span>Grundlage</span><select v-model="selectedScaleId"><option v-for="scale in scales" :key="scale.id" :value="scale.id">{{ scale.name }}</option></select></label>
-              <p>{{ selectedScale.description || 'Keine Beschreibung hinterlegt.' }}</p>
+            <div class="section-label"><span>04</span><div><strong>Bewertungsgrundlagen</strong><small>Neun Stufen von kritisch niedrig bis kritisch hoch — je Grundlage eine Zeile</small></div></div>
+            <div class="element-scale-wrap">
+              <table class="element-scale-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Grundlage</th>
+                    <th v-for="field in THRESHOLD_FIELDS" :key="field.key" scope="col" :title="field.label" :class="{ optimum: field.key === 'min' || field.key === 'max' }">{{ field.short }}</th>
+                    <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="scale in scales" :key="scale.id" :class="{ active: selectedScaleId === scale.id }">
+                    <th scope="row">
+                      <button type="button" class="scale-name-button" :aria-pressed="selectedScaleId === scale.id" :title="`Stufen von ${scale.name} unten anzeigen`" @click="selectedScaleId = scale.id">
+                        <strong>{{ scale.name }}</strong>
+                        <small>{{ scale.builtIn ? 'Standard' : 'Eigene' }}</small>
+                      </button>
+                    </th>
+                    <td v-for="field in THRESHOLD_FIELDS" :key="field.key" :class="{ optimum: field.key === 'min' || field.key === 'max' }">
+                      <input v-model.number="scale.thresholds[selectedKey][field.key]" type="number" step="any" :aria-label="`${selectedMeta.label} · ${scale.name} · ${field.label}`" />
+                    </td>
+                    <td class="row-action">
+                      <button v-if="!scale.builtIn" type="button" :aria-label="`${scale.name} löschen`" title="Grundlage löschen" @click="removeScale(scale.id)">×</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <div class="threshold-fields">
-              <label v-for="field in THRESHOLD_FIELDS" :key="field.key" :class="['threshold-field', `band-${field.band}`]">
-                <span>{{ field.label }}</span>
-                <input v-model.number="selectedThresholds[field.key]" type="number" step="any" />
-              </label>
+            <div class="element-scale-foot">
+              <button type="button" class="scale-inline-add" @click="addScale">+ Grundlage hinzufügen</button>
+              <p v-if="elementScaleError" class="field-error" role="status">{{ elementScaleError }}</p>
             </div>
-            <p v-if="thresholdError" class="field-error" role="status">{{ thresholdError }}</p>
+
             <div class="band-preview" aria-label="Bewertungsstufen">
               <span v-for="band in SCORE_BANDS" :key="band.score" :class="['band-chip', band.tone]">
                 <b>{{ band.score }}</b>
@@ -87,7 +109,7 @@
                 <small>{{ bandRangeLabel(band.score) }}</small>
               </span>
             </div>
-            <p class="technical-note">Der Score steuert, welche direkte Empfehlung im Bericht erscheint. Score 5 ist das Optimum, Dosierungen zielen auf {{ correctionTarget }} {{ selectedContent.unit }}.</p>
+            <p class="technical-note">Stufen von <b>{{ selectedScale.name }}</b>. Score 5 ist das Optimum, Dosierungen zielen auf {{ correctionTarget }} {{ selectedContent.unit }}.</p>
           </div>
 
           <section class="content-preview">
@@ -260,56 +282,175 @@
 
     <section v-show="activeArea === 'scales'" class="editor-shell">
       <header class="editor-heading">
-        <div><span>Bewertungsgrundlagen</span><h2>Score-Stufen verwalten</h2><p>Eine Grundlage legt für jedes Element fest, ab wann ein Wert als niedrig, optimal oder erhöht gilt. Kunden wählen sie beim Anlegen eines Aquariums.</p></div>
+        <div><span>Bewertungsgrundlagen</span><h2>Alle Grundlagen im Vergleich</h2><p>Eine Grundlage legt für jedes Element fest, ab wann ein Wert als niedrig, optimal oder erhöht gilt. Kunden wählen sie beim Anlegen eines Aquariums.</p></div>
         <div class="editor-state" :class="{ unsaved: dirtyAreas.scales }"><i></i><span>{{ dirtyAreas.scales ? 'Ungespeicherte Änderungen' : 'Gespeicherter Inhalt' }}</span></div>
+      </header>
+
+      <div class="scale-manager">
+        <article v-for="scale in scales" :key="scale.id" class="scale-card">
+          <div class="scale-card-head">
+            <span>{{ scale.builtIn ? 'Standard' : 'Eigene Grundlage' }}</span>
+            <button v-if="!scale.builtIn" type="button" class="scale-remove" :aria-label="`${scale.name} löschen`" title="Grundlage löschen" @click="removeScale(scale.id)">×</button>
+          </div>
+          <label><span>Name</span><input v-model="scale.name" type="text" /></label>
+          <label><span>Beschreibung</span><input v-model="scale.description" type="text" placeholder="Wofür eignet sich diese Grundlage?" /></label>
+        </article>
+        <button type="button" class="scale-new" @click="addScale"><b>+</b><span>Neue Grundlage</span><small>Kopiert die Werte der ersten Grundlage</small></button>
+      </div>
+
+      <div class="editor-section scale-matrix">
+        <div class="section-label"><span>01</span><div><strong>Schwellenwerte aller Grundlagen</strong><small>{{ filteredScaleParameters.length }} von {{ ANALYSIS_PARAMETERS.length }} Elementen · {{ visibleScales.length }} von {{ scales.length }} Grundlagen</small></div></div>
+
+        <div class="matrix-toolbar">
+          <label class="matrix-search">
+            <span class="visually-hidden">Element suchen</span>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="15" height="15"><circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" /></svg>
+            <input v-model="scaleSearch" type="search" placeholder="Element suchen…" />
+          </label>
+          <select v-model="scaleGroupFilter" aria-label="Nach Elementgruppe filtern">
+            <option value="">Alle Gruppen</option>
+            <option v-for="group in ANALYSIS_GROUPS" :key="group.key" :value="group.key">{{ group.label }}</option>
+          </select>
+          <div class="matrix-density" role="group" aria-label="Detailgrad">
+            <button type="button" :class="{ active: scaleDensity === 'compact' }" @click="scaleDensity = 'compact'">Optimum</button>
+            <button type="button" :class="{ active: scaleDensity === 'full' }" @click="scaleDensity = 'full'">Alle Grenzen</button>
+          </div>
+        </div>
+
+        <div class="matrix-scales" role="group" aria-label="Grundlagen ein- oder ausblenden">
+          <button
+            v-for="scale in scales"
+            :key="scale.id"
+            type="button"
+            :class="['matrix-scale-chip', { off: hiddenScaleIds.includes(scale.id) }]"
+            :aria-pressed="!hiddenScaleIds.includes(scale.id)"
+            @click="toggleScaleVisibility(scale.id)"
+          >{{ scale.name }}</button>
+        </div>
+
+        <p v-if="!visibleScales.length" class="matrix-hint">Alle Grundlagen sind ausgeblendet. Wählen Sie mindestens eine aus.</p>
+
+        <template v-else-if="filteredScaleParameters.length">
+          <div class="scale-table-wrap">
+            <table class="scale-table">
+              <thead>
+                <tr>
+                  <th scope="col" rowspan="2" class="scale-element-col">Element</th>
+                  <th v-for="scale in visibleScales" :key="scale.id" scope="colgroup" :colspan="visibleFields.length" class="scale-group-head">{{ scale.name }}</th>
+                </tr>
+                <tr>
+                  <template v-for="scale in visibleScales" :key="`${scale.id}-fields`">
+                    <th v-for="(field, index) in visibleFields" :key="`${scale.id}-${field.key}`" scope="col" :title="field.label" :class="{ 'scale-group-start': index === 0, optimum: field.key === 'min' || field.key === 'max' }">{{ field.short }}</th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody v-for="group in groupedScaleParameters" :key="group.key">
+                <tr class="scale-group-row">
+                  <th :colspan="1 + visibleScales.length * visibleFields.length" scope="colgroup">{{ group.label }} <b>{{ group.parameters.length }}</b></th>
+                </tr>
+                <tr v-for="parameter in group.parameters" :key="parameter.key">
+                  <th scope="row" class="scale-element-col"><strong>{{ parameter.label }}</strong><small>{{ parameter.symbol }} · {{ content[parameter.key]?.unit || parameter.unit }}</small></th>
+                  <template v-for="scale in visibleScales" :key="`${scale.id}-${parameter.key}`">
+                    <td v-for="(field, index) in visibleFields" :key="`${scale.id}-${parameter.key}-${field.key}`" :class="{ 'scale-group-start': index === 0, optimum: field.key === 'min' || field.key === 'max' }">
+                      <input v-model.number="scale.thresholds[parameter.key][field.key]" type="number" step="any" :aria-label="`${parameter.label} · ${scale.name} · ${field.label}`" />
+                    </td>
+                  </template>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="scale-cards">
+            <article v-for="parameter in filteredScaleParameters" :key="parameter.key" class="scale-card-row">
+              <header><strong>{{ parameter.label }}</strong><small>{{ parameter.symbol }} · {{ content[parameter.key]?.unit || parameter.unit }}</small></header>
+              <div v-for="scale in visibleScales" :key="scale.id" class="scale-card-scale">
+                <span>{{ scale.name }}</span>
+                <div>
+                  <label v-for="field in visibleFields" :key="field.key" :class="{ optimum: field.key === 'min' || field.key === 'max' }">
+                    <small>{{ field.short }}</small>
+                    <input v-model.number="scale.thresholds[parameter.key][field.key]" type="number" step="any" :aria-label="`${parameter.label} · ${scale.name} · ${field.label}`" />
+                  </label>
+                </div>
+              </div>
+            </article>
+          </div>
+        </template>
+
+        <p v-else class="matrix-hint">Kein Element passt zu dieser Suche.</p>
+        <p v-if="scaleTableError" class="field-error" role="status">{{ scaleTableError }}</p>
+      </div>
+    </section>
+
+    <section v-show="activeArea === 'texts'" class="editor-shell">
+      <header class="editor-heading">
+        <div><span>Empfehlungstexte</span><h2>Karten im Bericht befüllen</h2><p>Titel, Maßnahmenliste und Tipps jeder direkten Empfehlung. Welche Karte erscheint, entscheidet der Score des Messwerts.</p></div>
+        <div class="editor-state" :class="{ unsaved: dirtyAreas.texts }"><i></i><span>{{ dirtyAreas.texts ? 'Ungespeicherte Änderungen' : 'Gespeicherter Inhalt' }}</span></div>
       </header>
 
       <div class="editor-layout">
         <aside class="element-browser">
-          <button type="button" class="btn btn-primary scale-add" @click="addScale">Neue Grundlage anlegen</button>
-          <nav aria-label="Bewertungsgrundlage auswählen">
-            <button v-for="scale in scales" :key="scale.id" type="button" :class="{ active: selectedScaleId === scale.id }" @click="selectedScaleId = scale.id">
-              <span>{{ scale.name.slice(0, 2).toUpperCase() }}</span>
-              <div><strong>{{ scale.name }}</strong><small>{{ scale.builtIn ? 'Standard' : 'Eigene Grundlage' }}</small></div><i>›</i>
+          <nav aria-label="Empfehlung auswählen">
+            <button v-for="template in templates" :key="template.key" type="button" :class="{ active: selectedTemplateKey === template.key }" @click="selectedTemplateKey = template.key">
+              <span>{{ template.name.slice(0, 2).toUpperCase() }}</span><div><strong>{{ template.name }}</strong><small>{{ template.tips.length }} Tipp(s)</small></div><i>›</i>
             </button>
           </nav>
         </aside>
 
         <main class="content-editor">
           <header>
-            <div class="element-identity"><span>{{ selectedScale.name.slice(0, 2).toUpperCase() }}</span><div><small>{{ selectedScale.builtIn ? 'Standardgrundlage' : 'Eigene Grundlage' }}</small><h3>{{ selectedScale.name }}</h3></div></div>
-            <button v-if="!selectedScale.builtIn" type="button" class="reset-button" @click="removeScale(selectedScale.id)">Grundlage löschen</button>
+            <div class="element-identity"><span>{{ selectedTemplate.name.slice(0, 2).toUpperCase() }}</span><div><small>Direkte Empfehlung</small><h3>{{ selectedTemplate.name }}</h3></div></div>
+            <button type="button" class="reset-button" @click="resetTemplates">Standardtexte wiederherstellen</button>
           </header>
 
           <div class="editor-section">
-            <div class="section-label"><span>01</span><div><strong>Stammdaten</strong><small>Name und Beschreibung für die Aquarium-Auswahl</small></div></div>
+            <div class="section-label"><span>01</span><div><strong>Überschrift &amp; Aktion</strong><small>Kopf der Karte und Beschriftung des Buttons</small></div></div>
             <div class="technical-fields">
-              <label class="wide"><span>Name</span><input v-model="selectedScale.name" type="text" /></label>
-              <label class="wide"><span>Beschreibung</span><input v-model="selectedScale.description" type="text" placeholder="Wofür eignet sich diese Grundlage?" /></label>
+              <label class="wide"><span>Titel</span><input v-model="selectedTemplate.title" type="text" /></label>
+              <label><span>Kicker</span><input v-model="selectedTemplate.kicker" type="text" /></label>
+              <label><span>Button</span><input v-model="selectedTemplate.actionLabel" type="text" /></label>
+              <label><span>Kontrolle in Tagen</span><input v-model.number="selectedTemplate.recheckDays" type="number" min="1" max="90" /></label>
             </div>
-            <p class="technical-note">{{ selectedScale.builtIn ? 'Standardgrundlagen lassen sich bearbeiten, aber nicht löschen.' : 'Eigene Grundlage · jederzeit löschbar.' }}</p>
+            <p class="technical-note">Der Fließtext nennt automatisch die betroffenen Elemente und wird nicht redaktionell gepflegt.</p>
           </div>
 
           <div class="editor-section">
-            <div class="section-label"><span>02</span><div><strong>Schwellenwerte</strong><small>{{ ANALYSIS_PARAMETERS.length }} Elemente · acht Grenzen je Element</small></div></div>
-            <label class="scale-filter"><span>Element suchen</span><input v-model="scaleSearch" type="search" placeholder="Name, Symbol, Gruppe…" /></label>
-            <div class="scale-table-wrap">
-              <table class="scale-table">
-                <thead>
-                  <tr><th scope="col">Element</th><th v-for="field in THRESHOLD_FIELDS" :key="field.key" scope="col">{{ field.label }}</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="parameter in filteredScaleParameters" :key="parameter.key">
-                    <th scope="row"><strong>{{ parameter.label }}</strong><small>{{ parameter.symbol }} · {{ content[parameter.key]?.unit || parameter.unit }}</small></th>
-                    <td v-for="field in THRESHOLD_FIELDS" :key="field.key">
-                      <input v-model.number="selectedScale.thresholds[parameter.key][field.key]" type="number" step="any" :aria-label="`${parameter.label} · ${field.label}`" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="section-label"><span>02</span><div><strong>Blaue Infobox</strong><small>Handlungsanweisung — mehrere Einträge erscheinen als Optionen</small></div></div>
+            <div class="option-editor">
+              <article v-for="(option, index) in selectedTemplate.options" :key="index">
+                <header>
+                  <b>{{ index + 1 }}</b>
+                  <input v-model="option.label" type="text" placeholder="Überschrift · optional, z. B. „Option A: Standard“" />
+                  <button type="button" :aria-label="`Eintrag ${index + 1} entfernen`" title="Entfernen" @click="selectedTemplate.options.splice(index, 1)">×</button>
+                </header>
+                <textarea v-model="option.text" rows="3" placeholder="Text der Option"></textarea>
+                <input v-model="option.actionLabel" type="text" placeholder="Button-Text · leer lassen für keinen Button" />
+              </article>
+              <p v-if="!selectedTemplate.options.length" class="option-editor-empty">Noch kein Eintrag. Die blaue Box bleibt im Bericht ausgeblendet.</p>
+              <button type="button" class="option-editor-add" @click="selectedTemplate.options.push({ label: '', text: '', actionLabel: '' })">Eintrag hinzufügen</button>
             </div>
-            <p v-if="scaleTableError" class="field-error" role="status">{{ scaleTableError }}</p>
+            <p class="technical-note">Trägt ein Eintrag einen Button-Text, übernimmt dieser Button die Aktion der Karte. Der Button im Kartenfuß entfällt dann.</p>
           </div>
+
+          <div class="editor-section">
+            <div class="section-label"><span>03</span><div><strong>Maßnahmenblock</strong><small>Der hervorgehobene Kasten unter dem Text</small></div></div>
+            <label><span>Überschrift des Blocks</span><small>Zum Beispiel „Mögliche Quellen“ oder „Empfohlene Maßnahmen“. Leer lassen, um den Block auszublenden.</small><input v-model="selectedTemplate.detailLabel" type="text" /></label>
+            <div v-if="selectedTemplate.dynamicDetail" class="template-dynamic-note"><i>i</i><p>Die Einträge dieses Blocks berechnet das System je Element aus dem Score (zum Beispiel „Brom −20 %“). Nur die Überschrift ist redaktionell.</p></div>
+            <ListEditor v-else v-model="selectedTemplate.detailItems" placeholder="Maßnahme oder Quelle eingeben" add-label="Eintrag hinzufügen" />
+          </div>
+
+          <div class="editor-section">
+            <div class="section-label"><span>04</span><div><strong>Tipps</strong><small>Hinweiskasten neben den Maßnahmen</small></div></div>
+            <ListEditor v-model="selectedTemplate.tips" placeholder="Tipp eingeben" add-label="Tipp hinzufügen" />
+          </div>
+
+          <section class="content-preview">
+            <div><span>Vorschau</span><strong>{{ selectedTemplate.title }}</strong></div>
+            <p v-for="(option, index) in selectedTemplate.options" :key="index"><b v-if="option.label">{{ option.label }}:</b> {{ option.text }}</p>
+            <p v-if="selectedTemplate.detailLabel"><b>{{ selectedTemplate.detailLabel }}:</b> {{ selectedTemplate.dynamicDetail ? 'automatisch je Element' : selectedTemplate.detailItems.join(' · ') || '—' }}</p>
+            <div class="preview-actions">
+              <article><span>Tipps</span><p>{{ selectedTemplate.tips.join(' · ') || 'Keine Tipps hinterlegt.' }}</p></article>
+            </div>
+          </section>
         </main>
       </div>
     </section>
@@ -390,7 +531,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { ANALYSIS_PARAMETERS, DEFAULT_PARAMETER_CONTENT, loadAnalysisContent, saveAnalysisContent } from '@/services/analysisContent'
-import { createDemoAnalysis } from '@/services/analysisCatalog'
+import { ANALYSIS_GROUPS, createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSupportFaq, loadSupportContent, saveSupportContent } from '@/services/supportContent'
 import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
 import { createRecommendationRule, evaluateRecommendationRules, loadRecommendationRules, RECOMMENDATION_SCOPES, saveRecommendationRules } from '@/services/recommendationRules'
@@ -400,7 +541,9 @@ import { normalizeDosingEntry } from '@/services/atiDosingDefaults'
 import { getAllAnalysisRecords, getAnalysis } from '@/services/analysisStore'
 import { dosingEntryErrors, elementEntryError } from '@/services/adminValidation'
 import { SCORE_BANDS, THRESHOLD_FIELDS, bandRange, correctionTargetFor, createScale, findScale, loadEvaluationScales, saveEvaluationScales, thresholdOrderError } from '@/services/evaluationScales'
+import { loadRecommendationTemplates, resetRecommendationTemplates, saveRecommendationTemplates } from '@/services/recommendationTemplates'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import ListEditor from '@/components/admin/ListEditor.vue'
 import '@/assets/styles/report-base.css'
 
 const auth = useAuthStore()
@@ -427,7 +570,13 @@ const dosingSearch = ref('')
 const scales = reactive(loadEvaluationScales())
 const selectedScaleId = ref(scales[0]?.id || '')
 const scaleSearch = ref('')
+const scaleGroupFilter = ref('')
+const scaleDensity = ref('compact')
+const hiddenScaleIds = ref([])
 const scaleSaveState = reactive({ message: '', type: '' })
+const templates = reactive(loadRecommendationTemplates())
+const selectedTemplateKey = ref(templates[0]?.key || '')
+const templateSaveState = reactive({ message: '', type: '' })
 const previewVolume = ref(420)
 const initialDosingTarget = Number(content[DOSING_PARAMETERS[0].key].targetMin) || 0
 const initialDosingMaximum = Number(content[DOSING_PARAMETERS[0].key].targetMax) || initialDosingTarget
@@ -505,13 +654,35 @@ const dosingPreviewReason = computed(() => {
 })
 
 const selectedScale = computed(() => findScale(scales, selectedScaleId.value) || scales[0])
+const selectedTemplate = computed(() => templates.find((template) => template.key === selectedTemplateKey.value) || templates[0])
 const selectedThresholds = computed(() => selectedScale.value.thresholds[selectedKey.value])
 const thresholdError = computed(() => thresholdOrderError(selectedThresholds.value))
+const elementScaleError = computed(() => {
+  for (const scale of scales) {
+    const error = thresholdOrderError(scale.thresholds[selectedKey.value])
+    if (error) return `${scale.name}: ${error}`
+  }
+  return ''
+})
 const correctionTarget = computed(() => correctionTargetFor(selectedThresholds.value))
+const visibleScales = computed(() => scales.filter((scale) => !hiddenScaleIds.value.includes(scale.id)))
+const visibleFields = computed(() => (
+  scaleDensity.value === 'compact' ? THRESHOLD_FIELDS.filter((field) => field.key === 'min' || field.key === 'max') : THRESHOLD_FIELDS
+))
 const filteredScaleParameters = computed(() => {
   const query = scaleSearch.value.trim().toLowerCase()
-  return ANALYSIS_PARAMETERS.filter((parameter) => !query || `${parameter.label} ${parameter.symbol} ${parameter.group}`.toLowerCase().includes(query))
+  return ANALYSIS_PARAMETERS.filter((parameter) => {
+    if (scaleGroupFilter.value && parameter.groupKey !== scaleGroupFilter.value) return false
+    return !query || `${parameter.label} ${parameter.symbol} ${parameter.group}`.toLowerCase().includes(query)
+  })
 })
+const groupedScaleParameters = computed(() => ANALYSIS_GROUPS
+  .map((group) => ({ ...group, parameters: filteredScaleParameters.value.filter((parameter) => parameter.groupKey === group.key) }))
+  .filter((group) => group.parameters.length))
+function toggleScaleVisibility(id) {
+  const hidden = hiddenScaleIds.value
+  hiddenScaleIds.value = hidden.includes(id) ? hidden.filter((entry) => entry !== id) : [...hidden, id]
+}
 const scaleTableError = computed(() => {
   for (const parameter of ANALYSIS_PARAMETERS) {
     const error = thresholdOrderError(selectedScale.value.thresholds[parameter.key])
@@ -535,7 +706,19 @@ function removeScale(id) {
   const index = scales.findIndex((scale) => scale.id === id)
   if (index < 0 || scales[index].builtIn) return
   scales.splice(index, 1)
+  hiddenScaleIds.value = hiddenScaleIds.value.filter((entry) => entry !== id)
   selectedScaleId.value = scales[0]?.id || ''
+}
+function saveTemplates() {
+  saveRecommendationTemplates(templates)
+  markSaved('texts')
+  templateSaveState.message = 'Empfehlungstexte gespeichert.'
+  templateSaveState.type = 'success'
+}
+function resetTemplates() {
+  templates.splice(0, templates.length, ...resetRecommendationTemplates())
+  templateSaveState.message = 'Standardtexte wiederhergestellt. Zum Übernehmen speichern.'
+  templateSaveState.type = ''
 }
 function saveScales() {
   if (scaleTableError.value) {
@@ -549,13 +732,13 @@ function saveScales() {
   scaleSaveState.type = 'success'
 }
 
-const areaData = { elements: content, dosing: dosingConfig, recommendations: recommendationRules, support: supportContent, scales }
+const areaData = { elements: content, dosing: dosingConfig, recommendations: recommendationRules, support: supportContent, scales, texts: templates }
 const savedSnapshots = reactive(Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value)])))
 const dirtyAreas = computed(() => Object.fromEntries(Object.entries(areaData).map(([key, value]) => [key, JSON.stringify(value) !== savedSnapshots[key]])))
-const activeSaveState = computed(() => ({ elements: saveState, dosing: dosingSaveState, recommendations: recommendationSaveState, support: supportSaveState, scales: scaleSaveState }[activeArea.value] || {}))
-const saveButtonLabel = computed(() => ({ elements: 'Alle Elementänderungen speichern', dosing: 'Alle Produktänderungen speichern', recommendations: 'Alle Regeln speichern', support: 'Alle FAQs speichern', scales: 'Alle Bewertungsgrundlagen speichern' }[activeArea.value]))
+const activeSaveState = computed(() => ({ elements: saveState, dosing: dosingSaveState, recommendations: recommendationSaveState, support: supportSaveState, scales: scaleSaveState, texts: templateSaveState }[activeArea.value] || {}))
+const saveButtonLabel = computed(() => ({ elements: 'Alle Elementänderungen speichern', dosing: 'Alle Produktänderungen speichern', recommendations: 'Alle Regeln speichern', support: 'Alle FAQs speichern', scales: 'Alle Bewertungsgrundlagen speichern', texts: 'Alle Empfehlungstexte speichern' }[activeArea.value]))
 const saveScope = computed(() => 'Speichert alle Änderungen in diesem Bereich. Andere Bereiche bleiben unverändert.')
-function saveCurrentArea() { ({ elements: save, dosing: saveDosing, recommendations: saveRecommendations, support: saveSupport, scales: saveScales }[activeArea.value])?.() }
+function saveCurrentArea() { ({ elements: save, dosing: saveDosing, recommendations: saveRecommendations, support: saveSupport, scales: saveScales, texts: saveTemplates }[activeArea.value])?.() }
 function markSaved(area) { savedSnapshots[area] = JSON.stringify(areaData[area]) }
 function discardCurrentArea() {
   const area = activeArea.value
@@ -563,6 +746,9 @@ function discardCurrentArea() {
   if (area === 'scales') {
     scales.splice(0, scales.length, ...saved)
     if (!scales.some((scale) => scale.id === selectedScaleId.value)) selectedScaleId.value = scales[0]?.id || ''
+  } else if (area === 'texts') {
+    templates.splice(0, templates.length, ...saved)
+    if (!templates.some((template) => template.key === selectedTemplateKey.value)) selectedTemplateKey.value = templates[0]?.key || ''
   } else if (area === 'recommendations') {
     recommendationRules.splice(0, recommendationRules.length, ...saved)
     if (!recommendationRules.some((rule) => rule.id === selectedRecommendationRuleId.value)) selectedRecommendationRuleId.value = recommendationRules[0]?.id || ''
@@ -797,22 +983,29 @@ function formatAdminDate(value) {
 .content-editor { min-width: 0; display: grid; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 18px; background: #f8fbfe; }.content-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 13px; border-bottom: 1px solid var(--border); }.element-identity { display: flex; align-items: center; gap: 11px; }.element-identity > span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; font-weight: 900; }.element-identity small { color: var(--teal-700); font-size: 9px; font-weight: 800; text-transform: uppercase; }.element-identity h3 { margin-top: 2px; color: var(--text); font-size: 22px; }.reset-button { padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--brand-blue); font-size: 10px; font-weight: 800; cursor: pointer; }.reset-button:hover { border-color: var(--brand-blue); }
 .editor-section { display: grid; gap: 11px; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }.section-label { display: flex; align-items: center; gap: 9px; }.section-label > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--brand-blue); color: #fff; font-size: 9px; font-weight: 900; }.section-label strong,.section-label small { display: block; }.section-label strong { color: var(--text); font-size: 13px; }.section-label small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }.editor-section > label,.recommendation-fields label { display: grid; gap: 5px; }.editor-section label > span { color: var(--text); font-size: 11px; font-weight: 850; }.editor-section label > small { color: var(--text-muted); font-size: 9px; }.editor-section textarea { width: 100%; min-width: 0; resize: vertical; padding: 10px 11px; border: 1px solid var(--border); border-radius: 10px; background: #f8fbfe; color: var(--text); font: inherit; font-size: 12px; line-height: 1.5; outline: 0; }.editor-section textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }.recommendation-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }.recommendation-fields label { padding: 11px; border-top: 3px solid #e85d4f; border-radius: 11px; background: #fff7f5; }.recommendation-fields label.low { border-top-color: #1686d9; background: #f4f9fd; }
 .technical-fields label.wide { grid-column: span 2; }
-.scale-switch { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); align-items: center; gap: 12px; padding: 11px; border-radius: 11px; background: #f4f8fb; }
-.scale-switch label { display: grid; gap: 5px; }
-.scale-switch span { color: var(--text); font-size: 10px; font-weight: 850; }
-.scale-switch select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #fff; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
-.scale-switch select:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
-.scale-switch p { color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
-.threshold-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
-.threshold-field { display: grid; gap: 5px; padding: 9px; border-top: 3px solid #e85d4f; border-radius: 10px; background: #fff7f5; }
-.threshold-field > span { color: var(--text); font-size: 9.5px; font-weight: 850; }
-.threshold-field input { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font: inherit; font-size: 12px; outline: 0; }
-.threshold-field input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
-.threshold-field.band-2 { border-top-color: #f0784a; background: #fff7f2; }
-.threshold-field.band-3, .threshold-field.band-4 { border-top-color: #f59e0b; background: #fffbeb; }
-.threshold-field.band-5 { border-top-color: #10b981; background: #ecfdf5; }
-.threshold-field.band-6, .threshold-field.band-7 { border-top-color: #f59e0b; background: #fffbeb; }
-.threshold-field.band-8 { border-top-color: #f0784a; background: #fff7f2; }
+.element-scale-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.element-scale-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.element-scale-table th, .element-scale-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.element-scale-table tbody tr:last-child th, .element-scale-table tbody tr:last-child td { border-bottom: 0; }
+.element-scale-table thead th { position: sticky; top: 0; background: #f4f8fb; color: var(--text-muted); font-size: 9px; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; }
+.element-scale-table thead th.optimum { color: #047857; }
+.element-scale-table tbody th { position: sticky; left: 0; z-index: 1; min-width: 132px; padding: 0; background: #fff; text-align: left; }
+.element-scale-table tbody tr.active th, .element-scale-table tbody tr.active td { background: #f2f9ff; }
+.scale-name-button { display: grid; gap: 1px; width: 100%; padding: 8px 10px; border: 0; border-left: 3px solid transparent; background: transparent; text-align: left; cursor: pointer; }
+.element-scale-table tbody tr.active .scale-name-button { border-left-color: var(--brand-blue); }
+.scale-name-button strong { color: var(--text); font-size: 11.5px; }
+.scale-name-button small { color: var(--text-muted); font-size: 9px; }
+.element-scale-table td.optimum { background: #f2fbf6; }
+.element-scale-table tbody tr.active td.optimum { background: #e9f7f0; }
+.element-scale-table td input { width: 84px; padding: 6px 7px; border: 1px solid var(--border); border-radius: 7px; background: #f8fbfe; font: inherit; font-size: 11px; text-align: right; color: var(--text); outline: 0; }
+.element-scale-table td input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.element-scale-table td.row-action { width: 34px; padding-right: 9px; }
+.element-scale-table td.row-action button { width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; }
+.element-scale-table td.row-action button:hover { border-color: #e85d4f; color: #e85d4f; }
+.element-scale-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.scale-inline-add { padding: 8px 13px; border: 1px dashed var(--border-strong); border-radius: 9px; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }
+.scale-inline-add:hover { border-color: var(--brand-blue); background: var(--teal-50); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .band-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
 .band-chip { display: grid; justify-items: center; gap: 3px; padding: 8px 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; text-align: center; }
 .band-chip > b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 10px; }
@@ -820,19 +1013,77 @@ function formatAdminDate(value) {
 .band-chip.critical > b { background: #e85d4f; }
 .band-chip > em { color: var(--text); font-size: 9.5px; font-style: normal; font-weight: 850; }
 .band-chip > small { color: var(--text-muted); font-size: 8.5px; line-height: 1.3; overflow-wrap: anywhere; }
-.scale-add { width: 100%; margin-bottom: 10px; }
-.scale-filter { display: grid; gap: 5px; }
-.scale-filter span { color: var(--text); font-size: 10px; font-weight: 850; }
-.scale-filter input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; font: inherit; font-size: 12px; outline: 0; }
-.scale-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
-.scale-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.scale-table th, .scale-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
-.scale-table thead th { position: sticky; top: 0; background: #f4f8fb; color: var(--text-muted); font-size: 9px; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; }
-.scale-table tbody th { position: sticky; left: 0; background: #fff; }
-.scale-table tbody th strong { display: block; color: var(--text); font-size: 11.5px; }
-.scale-table tbody th small { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; }
-.scale-table td input { width: 92px; padding: 6px 7px; border: 1px solid var(--border); border-radius: 7px; background: #f8fbfe; font: inherit; font-size: 11px; outline: 0; }
+.scale-manager { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.scale-card { display: grid; gap: 8px; padding: 13px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
+.scale-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scale-card-head > span { color: var(--teal-700); font-size: 9px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.scale-remove { width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--text-muted); font-size: 14px; line-height: 1; cursor: pointer; }
+.scale-remove:hover { border-color: #e85d4f; color: #e85d4f; }
+.scale-card label { display: grid; gap: 4px; }
+.scale-card span { color: var(--text); font-size: 10px; font-weight: 850; }
+.scale-card input { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: #f8fbfe; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
+.scale-card input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.scale-new { display: grid; align-content: center; justify-items: center; gap: 3px; min-height: 120px; padding: 13px; border: 1px dashed var(--border-strong); border-radius: 13px; background: transparent; color: var(--brand-blue); cursor: pointer; }
+.scale-new:hover { border-color: var(--brand-blue); background: var(--teal-50); }
+.scale-new > b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-size: 16px; }
+.scale-new > span { font-size: 12px; font-weight: 850; }
+.scale-new > small { color: var(--text-muted); font-size: 9px; text-align: center; }
+.scale-matrix { gap: 13px; }
+.matrix-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.matrix-search { position: relative; flex: 1 1 200px; min-width: 0; }
+.matrix-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+.matrix-search input { width: 100%; min-height: 38px; padding: 0 11px 0 32px; border: 1px solid var(--border); border-radius: 10px; background: #f8fbfe; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
+.matrix-toolbar select { min-height: 38px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; background: #f8fbfe; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
+.matrix-search input:focus, .matrix-toolbar select:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.matrix-density { display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px; background: rgba(136,193,233,0.18); }
+.matrix-density button { padding: 7px 13px; border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); font-size: 11.5px; font-weight: 850; cursor: pointer; }
+.matrix-density button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 5px 13px rgba(10,27,67,0.08); }
+.matrix-scales { display: flex; flex-wrap: wrap; gap: 6px; }
+.matrix-scale-chip { padding: 7px 12px; border: 1px solid var(--brand-blue); border-radius: 999px; background: var(--teal-50); color: var(--brand-blue); font-size: 11.5px; font-weight: 850; cursor: pointer; }
+.matrix-scale-chip.off { border-color: var(--border); background: #fff; color: var(--text-muted); text-decoration: line-through; }
+.matrix-hint { padding: 16px; border: 1px dashed var(--border-strong); border-radius: 11px; color: var(--text-muted); font-size: 11.5px; text-align: center; }
+.scale-table-wrap { overflow: auto; max-height: 62vh; border: 1px solid var(--border); border-radius: 12px; }
+.scale-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+.scale-table th, .scale-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.scale-table thead th { position: sticky; top: 0; z-index: 2; background: #f4f8fb; color: var(--text-muted); font-size: 9px; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; }
+.scale-table thead tr:first-child th { top: 0; }
+.scale-table thead tr:nth-child(2) th { top: 29px; }
+.scale-group-head { border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue) !important; font-size: 10.5px !important; }
+.scale-table thead th.optimum { color: #047857 !important; }
+.scale-group-start { border-left: 2px solid #cfe0ec; }
+.scale-table .scale-element-col { position: sticky; left: 0; z-index: 1; min-width: 150px; background: #fff; text-align: left; }
+.scale-table thead .scale-element-col { z-index: 3; background: #f4f8fb; }
+.scale-table tbody tr:nth-child(even) .scale-element-col { background: #fbfdff; }
+.scale-table tbody tr:nth-child(even) td { background: rgba(244,248,251,0.5); }
+.scale-table tbody .scale-element-col strong { display: block; color: var(--text); font-size: 11.5px; }
+.scale-table tbody .scale-element-col small { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; }
+.scale-group-row th { position: sticky; left: 0; z-index: 1; padding: 7px 10px; background: #eef4f9 !important; color: var(--text-muted); font-size: 9.5px; font-weight: 850; letter-spacing: 0.06em; text-align: left; text-transform: uppercase; }
+.scale-group-row th b { margin-left: 6px; color: var(--brand-blue); }
+.scale-table td.optimum { background: #f2fbf6; }
+.scale-table tbody tr:nth-child(even) td.optimum { background: #ecf8f2; }
+.scale-table td input { width: 82px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 7px; background: #fff; font: inherit; font-size: 11px; text-align: right; color: var(--text); outline: 0; }
 .scale-table td input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.scale-cards { display: none; gap: 9px; }
+.scale-card-row { display: grid; gap: 9px; padding: 13px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.scale-card-row > header strong { display: block; color: var(--text); font-size: 13px; }
+.scale-card-row > header small { display: block; margin-top: 1px; color: var(--text-muted); font-size: 10px; }
+.scale-card-scale { display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: #f8fbfe; }
+.scale-card-scale > span { color: var(--brand-blue); font-size: 10.5px; font-weight: 850; }
+.scale-card-scale > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 6px; }
+.scale-card-scale label { display: grid; gap: 3px; }
+.scale-card-scale label.optimum small { color: #047857; }
+.scale-card-scale small { color: var(--text-muted); font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.scale-card-scale input { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font: inherit; font-size: 11.5px; text-align: right; color: var(--text); outline: 0; }
+.scale-card-scale input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+@media (max-width: 860px) {
+  .scale-table-wrap { display: none; }
+  .scale-cards { display: grid; }
+  .matrix-toolbar { align-items: stretch; flex-direction: column; }
+  .matrix-density { justify-content: stretch; }
+  .matrix-density button { flex: 1; }
+}
+.template-dynamic-note { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 10px; padding: 11px 13px; border-radius: 11px; background: #eef7fd; color: #456378; font-size: 11px; line-height: 1.5; }
+.template-dynamic-note > i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-style: normal; font-weight: 900; }
 @media (max-width: 900px) {
   .scale-switch { grid-template-columns: 1fr; }
   .threshold-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
