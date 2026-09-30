@@ -287,7 +287,6 @@ const routeMeta = {
   '/aquariums': { title: 'Aquarien', sub: () => 'Ihre Becken im Überblick' },
   '/analyses': { title: 'Analysen', sub: () => 'Testkits registrieren und Laborberichte verfolgen' },
   '/analyses/activate': { title: 'Analyse registrieren', sub: () => 'Testkit aktivieren und Probe zuordnen' },
-  '/recommendations': { title: 'Empfehlungen', sub: () => 'Offene Maßnahmen aus Ihren neuesten Laborberichten' },
   '/account': { title: 'Profil', sub: () => 'Konto, Sicherheit und Benachrichtigungen' },
   '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
   '/tools': { title: 'Tools', sub: () => 'Wasserwechsel, Verbrauch und Dosierung planen' },
@@ -312,7 +311,6 @@ function logout() {
 const iconHome = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 9.5L10 3l7 6.5V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M7 19v-6h6v6"/></svg>`
 const iconTank = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 12c2 0 2-1.5 4-1.5S9 12 11 12s2-1.5 4-1.5"/><circle cx="7" cy="8" r="0.6" fill="currentColor"/></svg>`
 const iconChart = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M3 17V3"/><path d="M3 17h14"/><path d="M6 13l3-4 3 2 4-6"/></svg>`
-const iconBulb = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M7.5 14.5A5 5 0 1 1 12.5 14.5"/><path d="M8 17h4"/><path d="M8.5 14.5h3"/></svg>`
 const iconClock = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>`
 const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3 3-5 6-5s6 2 6 5"/></svg>`
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
@@ -326,7 +324,6 @@ const mainNav = [
   { label: 'Übersicht', icon: iconHome, to: '/dashboard' },
   { label: 'Aquarien', icon: iconTank, to: '/aquariums' },
   { label: 'Analysen', icon: iconChart, to: '/analyses' },
-  { label: 'Empfehlungen', icon: iconBulb, to: '/recommendations' },
   { label: 'Chronik', icon: iconClock, to: '/chronik' },
   { label: 'Tools', icon: iconTools, to: '/tools' },
 ]
