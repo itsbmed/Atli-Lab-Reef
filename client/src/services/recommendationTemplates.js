@@ -34,9 +34,9 @@ const DEFAULT_TEMPLATES = Object.freeze([
   },
   {
     key: 'reduce-supply',
-    name: 'Elementversorgung reduzieren',
+    name: 'Elementversorgung anpassen',
     kicker: 'Versorgung anpassen',
-    title: 'Elementversorgung reduzieren',
+    title: 'Elementversorgung anpassen',
     actionLabel: 'Dosierung anpassen',
     recheckDays: 14,
     options: [],
@@ -50,7 +50,7 @@ const DEFAULT_TEMPLATES = Object.freeze([
     name: 'Nährstoffmanagement · erhöht',
     kicker: 'Nährstoffmanagement',
     title: 'Nährstoffmanagement optimieren',
-    actionLabel: 'Nährstoffe prüfen',
+    actionLabel: '',
     recheckDays: 7,
     options: [],
     detailLabel: 'Empfohlene Maßnahmen',
@@ -119,7 +119,9 @@ function sanitize(raw, fallback) {
     ...fallback,
     title: String(raw?.title || fallback.title).trim() || fallback.title,
     kicker: String(raw?.kicker || fallback.kicker).trim() || fallback.kicker,
-    actionLabel: String(raw?.actionLabel || fallback.actionLabel).trim() || fallback.actionLabel,
+    actionLabel: fallback.key === 'nutrients' && raw?.actionLabel === 'Nährstoffe prüfen'
+      ? ''
+      : String(raw?.actionLabel ?? fallback.actionLabel).trim(),
     detailLabel: String(raw?.detailLabel ?? fallback.detailLabel).trim(),
     recheckDays: Math.max(1, Math.min(90, Number(raw?.recheckDays) || fallback.recheckDays)),
     options: (Array.isArray(raw?.options) ? raw.options : fallback.options)

@@ -94,7 +94,9 @@ test('only the water change card carries tips for now', () => {
 test('the nutrient card swaps template depending on the direction', () => {
   const card = (value) => buildDirectRecommendations(evaluateAnalysis([parameter('nitrate', 'Nitrat', 'nutrients', value)], scale)).find((item) => item.key === 'nutrients')
   assert.equal(card(15).title, 'Nährstoffmanagement optimieren')
+  assert.equal(card(15).action.label, '', 'the elevated nutrient card has no redundant action button')
   assert.equal(card(0.2).title, 'Nährstoffversorgung anheben')
+  assert.equal(card(0.2).action.label, 'Nährstoffe prüfen')
   assert.ok(card(0.2).detailItems.some((item) => item.label === 'Fütterung behutsam erhöhen'))
 })
 

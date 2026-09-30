@@ -54,9 +54,6 @@
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
         </button>
-        <button v-if="analysis.osmosisParameters?.length" type="button" :class="{ active: activeTab === 'osmosis' }" @click="activeTab = 'osmosis'">
-          Osmosewasser <b>{{ analysis.osmosisParameters.length }}</b>
-        </button>
         <button type="button" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
           Favoriten <b v-if="favoriteParameters.length">{{ favoriteParameters.length }}</b>
         </button>
@@ -143,7 +140,7 @@
                 <ProductSuggestions v-if="recommendationProducts(item).length" class="action-products" :products="recommendationProducts(item)" />
 
                 <div class="action-footer">
-                  <button v-if="!item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
+                  <button v-if="item.action.label && !item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
                   <em>Kontrolle in {{ item.recheckDays }} Tagen</em>
                 </div>
               </article>
@@ -241,72 +238,76 @@
           </button>
         </div>
 
-        <div v-if="visibleParameters.length" class="element-list">
-              <article
-                v-for="parameter in visibleParametersByGroup"
-                :key="parameter.key"
-                :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[parameter.key] }]"
-              >
-                <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
-                  <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-                  <span class="element-name">
-                    <strong>{{ parameter.label }}</strong>
-                    <span class="element-meta">
-                      <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
-                      <small class="element-group">{{ parameterGroup(parameter).label }}</small>
-                    </span>
-                  </span>
-                  <span class="target-gauge">
-                    <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
-                    <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
-                  </span>
-                  <span class="element-reading">
-                    <strong>{{ displayParameterValue(parameter) }}</strong>
-                    <small>{{ parameter.unit }}</small>
-                  </span>
-                  <span class="element-chevron" aria-hidden="true">⌄</span>
-                </button>
-                <button
-                  type="button"
-                  :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
-                  :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
-                  :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
-                  @click="analyses.toggleFavorite(parameter.key)"
-                >★</button>
-                <div v-if="expandedParameters[parameter.key]" class="element-detail">
-                  <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
-                    <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(parameter.key) === detail.key" :class="{ active: parameterDetailPanel(parameter.key) === detail.key }" @click="selectParameterDetail(parameter.key, detail.key)">
-                      <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
-                      <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
-                    </button>
-                  </div>
-                  <div v-if="parameterDetailPanel(parameter.key) === 'info'" class="parameter-info-panel">
-                    <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
-                    <div class="parameter-spec-grid">
-                      <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
-                      <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
-                      <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
-                      <div><span>Laborstatus</span><strong>{{ labStatusLabel(parameter) }}</strong></div>
-                    </div>
-                    <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
-                    <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
-                  </div>
-                  <div v-else-if="parameterDetailPanel(parameter.key) === 'action'" class="parameter-recommendation-panel">
-                    <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
-                    <div class="level-recommendations">
-                      <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
-                      <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
-                    </div>
-                  </div>
-                  <div v-else class="parameter-trend">
-                    <div class="trend-heading">
-                      <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
-                      <strong>{{ historyChange(parameter) }}</strong>
-                    </div>
-                    <ParameterTrendChart :parameter="parameter" />
-                  </div>
-                </div>
-              </article>
+        <div v-if="visibleParameters.length" class="element-sections">
+          <section v-for="group in visibleGroupSections" :key="group.key" :class="['element-section', `group-${group.key}`, { collapsed: collapsedGroups[group.key] }]">
+            <button type="button" class="element-section-head" :aria-expanded="!collapsedGroups[group.key]" @click="toggleGroupSection(group.key)">
+              <i class="element-section-dot" aria-hidden="true"></i>
+              <strong>{{ group.label }}</strong>
+              <b>{{ group.items.length }}</b>
+              <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
+              <i class="element-section-chevron" aria-hidden="true">⌄</i>
+            </button>
+            <div v-show="!collapsedGroups[group.key]" class="element-list">
+                    <article
+                      v-for="parameter in group.items"
+                      :key="parameter.key"
+                      :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[parameter.key] }]"
+                    >
+                      <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
+                        <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+                        <span class="element-name">
+                          <strong>{{ parameter.label }}</strong>
+                          <span class="element-meta">
+                            <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
+                            <small class="element-group">{{ parameterGroup(parameter).label }}</small>
+                          </span>
+                        </span>
+                        <span class="target-gauge">
+                          <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
+                          <small>Ziel {{ parameterTargetLabel(parameter) }} {{ parameter.unit }}</small>
+                        </span>
+                        <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
+                          <strong>{{ displayParameterValue(parameter) }}</strong>
+                          <small>{{ readingUnit(parameter) }}</small>
+                        </span>
+                        <span class="element-chevron" aria-hidden="true">⌄</span>
+                      </button>
+                      <button
+                        type="button"
+                        :class="['favorite-button', { active: analyses.isFavorite(parameter.key) }]"
+                        :aria-label="`${parameter.label} ${analyses.isFavorite(parameter.key) ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}`"
+                        :title="analyses.isFavorite(parameter.key) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                        @click="analyses.toggleFavorite(parameter.key)"
+                      >★</button>
+                      <div v-if="expandedParameters[parameter.key]" class="element-detail">
+                        <div class="parameter-detail-tabs" role="tablist" :aria-label="`Details zu ${parameter.label}`">
+                          <button v-for="detail in PARAMETER_DETAIL_TABS" :key="detail.key" type="button" role="tab" :aria-selected="parameterDetailPanel(parameter.key) === detail.key" :class="{ active: parameterDetailPanel(parameter.key) === detail.key }" @click="selectParameterDetail(parameter.key, detail.key)">
+                            <span class="parameter-tab-icon" aria-hidden="true">{{ detail.icon }}</span>
+                            <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
+                          </button>
+                        </div>
+                        <ParameterKnowledgePanel
+                          v-if="parameterDetailPanel(parameter.key) !== 'history'"
+                          :panel="parameterDetailPanel(parameter.key)"
+                          :parameter="parameter"
+                          :guide="parameterGuide(parameter)"
+                          :symbol="parameterSymbol(parameter)"
+                          :lab-status="labStatusLabel(parameter)"
+                          :status-label="parameterStatusLabel(parameter.tone)"
+                          :insight="parameterInsight(parameter)"
+                          :current-action="parameterAction(parameter)"
+                        />
+                        <div v-else class="parameter-trend">
+                          <div class="trend-heading">
+                            <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
+                            <strong>{{ historyChange(parameter) }}</strong>
+                          </div>
+                          <ParameterTrendChart :parameter="parameter" />
+                        </div>
+                      </div>
+                    </article>
+            </div>
+          </section>
         </div>
         <div v-else class="no-results">
           <strong>Keine Messwerte gefunden</strong>
@@ -314,31 +315,6 @@
         </div>
       </section>
 
-      <section v-if="analysis.status === 'completed' && analysis.osmosisParameters?.length" v-show="activeTab === 'osmosis'" class="panel osmosis-results">
-        <div class="explorer-head">
-          <div>
-            <span>Osmosewasser</span>
-            <h2>Ergebnisse der Osmoseprobe</h2>
-            <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe.</p>
-          </div>
-          <b class="osmosis-sample-label">ATI Laborbericht 393026</b>
-        </div>
-
-        <div class="osmosis-grid">
-          <article v-for="parameter in analysis.osmosisParameters" :key="parameter.key" :class="['osmosis-result', parameter.tone]">
-            <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-            <span class="osmosis-result-name">
-              <strong>{{ parameter.label }}</strong>
-              <small>{{ labStatusLabel(parameter) }}</small>
-            </span>
-            <span class="osmosis-result-value">
-              <strong>{{ displayParameterValue(parameter) }}</strong>
-              <small>{{ parameter.unit }}</small>
-            </span>
-            <span class="osmosis-result-target">Soll {{ parameter.target }} {{ parameter.unit }}</span>
-          </article>
-        </div>
-      </section>
 
       <section v-if="analysis.status === 'completed'" v-show="activeTab === 'favorites'" class="panel favorites-panel">
         <div class="explorer-head">
@@ -366,11 +342,11 @@
               </span>
               <span class="target-gauge">
                 <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
-                <small>Ziel {{ parameter.target }} {{ parameter.unit }}</small>
+                <small>Ziel {{ parameterTargetLabel(parameter) }} {{ parameter.unit }}</small>
               </span>
-              <span class="element-reading">
+              <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
                 <strong>{{ displayParameterValue(parameter) }}</strong>
-                <small>{{ parameter.unit }}</small>
+                <small>{{ readingUnit(parameter) }}</small>
               </span>
               <span class="element-chevron" aria-hidden="true">⌄</span>
             </button>
@@ -388,24 +364,17 @@
                   <span class="parameter-tab-copy"><strong>{{ detail.label }}</strong></span>
                 </button>
               </div>
-              <div v-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'info'" class="parameter-info-panel">
-                <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ parameterGuide(parameter).general }}</p></div>
-                <div class="parameter-spec-grid">
-                  <div><span>Symbol</span><strong>{{ parameterSymbol(parameter) }}</strong></div>
-                  <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
-                  <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
-                  <div><span>Laborstatus</span><strong>{{ labStatusLabel(parameter) }}</strong></div>
-                </div>
-                <div class="parameter-purpose"><span>Wofür wichtig</span><p>{{ parameterGuide(parameter).importance }}</p></div>
-                <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ parameterStatusLabel(parameter.tone) }}</strong><p>{{ parameterInsight(parameter) }}</p></div>
-              </div>
-              <div v-else-if="parameterDetailPanel(`favorite-${parameter.key}`) === 'action'" class="parameter-recommendation-panel">
-                <div :class="['current-recommendation', parameter.tone]"><span>Empfehlung für diesen Messwert</span><p>{{ parameterAction(parameter) }}</p></div>
-                <div class="level-recommendations">
-                  <article class="high"><strong>Wenn der Wert zu hoch ist</strong><p>{{ parameterGuide(parameter).high }}</p></article>
-                  <article class="low"><strong>Wenn der Wert zu niedrig ist</strong><p>{{ parameterGuide(parameter).low }}</p></article>
-                </div>
-              </div>
+              <ParameterKnowledgePanel
+                v-if="parameterDetailPanel(`favorite-${parameter.key}`) !== 'history'"
+                :panel="parameterDetailPanel(`favorite-${parameter.key}`)"
+                :parameter="parameter"
+                :guide="parameterGuide(parameter)"
+                :symbol="parameterSymbol(parameter)"
+                :lab-status="labStatusLabel(parameter)"
+                :status-label="parameterStatusLabel(parameter.tone)"
+                :insight="parameterInsight(parameter)"
+                :current-action="parameterAction(parameter)"
+              />
               <div v-else class="parameter-trend">
                 <div class="trend-heading">
                   <div><span>Messverlauf</span><p>{{ trendSummary(parameter) }}</p></div>
@@ -444,9 +413,10 @@ import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directR
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
+import ParameterKnowledgePanel from '@/components/analyses/ParameterKnowledgePanel.vue'
 
 const PARAMETER_DETAIL_TABS = [
-  { key: 'info', label: 'Info & Technik', icon: 'i' },
+  { key: 'info', label: 'Info u. Analytik', icon: 'i' },
   { key: 'action', label: 'Empfehlungen', icon: '✦' },
   { key: 'history', label: 'Messverlauf', icon: '↗' },
 ]
@@ -463,6 +433,7 @@ const selectedGroup = ref('')
 const parameterSearch = ref('')
 const parameterStatus = ref('all')
 const expandedParameters = reactive({})
+const collapsedGroups = reactive({})
 const parameterDetailPanels = reactive({})
 const completedActions = reactive({})
 const showAllIssues = ref(false)
@@ -521,8 +492,13 @@ const visibleParameters = computed(() => {
     .filter((parameter) => !query || `${parameter.label} ${parameter.key}`.toLowerCase().includes(query))
     .sort((a, b) => toneRank(a.tone) - toneRank(b.tone) || a.label.localeCompare(b.label, 'de'))
 })
-const visibleParametersByGroup = computed(() => parameterGroups.value.flatMap((group) =>
-  visibleParameters.value.filter((parameter) => parameterGroup(parameter).key === group.key)))
+// The explorer renders one section per group, so the flat list is built per group here.
+const visibleGroupSections = computed(() => parameterGroups.value
+  .map((group) => {
+    const items = visibleParameters.value.filter((parameter) => parameterGroup(parameter).key === group.key)
+    return { ...group, items, issueCount: items.filter((item) => item.tone !== 'good').length }
+  })
+  .filter((group) => group.items.length))
 const explorerSummary = computed(() => {
   const scope = parameterGroups.value.find((group) => group.key === selectedGroup.value)?.label || 'allen Gruppen'
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
@@ -575,6 +551,14 @@ function parameterGuide(parameter) {
 function parameterSymbol(parameter) {
   return parameter.symbol || ELEMENT_DEFINITION_MAP[parameter.key]?.symbol || parameter.label.slice(0, 2)
 }
+function parameterTargetLabel(parameter) {
+  const guide = parameterGuide(parameter)
+  if (guide.analytics?.length && Number.isFinite(Number(guide.targetMin)) && Number.isFinite(Number(guide.targetMax))) {
+    const format = (value) => Number(value).toLocaleString('de-DE', { maximumFractionDigits: 4 })
+    return `${format(guide.targetMin)}–${format(guide.targetMax)}`
+  }
+  return parameter.target
+}
 function groupDialStyle(score, tone) {
   const color = tone === 'critical' ? '#e85d4f' : tone === 'watch' ? '#f59e0b' : '#10b981'
   return { background: `conic-gradient(${color} ${Math.max(0, Math.min(100, Number(score) || 0)) * 3.6}deg, #e7eef6 0deg)` }
@@ -607,8 +591,25 @@ function gaugePosition(parameter) {
   const scaleMaximum = maximum + span
   return Math.min(96, Math.max(4, ((Number(parameter.value) - scaleMinimum) / (scaleMaximum - scaleMinimum)) * 100))
 }
+function isUndetectable(parameter) {
+  return parameter.resultStatus === 'below_detection'
+}
 function displayParameterValue(parameter) {
+  // Das Labor schreibt für Werte unter der Nachweisgrenze „n.n.“ statt einer Zahl.
+  if (isUndetectable(parameter)) return 'n. n.'
   return parameter.reportedValue ?? parameter.value ?? '—'
+}
+function readingUnit(parameter) {
+  // Ohne Messwert hat die Einheit keine Aussage – stattdessen die Kurzform erklären.
+  return isUndetectable(parameter) ? 'nicht nachweisbar' : parameter.unit
+}
+function readingTitle(parameter) {
+  return isUndetectable(parameter)
+    ? `${parameter.label}: nicht nachweisbar (unter der Nachweisgrenze)`
+    : `${parameter.label}: ${displayParameterValue(parameter)} ${parameter.unit}`
+}
+function toggleGroupSection(key) {
+  collapsedGroups[key] = !collapsedGroups[key]
 }
 function toggleParameter(key) {
   expandedParameters[key] = !expandedParameters[key]
@@ -631,8 +632,11 @@ function parameterInsight(parameter) {
 }
 function parameterAction(parameter) {
   if (parameter.tone === 'good') return 'Dosierung und Pflege beibehalten. Den Wert beim nächsten Laborbericht als Referenz vergleichen.'
+  const direction = parameter.sourceDirection === 'low' ? 'low' : 'high'
+  const guideAction = parameterGuide(parameter)?.[direction]
   return analysis.value?.recommendationGroups?.find((item) => item.parameterKeys?.includes(parameter.key))?.summary
     || analysis.value?.recommendations?.find((item) => item.toLowerCase().includes(parameter.label.toLowerCase()))
+    || guideAction
     || `${parameter.label} langsam korrigieren, keine starken Einzeländerungen vornehmen und zeitnah kontrollieren.`
 }
 function trendSummary(parameter) {
@@ -854,6 +858,22 @@ function markPdf() {
 .parameter-groups .group-count { color: var(--text-muted); font-size: 11px; }
 .parameter-groups b.status-chip { font-size: 9px; }
 .parameter-groups button > small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.element-sections { display: grid; gap: 26px; }
+.element-section { display: grid; gap: 10px; min-width: 0; }
+.element-section-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0 2px 9px; border: 0; border-bottom: 1px solid var(--border); background: none; color: inherit; text-align: left; cursor: pointer; }
+.element-section-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--group-accent, var(--brand-blue)); }
+.element-section.group-basis { --group-accent: #1686d9; }
+.element-section.group-quantity { --group-accent: #6b9f36; }
+.element-section.group-nutrients { --group-accent: #f59e0b; }
+.element-section.group-trace { --group-accent: #0f9f8f; }
+.element-section.group-pollutants { --group-accent: #d45f72; }
+.element-section-head strong { color: var(--text); font-size: 12px; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
+.element-section-head > b { padding: 2px 8px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 11px; font-weight: 800; }
+.element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 800; }
+.element-section-chevron { margin-left: auto; color: var(--text-muted); font-size: 15px; font-style: normal; line-height: 1; transition: transform .2s; }
+.element-section-head:hover .element-section-chevron { color: var(--brand-blue); }
+.element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
+@media (max-width: 600px) { .element-sections { gap: 20px; } }
 .element-list { display: grid; gap: 9px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
@@ -904,6 +924,8 @@ function markPdf() {
 .element-reading { text-align: right; }
 .element-reading strong { color: var(--text); font-size: 21px; }
 .element-reading small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.element-reading.undetected strong { color: #94a3b8; font-size: 17px; letter-spacing: 0.02em; }
+.element-reading.undetected small { color: #a9b6c6; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
 .element-chevron { color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
 .favorite-button { position: absolute; z-index: 2; top: 22px; right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
@@ -922,57 +944,11 @@ function markPdf() {
 .parameter-detail-tabs button.active .parameter-tab-icon { background: var(--brand-blue); color: #fff; box-shadow: 0 3px 8px rgba(0,114,206,0.18); }
 .parameter-detail-tabs .parameter-tab-copy { min-width: 0; display: block; color: inherit; letter-spacing: 0; text-transform: none; }
 .parameter-tab-copy strong { display: block; overflow: hidden; color: currentColor; font-size: 11px; font-weight: 850; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.parameter-info-panel,
-.parameter-recommendation-panel { display: grid; gap: 12px; }
-.parameter-info-lead,
-.parameter-purpose,
-.current-recommendation { padding: 14px 15px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
-.parameter-info-lead p,
-.parameter-purpose p,
-.current-recommendation p,
-.parameter-current-status p,
-.level-recommendations p { margin-top: 5px; }
-.parameter-spec-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.parameter-spec-grid > div { min-width: 0; padding: 11px 12px; border-radius: 12px; background: #eef5fb; }
-.parameter-spec-grid strong { display: block; margin-top: 4px; overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.parameter-current-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 14px; padding: 13px 15px; border: 1px solid #bbf7d0; border-radius: 13px; background: #ecfdf5; }
-.parameter-current-status > strong { color: #047857; font-size: 12px; }
-.parameter-current-status p { grid-column: 1 / -1; color: #086b51; }
-.parameter-current-status.watch { border-color: #fed7aa; background: #fff7ed; }
-.parameter-current-status.watch > strong,
-.parameter-current-status.watch p { color: #9a4d0a; }
-.parameter-current-status.critical { border-color: #f8c9c4; background: #fff1ef; }
-.parameter-current-status.critical > strong,
-.parameter-current-status.critical p { color: #b53a2e; }
-.current-recommendation { border-left: 4px solid #10b981; }
-.current-recommendation.watch { border-left-color: #f59e0b; }
-.current-recommendation.critical { border-left-color: #e85d4f; }
-.level-recommendations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.level-recommendations article { padding: 14px 15px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
-.level-recommendations article.high { border-top: 3px solid #e85d4f; }
-.level-recommendations article.low { border-top: 3px solid #1686d9; }
-.level-recommendations strong { color: var(--text); font-size: 12px; }
 .parameter-trend { min-width: 0; padding-top: 2px; }
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
 .favorites-panel { display: grid; gap: 18px; }
-.osmosis-results { display: grid; gap: 18px; }
-.osmosis-sample-label { align-self: center; padding: 8px 11px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; }
-.osmosis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 9px; }
-.osmosis-result { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 14px; background: #fff; }
-.osmosis-result.watch { border-left-color: #f59e0b; background: #fffbeb; }
-.osmosis-result.critical { border-left-color: #e85d4f; background: #fff7f5; }
-.osmosis-result-name { min-width: 0; }
-.osmosis-result-name strong,
-.osmosis-result-name small { display: block; }
-.osmosis-result-name strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.osmosis-result-name small,
-.osmosis-result-target { color: var(--text-muted); font-size: 9.5px; font-weight: 700; }
-.osmosis-result-value { text-align: right; white-space: nowrap; }
-.osmosis-result-value strong { color: var(--text); font-size: 14px; }
-.osmosis-result-value small { margin-left: 3px; color: var(--text-muted); font-size: 9px; }
-.osmosis-result-target { grid-column: 2 / -1; padding-top: 7px; border-top: 1px solid rgba(136,193,233,0.24); }
 .favorite-list { margin-top: 2px; }
 .favorites-empty { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); text-align: center; }
 .favorites-empty > span { color: #f59e0b; font-size: 42px; line-height: 1; }
@@ -1010,7 +986,5 @@ function markPdf() {
 @media (max-width: 600px) {
   .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
   .parameter-tab-copy strong { font-size: 10px; }
-  .parameter-spec-grid { grid-template-columns: 1fr; }
-  .level-recommendations { grid-template-columns: 1fr; }
 }
 </style>
