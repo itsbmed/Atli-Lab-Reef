@@ -31,15 +31,6 @@
     </section>
 
     <template v-else>
-      <RouterLink v-if="attention" :to="`/analyses/${attention.id}`" :class="['attention-banner', attention.severity]">
-        <i aria-hidden="true">!</i>
-        <span>
-          <strong>{{ attentionTitle }}</strong>
-          <small>{{ attention.aquariumName }} · {{ attention.issueCount }} {{ attention.issueCount === 1 ? 'Hinweis' : 'Hinweise' }}</small>
-        </span>
-        <em>Bericht öffnen →</em>
-      </RouterLink>
-
       <div v-if="showFilters" class="list-filters">
         <div class="segmented" role="group" aria-label="Berichte filtern">
           <button v-for="option in filterOptions" :key="option.key" type="button" :class="{ active: activeFilter === option.key }" @click="activeFilter = option.key">
@@ -48,7 +39,7 @@
         </div>
         <div v-if="analyses.count > SEARCH_THRESHOLD" class="search-box">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" /></svg>
-          <input v-model="search" type="search" placeholder="Aquarium suchen…" aria-label="Analyseberichte durchsuchen" />
+          <input v-model="search" type="search" placeholder="Aquarium oder Nummer suchen…" aria-label="Analyseberichte durchsuchen" />
         </div>
       </div>
 
@@ -60,13 +51,32 @@
 
       <div v-else class="analysis-list">
         <RouterLink v-for="analysis in visibleAnalyses" :key="analysis.id" :to="`/analyses/${analysis.id}`" :class="['analysis-row', analysis.severity]">
-          <span class="row-score" :class="analysis.severity">
-            <b>{{ analysis.score ?? '—' }}</b>
-            <i v-if="analysis.score !== null && analysis.score !== undefined">%</i>
+          <span class="row-score-cell">
+            <span class="row-score" :class="analysis.severity">
+              <b>{{ analysis.score ?? '—' }}</b>
+              <i v-if="analysis.score !== null && analysis.score !== undefined">%</i>
+            </span>
+            <em v-if="trendFor(analysis)" :class="['row-trend', trendFor(analysis).tone]" :title="trendFor(analysis).title">{{ trendFor(analysis).label }}</em>
           </span>
           <span class="row-main">
             <strong>{{ analysis.aquariumName }}</strong>
-            <small>{{ rowCaption(analysis) }}</small>
+            <span class="row-meta">
+              <b class="row-number">Nr. {{ reportLabel(analysis) }}</b>
+              <span>{{ formatDate(analysis.createdAt) }}</span>
+              <span>{{ findingLabel(analysis) }}</span>
+            </span>
+          </span>
+          <span class="row-timeline" :style="{ '--tl-progress': timelineProgress(analysis) }" aria-hidden="true">
+            <span
+              v-for="step in timelineSteps(analysis)"
+              :key="step.key"
+              :class="['tl-step', { done: step.done, current: step.current }]"
+              :title="step.date ? `${step.label} · ${step.date}` : step.label"
+            >
+              <i></i>
+              <small>{{ step.short }}</small>
+              <em>{{ step.date || '–' }}</em>
+            </span>
           </span>
           <span :class="['row-status', analysis.status]">{{ analysis.statusLabel }}</span>
           <span class="row-chevron" aria-hidden="true">›</span>
@@ -79,6 +89,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useAnalysesStore } from '@/stores/analyses'
+import { WORKFLOW_STEPS } from '@/services/analysisStore'
 
 // Filters only earn their space once the list stops fitting on one screen.
 const FILTER_THRESHOLD = 4
@@ -104,15 +115,22 @@ const visibleAnalyses = computed(() => {
   return sortedAnalyses.value.filter((analysis) => {
     if (activeFilter.value === 'issues' && !isIssue(analysis)) return false
     if (activeFilter.value === 'open' && analysis.status === 'completed') return false
-    return !query || String(analysis.aquariumName || '').toLowerCase().includes(query)
+    if (!query) return true
+    return [analysis.aquariumName, analysis.reportNumber, analysis.barcode].some((field) => String(field || '').toLowerCase().includes(query))
   })
 })
-// The single most urgent finished report, so the page opens with the one thing to act on.
-const attention = computed(() => sortedAnalyses.value.find((analysis) => analysis.severity === 'critical')
-  || sortedAnalyses.value.find((analysis) => analysis.severity === 'watch')
-  || null)
-const attentionTitle = computed(() => (attention.value?.severity === 'critical' ? 'Dieser Bericht braucht Ihre Aufmerksamkeit' : 'Ein Bericht zeigt Auffälligkeiten'))
-
+// Each completed report remembers the score of the one before it for the same aquarium.
+const previousScores = computed(() => {
+  const result = {}
+  const latestPerAquarium = new Map()
+  for (const analysis of [...analyses.items].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))) {
+    if (analysis.status !== 'completed' || !Number.isFinite(Number(analysis.score))) continue
+    const key = String(analysis.aquariumId || analysis.aquariumName || analysis.id)
+    if (latestPerAquarium.has(key)) result[analysis.id] = latestPerAquarium.get(key)
+    latestPerAquarium.set(key, Number(analysis.score))
+  }
+  return result
+})
 async function loadAnalyses() {
   isLoading.value = true
   loadError.value = ''
@@ -132,11 +150,50 @@ function resetFilters() {
   activeFilter.value = 'all'
   search.value = ''
 }
-function rowCaption(analysis) {
-  const date = formatDate(analysis.createdAt)
-  if (analysis.status !== 'completed') return `Eingereicht am ${date} · Ergebnis folgt`
-  if (!analysis.issueCount) return `${date} · Alle Werte im Zielbereich`
-  return `${date} · ${analysis.issueCount} ${analysis.issueCount === 1 ? 'Hinweis' : 'Hinweise'}`
+function reportLabel(analysis) {
+  return analysis.reportNumber || analysis.barcode || '—'
+}
+function findingLabel(analysis) {
+  if (analysis.status !== 'completed') return 'Ergebnis folgt'
+  if (!analysis.issueCount) return 'Alle Werte im Zielbereich'
+  return `${analysis.issueCount} ${analysis.issueCount === 1 ? 'Hinweis' : 'Hinweise'}`
+}
+function trendFor(analysis) {
+  const previous = previousScores.value[analysis.id]
+  if (previous === undefined || !Number.isFinite(Number(analysis.score))) return null
+  const delta = Math.round(Number(analysis.score) - previous)
+  if (!delta) return { tone: 'flat', label: '±0', title: `Unverändert gegenüber dem letzten Bericht (${previous}%)` }
+  return {
+    tone: delta > 0 ? 'up' : 'down',
+    label: `${delta > 0 ? '▲' : '▼'} ${delta > 0 ? '+' : '−'}${Math.abs(delta)}`,
+    title: `${delta > 0 ? 'Besser' : 'Schlechter'} als der letzte Bericht dieses Aquariums (${previous}%)`,
+  }
+}
+// Short, evenly weighted captions so all four stops occupy the same visual width.
+const TIMELINE_LABELS = { registered: 'Registriert', received: 'Eingang', in_analysis: 'Analyse', completed: 'Fertig' }
+
+// The lab workflow as a four stop timeline, dated where the report knows the date.
+function timelineSteps(analysis) {
+  const current = WORKFLOW_STEPS.find((step) => step.key === analysis.status)?.rank || 0
+  const dates = { registered: analysis.createdAt, received: analysis.receivedAt, completed: analysis.completedAt }
+  return WORKFLOW_STEPS.map((step) => ({
+    key: step.key,
+    label: step.label,
+    short: TIMELINE_LABELS[step.key],
+    done: step.rank <= current,
+    current: step.rank === current,
+    date: dates[step.key] ? shortDate(dates[step.key]) : '',
+  }))
+}
+// How far the filled rail runs, as a share of the distance between first and last stop.
+function timelineProgress(analysis) {
+  const current = WORKFLOW_STEPS.find((step) => step.key === analysis.status)?.rank || 0
+  return Math.max(0, Math.min(1, (current - 1) / (WORKFLOW_STEPS.length - 1)))
+}
+function shortDate(iso) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }).replace(/\.$/, '')
 }
 function formatDate(iso) {
   if (!iso) return '—'
@@ -151,14 +208,6 @@ function formatDate(iso) {
 .analysis-hero h1 { margin-bottom: 6px; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.05; font-weight: 800; letter-spacing: -0.03em; }
 .analysis-hero p { color: rgba(255,255,255,0.74); font-size: 14px; line-height: 1.55; }
 
-.attention-banner { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid #fed7aa; border-left: 4px solid #f59e0b; border-radius: 16px; background: #fff7ed; color: inherit; text-decoration: none; transition: border-color .16s, box-shadow .16s; }
-.attention-banner.critical { border-color: #f8c9c4; border-left-color: #e85d4f; background: #fff7f5; }
-.attention-banner:hover { box-shadow: 0 8px 22px rgba(10,27,67,0.08); }
-.attention-banner > i { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #f59e0b; color: #fff; font-size: 18px; font-style: normal; font-weight: 900; }
-.attention-banner.critical > i { background: #e85d4f; }
-.attention-banner strong { display: block; color: var(--text); font-size: 15px; font-weight: 800; }
-.attention-banner small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12px; }
-.attention-banner em { color: var(--brand-blue); font-size: 12px; font-style: normal; font-weight: 850; white-space: nowrap; }
 
 .list-filters { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .segmented { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(136,193,233,0.16); }
@@ -177,7 +226,11 @@ function formatDate(iso) {
 .analysis-row.watch { border-left-color: #f59e0b; }
 .analysis-row.critical { border-left-color: #e85d4f; }
 .analysis-row.open { border-left-color: #88c1e9; }
+.row-score-cell { display: grid; justify-items: center; gap: 5px; }
 .row-score { display: grid; place-items: center; align-content: center; width: 52px; height: 52px; border-radius: 50%; background: #ecfdf5; color: #047857; }
+.row-trend { display: inline-flex; align-items: center; gap: 2px; padding: 2px 7px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 9.5px; font-style: normal; font-weight: 850; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row-trend.up { background: #dcfce7; color: #047857; }
+.row-trend.down { background: #fdecea; color: #b53a2e; }
 .row-score.watch { background: #fff7ed; color: #92400e; }
 .row-score.critical { background: #fdecea; color: #b53a2e; }
 .row-score.open { background: #eef5fb; color: var(--brand-blue); }
@@ -185,7 +238,29 @@ function formatDate(iso) {
 .row-score i { margin-top: 1px; font-size: 9px; font-style: normal; font-weight: 800; opacity: 0.75; }
 .row-main { min-width: 0; }
 .row-main strong { display: block; overflow: hidden; color: var(--text); font-size: 17px; font-weight: 800; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
-.row-main small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 12.5px; }
+.row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-muted); font-size: 12.5px; }
+.row-meta > span::before { margin-right: 6px; color: #b9c7d1; content: '·'; }
+.row-number { padding: 2px 7px; border-radius: 6px; background: #eef5fb; color: var(--brand-blue); font-size: 11px; font-weight: 850; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.row-timeline { display: none; }
+/* Four equal columns put every stop on the same centre, whatever its caption reads. */
+.tl-step { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; min-width: 0; }
+.tl-step i { width: 14px; height: 14px; border: 2px solid #d5dfe9; border-radius: 50%; background: #fff; transition: background .2s, border-color .2s; }
+.tl-step.done i { border-color: var(--teal-500); background: var(--teal-500); }
+.tl-step.current i { border-color: var(--brand-blue); background: var(--brand-blue); box-shadow: 0 0 0 5px rgba(0,114,206,0.14); }
+.tl-step small { color: var(--text-muted); font-size: 10.5px; font-weight: 800; letter-spacing: 0.01em; line-height: 1; white-space: nowrap; }
+.tl-step.done small { color: #6b8196; }
+.tl-step.current small { color: var(--brand-blue); }
+.tl-step em { color: #a9b8c6; font-size: 9.5px; font-style: normal; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.tl-step.done em { color: #8fa2b3; }
+@media (min-width: 1180px) {
+  .analysis-row { grid-template-columns: 54px minmax(0, 1fr) minmax(300px, 380px) auto 18px; gap: 26px; }
+  .row-timeline { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; min-width: 0; padding-top: 2px; margin-right: 18px; }
+  /* One continuous rail from the first centre to the last, and its filled portion. */
+  .row-timeline::before,
+  .row-timeline::after { content: ''; position: absolute; top: 6px; left: 12.5%; height: 2px; border-radius: 999px; }
+  .row-timeline::before { right: 12.5%; background: #e4ecf3; }
+  .row-timeline::after { width: calc(75% * var(--tl-progress, 0)); background: var(--teal-500); transition: width .3s ease; }
+}
 .row-status { padding: 6px 11px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .row-status.completed { background: #dcfce7; color: #047857; }
 .row-status.received, .row-status.in_analysis { background: #fff7ed; color: #92400e; }
@@ -211,10 +286,10 @@ function formatDate(iso) {
 @media (max-width: 680px) {
   .analysis-hero { align-items: flex-start; flex-direction: column; }
   .analysis-hero .btn { width: 100%; }
-  .attention-banner { grid-template-columns: 38px minmax(0, 1fr); }
-  .attention-banner em { grid-column: 2; }
   .analysis-row { grid-template-columns: 46px minmax(0, 1fr) auto; gap: 12px; padding: 14px; }
   .row-score { width: 44px; height: 44px; }
+  .row-meta { font-size: 11.5px; }
+  .row-trend { font-size: 9px; }
   .row-chevron { display: none; }
   .list-filters { align-items: stretch; flex-direction: column; }
   .segmented { justify-content: space-between; }
