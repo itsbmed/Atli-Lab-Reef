@@ -88,19 +88,28 @@ export function removeAquarium(id) {
 
 // Demo-Aquarien für das Vollkonto (demo-full), damit die Liste befüllt ist.
 const DEMO_OWNER = 'demo-full'
-const DEMO_OSMOSIS_ID = 'demo-osmosis-source'
 const DEMO_AQUARIUMS = [
-  { id: DEMO_OSMOSIS_ID, name: 'Osmoseanlage Keller', water_type: 'Osmosewasser', net_volume: 60, notes: 'RO/DI Quelle für Wasserwechsel und Nachfüllwasser.', image_theme: 'osmosis', water_details: { ro_product: 'ATI Umkehrosmose', ro_capacity_lpd: 380, resin_filter: true, resin_product: 'ATI Harzfilter', resin_volume_l: 2, storage_tank: true, storage_volume_l: 60 } },
-  { name: 'Wohnzimmer Reef', water_type: 'Meerwasser', net_volume: 350, aquarium_type: 'Mischbecken', dimensions: '120×55×55 cm', target_mode: 'ati', stocking_density: 'Mittel', lighting_type: 'LED', supply_system: 'ATI Essentials', sump: true, refugium: true, skimmer: true, skimmer_model: 'ATI PowerCone 250', notes: 'Hauptbecken im Wohnzimmer.', image_theme: 'reef-mixed', osmosis_source_id: DEMO_OSMOSIS_ID },
-  { name: 'Nano SPS Cube', water_type: 'Meerwasser', net_volume: 90, aquarium_type: 'SPS', dimensions: '45×45×45 cm', target_mode: 'ati', stocking_density: 'Gering', lighting_type: 'LED', supply_system: 'ION Balancer', sump: false, refugium: false, skimmer: true, skimmer_model: 'ATI Nano', notes: '', image_theme: 'reef-sps', osmosis_source_id: DEMO_OSMOSIS_ID },
-  { id: 'demo-basement-osmosis', name: 'Basement System · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 393026.', image_theme: 'osmosis', water_details: { resin_filter: true } },
-  { id: 'demo-basement-system', name: 'Basement System', water_type: 'Meerwasser', net_volume: 454, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 393026.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-basement-osmosis' },
-  { id: 'demo-all-cases-system', name: 'Referenzbecken Alle Fälle', water_type: 'Meerwasser', net_volume: 500, aquarium_type: 'Mischbecken', target_mode: 'ati', stocking_density: 'Mittel', supply_system: 'ATI Essentials', sump: true, refugium: false, skimmer: true, notes: 'Testbecken: löst jede Empfehlungsart gleichzeitig aus.', image_theme: 'reef-mixed', osmosis_source_id: DEMO_OSMOSIS_ID },
+  { id: 'demo-aquarium-neu-osmose', name: 'Aquarium Neu · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 394463.', image_theme: 'osmosis', water_details: { resin_filter: true } },
+  { id: 'demo-aquarium-neu', name: 'Aquarium Neu', water_type: 'Meerwasser', net_volume: 1400, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394463.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-aquarium-neu-osmose' },
+  { id: 'demo-grosses-becken-500l', name: 'Grosses Becken 500L', water_type: 'Meerwasser', net_volume: 500, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394527.', image_theme: 'reef-mixed' },
+  { id: 'demo-meerwasser-xxl-osmose', name: 'Meerwasser xxl · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 394091.', image_theme: 'osmosis', water_details: { resin_filter: true } },
+  { id: 'demo-meerwasser-xxl', name: 'Meerwasser xxl', water_type: 'Meerwasser', net_volume: 625, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394091.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-meerwasser-xxl-osmose' },
+  { id: 'demo-meerwasser-55', name: 'Meerwasser55', water_type: 'Meerwasser', net_volume: 574, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394456.', image_theme: 'reef-mixed' },
+  { id: 'demo-wolfis-aquarium-500-osmose', name: 'Wolfis Aquarium 500 · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 394515.', image_theme: 'osmosis', water_details: { resin_filter: true } },
+  { id: 'demo-wolfis-aquarium-500', name: 'Wolfis Aquarium 500', water_type: 'Meerwasser', net_volume: 575, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394515.', image_theme: 'reef-mixed', osmosis_source_id: 'demo-wolfis-aquarium-500-osmose' },
+  { id: 'demo-mias-reef', name: "Mia's Reef", water_type: 'Meerwasser', net_volume: 208, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 392933.', image_theme: 'reef-mixed' },
+  { id: 'demo-red-sea-nano-osmose', name: 'Red Sea Nano Test Flawil · Osmose', water_type: 'Osmosewasser', net_volume: null, notes: 'Osmoseprobe aus dem ATI-Originalbericht 393984.', image_theme: 'osmosis', water_details: { resin_filter: true } },
+  { id: 'demo-red-sea-nano', name: 'Red Sea Nano Test Flawil', water_type: 'Meerwasser', net_volume: 75, aquarium_type: '', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 393984.', image_theme: 'reef-nano', osmosis_source_id: 'demo-red-sea-nano-osmose' },
+  { id: 'demo-nyos-opus-g2-440', name: 'Nyos Opus G2 440 LPS', water_type: 'Meerwasser', net_volume: 378, aquarium_type: 'LPS', target_mode: 'ati', stocking_density: '', supply_system: '', sump: false, refugium: false, skimmer: false, notes: 'Reales Aquarium aus dem ATI-Originalbericht 394770.', image_theme: 'reef-mixed' },
 ]
 
+const demoAquariumIds = new Set(DEMO_AQUARIUMS.map((a) => a.id).filter(Boolean))
+
 export function ensureDemoAquariums() {
-  const all = read(AQUARIUMS_KEY, [])
-  let changed = false
+  const before = read(AQUARIUMS_KEY, [])
+  // Früher gesäte Beispielbecken aus dem Browser-Speicher entfernen.
+  const all = before.filter((item) => item.ownerId !== DEMO_OWNER || demoAquariumIds.has(item.id))
+  let changed = all.length !== before.length
   for (const a of DEMO_AQUARIUMS) {
     const exists = all.some((item) => item.ownerId === DEMO_OWNER && (a.id ? item.id === a.id : item.name === a.name))
     if (exists) continue
