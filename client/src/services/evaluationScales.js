@@ -93,7 +93,7 @@ function applyTolerance(factor, tolerance, side) {
 }
 
 function generateThresholds(definition, scale) {
-  const spread = GROUP_SPREAD[definition.groupKey] || GROUP_SPREAD.trace
+  const spread = GROUP_SPREAD[definition.scoreProfile || definition.groupKey] || GROUP_SPREAD.trace
   const [min, max] = scale.ranges?.[definition.key] || [definition.referenceRanges.Meerwasser.min, definition.referenceRanges.Meerwasser.max]
   const tolerance = Number(scale.tolerance) || 1
   const [critLow, tooLow, low] = spread.low.map((factor) => significant(min * applyTolerance(factor, tolerance, 'low')))

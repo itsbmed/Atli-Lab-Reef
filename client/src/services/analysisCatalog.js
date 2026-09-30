@@ -11,12 +11,16 @@ export const ANALYSIS_GROUPS = Object.freeze([
 const groupLabels = Object.fromEntries(ANALYSIS_GROUPS.map((group) => [group.key, group.label]))
 const seawaterOnlySymbols = new Set(['PSU', 'Bi', 'Hg', 'I', 'Sb', 'Se', 'Tl', 'W'])
 
-function element(key, label, symbol, groupKey, unit, min, max, precision = 2, source = 'ICP-OES') {
+// `scoreProfile` lets an element sit in its report group while being scored like
+// another: silver and tin belong to ATI's minor elements but have no meaningful
+// minimum, so they keep the pollutant bands that never flag a low value.
+function element(key, label, symbol, groupKey, unit, min, max, precision = 2, source = 'ICP-OES', scoreProfile = '') {
   return Object.freeze({
     key,
     label,
     symbol,
     groupKey,
+    scoreProfile: scoreProfile || groupKey,
     group: groupLabels[groupKey],
     unit,
     precision,
@@ -33,7 +37,6 @@ function element(key, label, symbol, groupKey, unit, min, max, precision = 2, so
 export const ELEMENT_DEFINITIONS = Object.freeze([
   element('salinity', 'Salinität', 'PSU', 'basis', 'PSU', 34.8, 35.2, 1, 'Profil'),
   element('kh', 'Karbonathärte', 'KH', 'basis', 'dKH', 7.5, 8.5, 2, 'Titrator'),
-  element('fluoride', 'Fluorid', 'F', 'basis', 'mg/l', 1.1, 1.5, 3, 'IC'),
 
   element('boron', 'Bor', 'B', 'quantity', 'mg/l', 4, 5, 2),
   element('bromine', 'Brom', 'Br', 'quantity', 'mg/l', 55, 70, 1),
@@ -44,13 +47,14 @@ export const ELEMENT_DEFINITIONS = Object.freeze([
   element('sodium', 'Natrium', 'Na', 'quantity', 'mg/l', 10500, 11500, 0),
   element('sulfur', 'Schwefel', 'S', 'quantity', 'mg/l', 850, 950, 1),
   element('strontium', 'Strontium', 'Sr', 'quantity', 'mg/l', 7, 9, 2),
+  element('fluoride', 'Fluorid', 'F', 'quantity', 'mg/l', 1.1, 1.5, 3, 'IC'),
 
   element('nitrate', 'Nitrat', 'NO₃', 'nutrients', 'mg/l', 2, 10, 2, 'IC'),
   element('phosphate', 'Phosphat', 'PO₄', 'nutrients', 'mg/l', 0.03, 0.08, 3, 'ICP-OES · berechnet'),
   element('phosphorus', 'Phosphor', 'P', 'nutrients', 'µg/l', 10, 26, 1),
-  element('silicon', 'Silizium', 'Si', 'nutrients', 'µg/l', 50, 500, 1),
 
-  element('cobalt', 'Kobalt', 'Co', 'trace', 'µg/l', 0.05, 0.2, 2),
+  element('silicon', 'Silizium', 'Si', 'trace', 'µg/l', 50, 500, 1),
+  element('cobalt', 'Cobalt', 'Co', 'trace', 'µg/l', 0.1, 0.25, 2),
   element('chromium', 'Chrom', 'Cr', 'trace', 'µg/l', 0.1, 0.5, 2),
   element('copper', 'Kupfer', 'Cu', 'trace', 'µg/l', 0.5, 3, 2),
   element('iron', 'Eisen', 'Fe', 'trace', 'µg/l', 0.5, 5, 2),
@@ -62,19 +66,19 @@ export const ELEMENT_DEFINITIONS = Object.freeze([
   element('selenium', 'Selen', 'Se', 'trace', 'µg/l', 0.2, 2, 2),
   element('vanadium', 'Vanadium', 'V', 'trace', 'µg/l', 1, 3, 2),
   element('zinc', 'Zink', 'Zn', 'trace', 'µg/l', 0.5, 5, 2),
+  element('barium', 'Barium', 'Ba', 'trace', 'µg/l', 3, 15, 2),
+  element('arsenic', 'Arsen', 'As', 'trace', 'µg/l', 0, 2, 2, 'ICP-OES', 'pollutants'),
+  element('beryllium', 'Beryllium', 'Be', 'trace', 'µg/l', 0, 0.1, 2, 'ICP-OES', 'pollutants'),
+  element('silver', 'Silber', 'Ag', 'trace', 'µg/l', 0, 0.1, 2, 'ICP-OES', 'pollutants'),
+  element('tin', 'Zinn', 'Sn', 'trace', 'µg/l', 0, 1, 2, 'ICP-OES', 'pollutants'),
 
-  element('silver', 'Silber', 'Ag', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('aluminium', 'Aluminium', 'Al', 'pollutants', 'µg/l', 0, 10, 1),
-  element('arsenic', 'Arsen', 'As', 'pollutants', 'µg/l', 0, 2, 2),
-  element('barium', 'Barium', 'Ba', 'pollutants', 'µg/l', 3, 15, 2),
-  element('beryllium', 'Beryllium', 'Be', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('bismuth', 'Bismut', 'Bi', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('cadmium', 'Cadmium', 'Cd', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('mercury', 'Quecksilber', 'Hg', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('lanthanum', 'Lanthan', 'La', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('lead', 'Blei', 'Pb', 'pollutants', 'µg/l', 0, 0.5, 2),
   element('antimony', 'Antimon', 'Sb', 'pollutants', 'µg/l', 0, 0.5, 2),
-  element('tin', 'Zinn', 'Sn', 'pollutants', 'µg/l', 0, 1, 2),
   element('titanium', 'Titan', 'Ti', 'pollutants', 'µg/l', 0, 2, 2),
   element('thallium', 'Thallium', 'Tl', 'pollutants', 'µg/l', 0, 0.1, 2),
   element('tungsten', 'Wolfram', 'W', 'pollutants', 'µg/l', 0, 0.5, 2),
