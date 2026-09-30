@@ -55,16 +55,41 @@
           </div>
 
           <div class="editor-section">
-            <div class="section-label"><span>02</span><div><strong>Info &amp; Technik</strong><small>Grundwissen im ersten Bereich der Elementkarte</small></div></div>
+            <div class="section-label"><span>02</span><div><strong>Info u. Analytik</strong><small>Grundwissen und Messmethoden im ersten Bereich der Elementkarte</small></div></div>
             <label><span>Allgemeine Information</span><small>Was wird gemessen und wie wird der Parameter technisch eingeordnet?</small><textarea v-model="selectedContent.general" rows="5"></textarea></label>
             <label><span>Wofür wichtig</span><small>Welche Rolle spielt der Wert für das Aquarium und seine Bewohner?</small><textarea v-model="selectedContent.importance" rows="5"></textarea></label>
+
+            <div class="analytics-admin">
+              <header><div><span>Analytisches Profil</span><strong>Nachweis- und Bestimmungsgrenzen</strong></div><small>Diese Angaben erscheinen als Vergleich im Kundenbericht.</small></header>
+              <div class="analytics-admin-grid">
+                <article v-for="(row, index) in selectedContent.analytics" :key="index">
+                  <header><strong>Messmethode {{ index + 1 }}</strong><button v-if="selectedContent.analytics.length > 1" type="button" :aria-label="`Messmethode ${index + 1} entfernen`" @click="removeAnalyticalMethod(index)">×</button></header>
+                  <label><span>Methode</span><input v-model="row.method" type="text" /></label>
+                  <label><span>LOD</span><input v-model="row.lod" type="text" /></label>
+                  <label><span>LOQ</span><input v-model="row.loq" type="text" /></label>
+                </article>
+              </div>
+              <button class="analytics-add-method" type="button" @click="addAnalyticalMethod">+ Messmethode ergänzen</button>
+              <div class="analytics-definition-grid">
+                <label><span>LOD · Nachweisgrenze</span><textarea v-model="selectedContent.lodDefinition" rows="4"></textarea></label>
+                <label><span>LOQ · Bestimmungsgrenze</span><textarea v-model="selectedContent.loqDefinition" rows="4"></textarea></label>
+              </div>
+              <div class="analytics-reference-grid">
+                <label><span>Achtung ab</span><div class="unit-input"><input v-model.number="selectedContent.attentionThreshold" type="number" min="0" step="any" /><b>{{ selectedContent.unit }}</b></div></label>
+                <label><span>Referenzbedingungen</span><input v-model="selectedContent.referenceConditions" type="text" /></label>
+              </div>
+            </div>
           </div>
 
           <div class="editor-section">
             <div class="section-label"><span>03</span><div><strong>Empfehlungen</strong><small>Handlungsanweisungen für Abweichungen vom Zielbereich</small></div></div>
-            <div class="recommendation-fields">
-              <label class="high"><span>Wert zu hoch</span><small>Was soll geprüft und wie soll korrigiert werden?</small><textarea v-model="selectedContent.high" rows="6"></textarea></label>
-              <label class="low"><span>Wert zu niedrig</span><small>Was soll geprüft und wie soll korrigiert werden?</small><textarea v-model="selectedContent.low" rows="6"></textarea></label>
+            <div class="paired-guidance-editor">
+              <article v-for="direction in ['low', 'high']" :key="direction" :class="direction">
+                <header><span aria-hidden="true">{{ direction === 'low' ? '↓' : '↑' }}</span><div><strong>{{ direction === 'low' ? 'Zu wenig' : 'Zu viel' }}</strong><small>In drei verständlichen Schritten</small></div></header>
+                <section><div><b>01</b><span>Mögliche Ursachen</span></div><ListEditor v-model="selectedContent.advice[direction].causes" placeholder="Ursache eingeben" add-label="Ursache hinzufügen" /></section>
+                <section><div><b>02</b><span>Mögliche Effekte</span></div><ListEditor v-model="selectedContent.advice[direction].effects" placeholder="Effekt eingeben" add-label="Effekt hinzufügen" /></section>
+                <section class="corrections"><div><b>03</b><span>Nächste Schritte</span></div><ListEditor v-model="selectedContent.advice[direction].corrections" placeholder="Korrekturschritt eingeben" add-label="Schritt hinzufügen" /></section>
+              </article>
             </div>
           </div>
 
@@ -115,7 +140,11 @@
           <section class="content-preview">
             <div><span>Vorschau</span><strong>{{ selectedMeta.label }}</strong></div>
             <p>{{ selectedContent.general }}</p>
-            <div class="preview-actions"><article><span>Zu hoch</span><p>{{ selectedContent.high }}</p></article><article><span>Zu niedrig</span><p>{{ selectedContent.low }}</p></article></div>
+            <div class="preview-analytical-summary">
+              <span><b>{{ selectedContent.targetMin }}–{{ selectedContent.targetMax }}</b> {{ selectedContent.unit }} Idealbereich</span>
+              <span><b>{{ selectedContent.analytics.length }}</b> Messmethoden</span>
+              <span><b>{{ selectedContent.advice.low.corrections.length + selectedContent.advice.high.corrections.length }}</b> Korrekturschritte</span>
+            </div>
           </section>
 
           <footer>
@@ -530,7 +559,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { ANALYSIS_PARAMETERS, DEFAULT_PARAMETER_CONTENT, loadAnalysisContent, saveAnalysisContent } from '@/services/analysisContent'
+import { ANALYSIS_PARAMETERS, freshParameterContent, loadAnalysisContent, saveAnalysisContent } from '@/services/analysisContent'
 import { ANALYSIS_GROUPS, createDemoAnalysis } from '@/services/analysisCatalog'
 import { createSupportFaq, loadSupportContent, saveSupportContent } from '@/services/supportContent'
 import { changeAdminUserRole, getAdminUsers } from '@/services/adminUserService'
@@ -776,8 +805,15 @@ function restoreStandardProduct() {
   Object.assign(selectedDosing.value, { productOverride: false, productName: standard.productName, productUrl: standard.productUrl, productImage: standard.productImage })
 }
 
+function addAnalyticalMethod() {
+  selectedContent.value.analytics.push({ method: selectedMeta.value.source || '', lod: '', loq: '' })
+}
+function removeAnalyticalMethod(index) {
+  if (selectedContent.value.analytics.length <= 1) return
+  selectedContent.value.analytics.splice(index, 1)
+}
 function resetSelected() {
-  Object.assign(content[selectedKey.value], DEFAULT_PARAMETER_CONTENT[selectedKey.value])
+  Object.assign(content[selectedKey.value], freshParameterContent(selectedKey.value))
   saveState.message = 'Standardtext geladen. Speichern Sie, um ihn zu veröffentlichen.'
   saveState.type = ''
 }
@@ -1135,4 +1171,53 @@ function formatAdminDate(value) {
 @media (max-width:700px) { .admin-save-bar .save-bar-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 6px; }.admin-save-bar .save-bar-actions .btn { min-height: 44px; padding: 8px; font-size: 11px; } }
 @media (max-width:1100px) { .admin-save-bar { align-items: stretch; flex-direction: column; }.save-bar-actions { justify-content: flex-end; } }
 @media (max-width:700px) { .editor-shell { padding: 18px; }.settings-tabs { display: flex; overflow-x: auto; padding-bottom: 4px; }.settings-tabs button { flex: 0 0 190px; }.admin-save-bar { bottom: 100px; padding: 14px; }.save-bar-actions { flex-direction: column; }.save-bar-actions .btn { width: 100%; white-space: normal; line-height: 1.3; }.admin-hero { padding: 24px; }.element-browser,.dosing-browser,.rule-browser { max-height: 240px; }.formula-builder label div { min-width: 0; }.faq-admin-card > header { gap: 14px; }.faq-expand { width: 100%; }.product-source { align-items: flex-start; flex-direction: column; } }
+.analytics-admin { display: grid; gap: 14px; margin-top: 4px; padding: 16px; border: 1px solid rgba(0,114,206,.16); border-radius: 16px; background: #f5faff; }
+.analytics-admin > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.analytics-admin > header span,.analytics-admin > header strong { display: block; }
+.analytics-admin > header span { color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.analytics-admin > header strong { margin-top: 3px; color: var(--brand-navy); font-size: 15px; }
+.analytics-admin > header small { max-width: 280px; color: var(--text-muted); font-size: 11px; line-height: 1.45; text-align: right; }
+.analytics-admin-grid,.analytics-definition-grid,.analytics-reference-grid { display: grid; gap: 10px; }
+.analytics-admin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.analytics-admin-grid article { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 13px; background: #fff; }
+.analytics-admin-grid article > header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; min-height: 25px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+.analytics-admin-grid article > header strong { color: var(--brand-navy); font-size: 11px; }
+.analytics-admin-grid article > header button { display: grid; place-items: center; width: 25px; height: 25px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--text-muted); font-size: 15px; cursor: pointer; }
+.analytics-admin-grid article > header button:hover { border-color: #e85d4f; color: #b53a2e; }
+.analytics-add-method { justify-self: start; padding: 9px 13px; border: 1px dashed var(--border-strong); border-radius: 10px; background: #fff; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }
+.analytics-add-method:hover { border-color: var(--brand-blue); background: var(--teal-50); }
+.analytics-admin label,.analytics-definition-grid label,.analytics-reference-grid label { display: grid; gap: 5px; }
+.analytics-admin label > span { color: var(--text); font-size: 10px; font-weight: 850; }
+.analytics-admin input[type="text"],.analytics-admin input[type="number"] { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #f8fbfe; font: inherit; font-size: 12px; color: var(--text); outline: 0; }
+.analytics-admin input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.analytics-admin textarea { width: 100%; min-width: 0; resize: vertical; padding: 10px 11px; border: 1px solid var(--border); border-radius: 10px; background: #f8fbfe; font: inherit; font-size: 12px; line-height: 1.5; color: var(--text); outline: 0; }
+.analytics-admin textarea:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.analytics-definition-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.analytics-reference-grid { grid-template-columns: minmax(180px,.55fr) minmax(0,1.45fr); }
+.unit-input { display: flex; align-items: center; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.unit-input:focus-within { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.unit-input input[type="number"] { flex: 1; min-width: 0; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.unit-input b { padding: 0 12px; color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.paired-guidance-editor { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.paired-guidance-editor > article { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: #fff; }
+.paired-guidance-editor > article > header { display: flex; align-items: center; gap: 10px; padding: 14px 15px; border-bottom: 1px solid var(--border); background: #f3f8fc; }
+.paired-guidance-editor > article.high > header { background: #fff8ed; }
+.paired-guidance-editor > article > header > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #dceef9; color: var(--brand-blue); font-size: 17px; font-weight: 900; }
+.paired-guidance-editor > article.high > header > span { background: #ffebc7; color: #b45309; }
+.paired-guidance-editor > article > header strong,.paired-guidance-editor > article > header small { display: block; }
+.paired-guidance-editor > article > header strong { color: var(--brand-navy); font-size: 14px; }
+.paired-guidance-editor > article > header small { margin-top: 2px; color: var(--text-muted); font-size: 10px; }
+.paired-guidance-editor section { display: grid; gap: 9px; padding: 13px 14px; border-bottom: 1px solid var(--border); }
+.paired-guidance-editor section:last-child { border-bottom: 0; }
+.paired-guidance-editor section.corrections { background: #f8fbfe; }
+.paired-guidance-editor article.high section.corrections { background: #fffaf2; }
+.paired-guidance-editor section > div:first-child { display: flex; align-items: center; gap: 7px; }
+.paired-guidance-editor section > div:first-child b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: #e4f1f9; color: var(--brand-blue); font-size: 8px; }
+.paired-guidance-editor article.high section > div:first-child b { background: #ffedcf; color: #b45309; }
+.paired-guidance-editor section > div:first-child span { color: var(--text); font-size: 11px; font-weight: 850; }
+.preview-analytical-summary { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.preview-analytical-summary span { display: block; padding: 11px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text-muted); font-size: 10px; line-height: 1.4; text-transform: none; }
+.preview-analytical-summary b { display: block; margin-bottom: 2px; color: var(--brand-navy); font-size: 13px; }
+@media (max-width:1100px) { .paired-guidance-editor { grid-template-columns: 1fr; }.analytics-admin-grid { grid-template-columns: 1fr; } }
+@media (max-width:700px) { .analytics-admin > header { flex-direction: column; }.analytics-admin > header small { max-width: none; text-align: left; }.analytics-admin-grid article,.analytics-definition-grid,.analytics-reference-grid,.preview-analytical-summary { grid-template-columns: 1fr; } }
 </style>
