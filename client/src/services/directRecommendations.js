@@ -22,18 +22,15 @@ export function evaluateAnalysis(parameters = [], scale = null) {
   })
 }
 
-// Reduction advice per band, mirroring the evaluation sheet: bulk elements are eased
-// back gently, trace elements and pollutants are cut hard because they accumulate.
-const REDUCTION_PERCENT = {
-  quantity: { 6: 10, 7: 20, 8: 100, 9: 100 },
-  basis: { 6: 10, 7: 20, 8: 100, 9: 100 },
-  nutrients: { 6: 25, 7: 50, 8: 100, 9: 100 },
-  trace: { 6: 50, 7: 90, 8: 100, 9: 100 },
-  pollutants: { 6: 100, 7: 100, 8: 100, 9: 100 },
-}
+// The client workbook assigns the same measured-value-dependent adjustment curve in
+// both directions: slight deviations change the daily dose by 10 %, moderate ones by
+// 20 %, and strong deviations by 30 %.
+const SUPPLY_ADJUSTMENT_PERCENT = Object.freeze({ 1: 30, 2: 30, 3: 20, 4: 10, 6: 10, 7: 20, 8: 30, 9: 30 })
 
-function reductionFor(parameter) {
-  return REDUCTION_PERCENT[parameter.groupKey]?.[parameter.evaluation.score] ?? null
+function supplyAdjustment(parameter) {
+  const percent = SUPPLY_ADJUSTMENT_PERCENT[parameter.evaluation.score]
+  if (!percent) return null
+  return { percent, direction: parameter.evaluation.score < 5 ? 'increase' : 'reduce' }
 }
 
 function affected(parameters, predicate) {
@@ -53,12 +50,84 @@ function plural(items, singular, multiple) {
   return items.length === 1 ? singular : multiple
 }
 
+function targetValue(parameter) {
+  const explicit = [parameter.sourceIdealValue, parameter.correctionTarget]
+    .map(Number).find(Number.isFinite)
+  if (explicit !== undefined) return explicit
+  const thresholds = parameter.evaluation?.thresholds
+  if (Number.isFinite(Number(thresholds?.min)) && Number.isFinite(Number(thresholds?.max))) {
+    return (Number(thresholds.min) + Number(thresholds.max)) / 2
+  }
+  const range = parameter.referenceRange || {}
+  if (Number.isFinite(Number(range.min)) && Number.isFinite(Number(range.max))) return (Number(range.min) + Number(range.max)) / 2
+  return null
+}
+
+function numberLabel(value, maximumFractionDigits = 1) {
+  return Number(value).toLocaleString('de-DE', { maximumFractionDigits })
+}
+
+function salinityCorrection(parameter, volumeLiters) {
+  const current = Number(parameter.value)
+  const target = targetValue(parameter)
+  const volume = Number(volumeLiters)
+  const low = parameter.evaluation.score < 5
+  if (!Number.isFinite(current) || !Number.isFinite(target)) return []
+  if (!(volume > 0)) return low
+    ? [{ label: 'Absolute Ocean 1 und 2', value: 'je 1,71 ml pro PSU und Liter' }]
+    : [{ label: 'Meerwasser gegen Osmosewasser tauschen', value: 'Menge nach Beckenvolumen' }]
+  if (low) {
+    const millilitersEach = Math.max(0, (target - current) * 1.71 * volume)
+    const amount = `${numberLabel(millilitersEach, 0)} ml`
+    return [{ label: 'Absolute Ocean 1', value: amount }, { label: 'Absolute Ocean 2', value: amount }]
+  }
+  const liters = Math.max(0, volume - (target / current * volume))
+  return [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: `${numberLabel(liters)} l` }]
+}
+
+function nutrientPair(parameters) {
+  const nitrate = parameters.find((item) => item.key === 'nitrate')
+  const phosphorus = parameters.find((item) => item.key === 'phosphorus') || parameters.find((item) => item.key === 'phosphate')
+  if (![nitrate, phosphorus].every((item) => item?.evaluation && item.evaluation.score !== 5)) return []
+  return [nitrate, phosphorus]
+}
+
+function nutrientDirection(parameter) {
+  return parameter.evaluation.score < 5 ? 'low' : 'high'
+}
+
+function nutrientTemplateKey(items) {
+  const combination = items.map(nutrientDirection).join('-')
+  return {
+    'high-high': 'nutrients',
+    'low-low': 'nutrients-low',
+    'high-low': 'nutrients-high-low',
+    'low-high': 'nutrients-low-high',
+  }[combination]
+}
+
+function nutrientDose(volumeLiters) {
+  const volume = Number(volumeLiters)
+  return volume > 0 ? `${numberLabel(0.5 * volume / 100)} ml täglich` : '0,5 ml je 100 l täglich'
+}
+
+function nutrientMeasures(items, volumeLiters) {
+  const combination = items.map(nutrientDirection).join('-')
+  const dose = nutrientDose(volumeLiters)
+  return {
+    'low-low': [{ label: 'Essential Nitro', value: dose }, { label: 'Essential Phospho', value: dose }],
+    'high-low': [{ label: 'Essential Phospho', value: dose }, { label: 'Eiweißabschäumer', value: 'reinigen' }],
+    'low-high': [{ label: 'PO₄-Adsorber', value: 'nutzen' }, { label: 'Essential Nitro', value: dose }],
+    'high-high': [{ label: 'Futtereintrag', value: 'reduzieren' }, { label: 'Eiweißabschäumer', value: 'reinigen' }, { label: 'PO₄-Adsorber', value: 'nutzen' }],
+  }[combination] || []
+}
+
 const RULES = [
   {
     key: 'water-change',
     icon: '≈',
     action: { tool: 'waterchange' },
-    match: (parameters) => affected(parameters, (score, parameter) => score >= 8 && parameter.groupKey !== 'pollutants'),
+    match: (parameters) => affected(parameters, (score, parameter) => score >= 8 && !['pollutants', 'nutrients'].includes(parameter.groupKey) && parameter.key !== 'salinity'),
     build: (items) => ({
       summaryParts: [
         { text: `Durch die Wasseranalyse ${plural(items, 'wurde ein stark erhöhter Wert', 'wurden stark erhöhte Werte')} bei ` },
@@ -68,36 +137,56 @@ const RULES = [
     }),
   },
   {
+    key: 'salinity',
+    icon: '≋',
+    action: {},
+    match: (parameters) => affected(parameters, (score, parameter) => parameter.key === 'salinity' && score !== 5),
+    templateKey: (items) => items[0].evaluation.score < 5 ? 'salinity-low' : 'salinity-high',
+    build: (items, context) => {
+      const item = items[0]
+      const target = targetValue(item)
+      const low = item.evaluation.score < 5
+      return {
+        summaryParts: [
+          { text: 'Die ' },
+          { text: item.label, bold: true },
+          { text: ` liegt bei ${numberLabel(item.value)} ${item.unit || 'PSU'} und damit ${low ? 'unter' : 'über'} dem Zielwert${Number.isFinite(target) ? ` von ${numberLabel(target)} PSU` : ''}. ${low ? 'Ergänzen Sie Absolute Ocean 1 und 2 jeweils in der berechneten Menge.' : 'Entnehmen Sie die berechnete Menge Meerwasser und ersetzen Sie diese durch Osmosewasser.'}` },
+        ],
+        detailItems: salinityCorrection(item, context.volumeLiters),
+      }
+    },
+  },
+  {
     key: 'reduce-supply',
     icon: '▼',
     action: { tool: 'consumption' },
-    match: (parameters) => affected(parameters, (score, parameter) => score >= 6 && score <= 7 && parameter.groupKey !== 'pollutants'),
+    match: (parameters) => affected(parameters, (score, parameter) => score !== 5 && !['pollutants', 'nutrients'].includes(parameter.groupKey) && parameter.key !== 'salinity'),
     build: (items) => ({
       summaryParts: [
         ...boldList(items),
-        { text: ` ${plural(items, 'ist', 'sind')} erhöht.` },
+        { text: ` ${plural(items, 'weicht', 'weichen')} vom Zielbereich ab. Passen Sie die tägliche Elementversorgung abhängig vom Messwert an.` },
       ],
-      detailItems: items.map((item) => ({ label: item.label, value: `−${reductionFor(item)} %` })),
+      detailItems: items.map((item) => {
+        const adjustment = supplyAdjustment(item)
+        return { label: item.label, value: `${adjustment.direction === 'increase' ? '+' : '−'}${adjustment.percent} %` }
+      }),
     }),
   },
   {
     key: 'nutrients',
     icon: 'N',
     action: { tool: 'trends' },
-    match: (parameters) => affected(parameters, (score, parameter) => parameter.groupKey === 'nutrients' && score !== 5),
-    templateKey: (items) => (items.some((item) => item.evaluation.score > 5) ? 'nutrients' : 'nutrients-low'),
-    build: (items) => {
-      const high = items.filter((item) => item.evaluation.score > 5)
-      const scope = high.length ? high : items
-      return {
-        summaryParts: [
-          ...boldList(scope),
-          high.length
-            ? { text: ` ${plural(scope, 'ist', 'sind')} erhöht. Wir empfehlen Ihnen das Nährstoffmanagement zu optimieren.` }
-            : { text: ` ${plural(scope, 'ist', 'sind')} zu niedrig. Eine Limitierung bremst Wachstum und Farbentwicklung.` },
-        ],
-      }
-    },
+    match: nutrientPair,
+    templateKey: nutrientTemplateKey,
+    build: (items, context) => ({
+      summaryParts: [
+        { text: items[0].label, bold: true },
+        { text: ` ist ${nutrientDirection(items[0]) === 'low' ? 'zu niedrig' : 'zu hoch'}, ` },
+        { text: items[1].label, bold: true },
+        { text: ` ist ${nutrientDirection(items[1]) === 'low' ? 'zu niedrig' : 'zu hoch'}. Die Maßnahmen werden als gemeinsame Nährstoffkorrektur aufeinander abgestimmt.` },
+      ],
+      detailItems: nutrientMeasures(items, context.volumeLiters),
+    }),
   },
   {
     key: 'pollutants',
@@ -132,9 +221,9 @@ const DOSING_RULE = {
 // One card per advisory type at most; the dosing course is appended below them.
 const MAX_ADVISORY = 4
 
-function compose(rule, items, templates) {
-  const template = templates[rule.templateKey ? rule.templateKey(items) : rule.key]
-  const built = rule.build(items)
+function compose(rule, items, templates, context) {
+  const template = templates[rule.templateKey ? rule.templateKey(items, context) : rule.key]
+  const built = rule.build(items, context)
   const rank = severity(items)
   const detailItems = built.detailItems || template.detailItems.map((label) => ({ label, value: '' }))
   return {
@@ -159,17 +248,17 @@ function compose(rule, items, templates) {
   }
 }
 
-export function buildDirectRecommendations(parameters = [], { dosingKeys = new Set(), templates = templateMap() } = {}) {
-  const context = { dosingKeys: dosingKeys instanceof Set ? dosingKeys : new Set(dosingKeys) }
+export function buildDirectRecommendations(parameters = [], { dosingKeys = new Set(), templates = templateMap(), volumeLiters = 0 } = {}) {
+  const context = { dosingKeys: dosingKeys instanceof Set ? dosingKeys : new Set(dosingKeys), volumeLiters: Math.max(0, Number(volumeLiters) || 0) }
   const advisory = RULES
     .map((rule) => {
       const items = rule.match(parameters, context)
-      return items.length ? compose(rule, items, templates) : null
+      return items.length ? compose(rule, items, templates, context) : null
     })
     .filter(Boolean)
     .sort((a, b) => b.rank - a.rank)
     .slice(0, MAX_ADVISORY)
 
   const dosingItems = DOSING_RULE.match(parameters, context)
-  return dosingItems.length ? [...advisory, compose(DOSING_RULE, dosingItems, templates)] : advisory
+  return dosingItems.length ? [...advisory, compose(DOSING_RULE, dosingItems, templates, context)] : advisory
 }
