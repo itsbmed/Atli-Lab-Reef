@@ -40,12 +40,13 @@ test('one card per advisory type at most, most severe first, dosing pinned below
   }
 })
 
-test('an elevated supply element asks for a reduction with a concrete percentage', () => {
-  const evaluated = evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 500)], scale)
-  const [recommendation] = buildDirectRecommendations(evaluated)
-  assert.equal(recommendation.key, 'reduce-supply')
-  assert.equal(recommendation.detailLabel, 'Daher sollten Sie die tägliche Zugabe reduzieren')
-  assert.deepEqual(recommendation.detailItems, [{ label: 'Calcium', value: '−20 %' }])
+test('element supply adjusts in both directions with the client percentage curve', () => {
+  const elevated = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 500)], scale))
+  const reduced = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 300)], scale))
+  assert.equal(elevated[0].key, 'reduce-supply')
+  assert.equal(elevated[0].detailLabel, 'Tägliche Elementversorgung anpassen')
+  assert.deepEqual(elevated[0].detailItems, [{ label: 'Calcium', value: '−20 %' }])
+  assert.deepEqual(reduced[0].detailItems, [{ label: 'Calcium', value: '+30 %' }])
 })
 
 test('element names are bold inside the sentence instead of a separate chip row', () => {
@@ -91,17 +92,38 @@ test('only the water change card carries tips for now', () => {
   }
 })
 
-test('the nutrient card swaps template depending on the direction', () => {
-  const card = (value) => buildDirectRecommendations(evaluateAnalysis([parameter('nitrate', 'Nitrat', 'nutrients', value)], scale)).find((item) => item.key === 'nutrients')
-  assert.equal(card(15).title, 'Nährstoffmanagement optimieren')
-  assert.equal(card(15).action.label, '', 'the elevated nutrient card has no redundant action button')
-  assert.equal(card(0.2).title, 'Nährstoffversorgung anheben')
-  assert.equal(card(0.2).action.label, 'Nährstoffe prüfen')
-  assert.ok(card(0.2).detailItems.some((item) => item.label === 'Fütterung behutsam erhöhen'))
+test('nutrient management covers all four NO₃/P combinations with volume-based doses', () => {
+  const card = (nitrateScore, phosphorusScore) => buildDirectRecommendations(evaluateAnalysis([
+    parameter('nitrate', 'Nitrat', 'nutrients', nitrateScore < 5 ? 0.2 : 30, { sourceScore: nitrateScore }),
+    parameter('phosphorus', 'Phosphor', 'nutrients', phosphorusScore < 5 ? 5 : 50, { sourceScore: phosphorusScore, unit: 'µg/l' }),
+  ], scale), { volumeLiters: 500 }).find((item) => item.key === 'nutrients')
+
+  const lowLow = card(3, 3)
+  const highLow = card(7, 3)
+  const lowHigh = card(3, 7)
+  const highHigh = card(7, 7)
+  assert.deepEqual(lowLow.detailItems, [{ label: 'Essential Nitro', value: '2,5 ml täglich' }, { label: 'Essential Phospho', value: '2,5 ml täglich' }])
+  assert.deepEqual(highLow.detailItems, [{ label: 'Essential Phospho', value: '2,5 ml täglich' }, { label: 'Eiweißabschäumer', value: 'reinigen' }])
+  assert.deepEqual(lowHigh.detailItems, [{ label: 'PO₄-Adsorber', value: 'nutzen' }, { label: 'Essential Nitro', value: '2,5 ml täglich' }])
+  assert.deepEqual(highHigh.detailItems, [{ label: 'Futtereintrag', value: 'reduzieren' }, { label: 'Eiweißabschäumer', value: 'reinigen' }, { label: 'PO₄-Adsorber', value: 'nutzen' }])
+  for (const recommendation of [lowLow, highLow, lowHigh, highHigh]) assert.equal(recommendation.action.label, '')
+})
+
+test('salinity gets a separate low/high correction based on volume and target PSU', () => {
+  const salinity = (value, sourceScore) => buildDirectRecommendations(evaluateAnalysis([
+    parameter('salinity', 'Salinität', 'basis', value, { sourceScore, correctionTarget: 35, unit: 'PSU' }),
+  ], scale), { volumeLiters: 500 })[0]
+  const low = salinity(30, 3)
+  const high = salinity(40, 7)
+  assert.equal(low.key, 'salinity')
+  assert.equal(low.title, 'Salinität kontrolliert anheben')
+  assert.deepEqual(low.detailItems, [{ label: 'Absolute Ocean 1', value: '4.275 ml' }, { label: 'Absolute Ocean 2', value: '4.275 ml' }])
+  assert.equal(high.title, 'Salinität kontrolliert senken')
+  assert.deepEqual(high.detailItems, [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: '62,5 l' }])
 })
 
 test('a dosing recommendation only appears when a released product dose exists', () => {
   const evaluated = evaluateAnalysis([parameter('iron', 'Eisen', 'trace', 0.1)], scale)
-  assert.deepEqual(buildDirectRecommendations(evaluated).map((item) => item.key), [])
-  assert.deepEqual(buildDirectRecommendations(evaluated, { dosingKeys: ['iron'] }).map((item) => item.key), ['dosing'])
+  assert.deepEqual(buildDirectRecommendations(evaluated).map((item) => item.key), ['reduce-supply'])
+  assert.deepEqual(buildDirectRecommendations(evaluated, { dosingKeys: ['iron'] }).map((item) => item.key), ['reduce-supply', 'dosing'])
 })
