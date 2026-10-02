@@ -463,7 +463,7 @@
           <div class="editor-section">
             <div class="section-label"><span>03</span><div><strong>Maßnahmenblock</strong><small>Der hervorgehobene Kasten unter dem Text</small></div></div>
             <label><span>Überschrift des Blocks</span><small>Zum Beispiel „Mögliche Quellen“ oder „Empfohlene Maßnahmen“. Leer lassen, um den Block auszublenden.</small><input v-model="selectedTemplate.detailLabel" type="text" /></label>
-            <div v-if="selectedTemplate.dynamicDetail" class="template-dynamic-note"><i>i</i><p>Die Einträge dieses Blocks berechnet das System je Element aus dem Score (zum Beispiel „Brom −20 %“). Nur die Überschrift ist redaktionell.</p></div>
+            <div v-if="selectedTemplate.dynamicDetail" class="template-dynamic-note"><i>i</i><p>Die Einträge dieses Blocks berechnet das System aus Messwert, Abweichungsrichtung und — falls benötigt — Beckenvolumen. Nur die Überschrift ist redaktionell.</p></div>
             <ListEditor v-else v-model="selectedTemplate.detailItems" placeholder="Maßnahme oder Quelle eingeben" add-label="Eintrag hinzufügen" />
           </div>
 
@@ -475,7 +475,7 @@
           <section class="content-preview">
             <div><span>Vorschau</span><strong>{{ selectedTemplate.title }}</strong></div>
             <p v-for="(option, index) in selectedTemplate.options" :key="index"><b v-if="option.label">{{ option.label }}:</b> {{ option.text }}</p>
-            <p v-if="selectedTemplate.detailLabel"><b>{{ selectedTemplate.detailLabel }}:</b> {{ selectedTemplate.dynamicDetail ? 'automatisch je Element' : selectedTemplate.detailItems.join(' · ') || '—' }}</p>
+            <p v-if="selectedTemplate.detailLabel"><b>{{ selectedTemplate.detailLabel }}:</b> {{ selectedTemplate.dynamicDetail ? 'automatisch aus dem Laborbericht' : selectedTemplate.detailItems.join(' · ') || '—' }}</p>
             <div class="preview-actions">
               <article><span>Tipps</span><p>{{ selectedTemplate.tips.join(' · ') || 'Keine Tipps hinterlegt.' }}</p></article>
             </div>
