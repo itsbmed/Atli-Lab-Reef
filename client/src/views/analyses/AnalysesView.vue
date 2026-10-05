@@ -254,10 +254,32 @@ function formatDate(iso) {
 .tl-step.done em { color: #8fa2b3; }
 @media (min-width: 1180px) {
   .analysis-row { grid-template-columns: 54px minmax(0, 1fr) minmax(300px, 380px) auto 18px; gap: 26px; }
-  .row-timeline { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; min-width: 0; padding-top: 2px; margin-right: 18px; }
-  /* One continuous rail from the first centre to the last, and its filled portion. */
+  .row-timeline {
+    /* Punktgröße und Schienenstärke stehen hier, damit die Schiene unten exakt
+       auf der Punktmitte sitzt und beides nicht getrennt verstellt werden kann. */
+    --tl-dot: 14px;
+    --tl-rail: 2px;
+    --tl-top: 2px;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: start;
+    min-width: 0;
+    padding-top: var(--tl-top);
+    margin-right: 18px;
+  }
+  /* Eine durchgehende Schiene von der ersten bis zur letzten Punktmitte,
+     waagerecht auf 12,5 % und 87,5 % (den Spaltenmitten), senkrecht auf
+     Punktmitte = Innenabstand + halbe Punkthöhe − halbe Schienenstärke. */
   .row-timeline::before,
-  .row-timeline::after { content: ''; position: absolute; top: 6px; left: 12.5%; height: 2px; border-radius: 999px; }
+  .row-timeline::after {
+    content: '';
+    position: absolute;
+    top: calc(var(--tl-top) + (var(--tl-dot) - var(--tl-rail)) / 2);
+    left: 12.5%;
+    height: var(--tl-rail);
+    border-radius: 999px;
+  }
   .row-timeline::before { right: 12.5%; background: #e4ecf3; }
   .row-timeline::after { width: calc(75% * var(--tl-progress, 0)); background: var(--teal-500); transition: width .3s ease; }
 }
