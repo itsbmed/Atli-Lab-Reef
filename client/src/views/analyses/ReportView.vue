@@ -45,14 +45,20 @@
       </section>
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
+        <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
+          Alle Werte <b>{{ analysis.parameters.length }}</b>
+        </button>
+        <button v-if="balance.composition.length" type="button" :class="{ active: activeTab === 'balance' }" @click="activeTab = 'balance'">
+          Zusammensetzung <b>{{ balance.composition.length }}</b>
+        </button>
+        <button v-if="analysis.osmosisParameters?.length" type="button" :class="{ active: activeTab === 'osmosis' }" @click="activeTab = 'osmosis'">
+          Osmosewasser <b>{{ analysis.osmosisParameters.length }}</b>
+        </button>
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
           Empfehlungen <b v-if="openActionCount">{{ openActionCount }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'dosing' }" @click="activeTab = 'dosing'">
           Dosierungsplan <b v-if="dosingItemCount">{{ dosingItemCount }}</b>
-        </button>
-        <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
-          Alle Werte <b>{{ analysis.parameters.length }}</b>
         </button>
         <button type="button" :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">
           Favoriten <b v-if="favoriteParameters.length">{{ favoriteParameters.length }}</b>
@@ -120,7 +126,15 @@
                   <span class="action-detail-label">{{ item.detailLabel }}</span>
                   <ul>
                     <li v-for="entry in item.detailItems" :key="entry.label">
-                      <span>{{ entry.label }}</span>
+                      <a
+                        v-if="entry.url"
+                        :href="entry.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="detail-shop"
+                        :title="entry.product ? `${entry.product} im ATI-Shop öffnen` : 'Im ATI-Shop öffnen'"
+                      >{{ entry.label }}<span aria-hidden="true">↗</span></a>
+                      <span v-else>{{ entry.label }}</span>
                       <b v-if="entry.value">{{ entry.value }}</b>
                     </li>
                   </ul>
@@ -316,6 +330,64 @@
       </section>
 
 
+      <section v-if="analysis.status === 'completed' && balance.composition.length" v-show="activeTab === 'balance'" class="balance-stack">
+        <BalanceChart
+          eyebrow="Zusammensetzung"
+          title="Zusammensetzung des Aquarienwassers"
+          description="Das Diagramm zeigt, ob die Hauptelemente zur gemessenen Salinität passen oder ob einzelne Elemente unabhängig davon angereichert oder verbraucht sind. Jede Größenordnung hat ihren eigenen Maßstab."
+          :items="balance.composition"
+          :labels="{ left: 'niedrig', center: 'natürlich', right: 'hoch' }"
+          :foot-label="`Abweichung vom Sollwert des Labors${compositionUnit ? ` in ${compositionUnit}` : ''}`"
+        />
+
+        <div class="balance-pair-grid">
+          <BalanceChart
+            variant="pair"
+            eyebrow="Verhältnisse"
+            title="Elementverhältnisse"
+            description="Zeigt, ob die Versorgung ausgewogen ist oder ob einzelne Elementpaare zueinander verschoben sind. Der Pfeil zeigt zur Seite mit dem relativ höheren Anteil."
+            :items="balance.ratios.rows"
+            :labels="{ left: 'hoch', center: 'ausgewogen', right: 'hoch' }"
+            :foot-label="balance.ratios.scale ? `Gleichgewicht verschoben um bis zu ±${balance.ratios.scale} %` : ''"
+          />
+          <BalanceChart
+            variant="pair"
+            eyebrow="Wachstum"
+            title="Wachstumsfaktoren"
+            description="Zeigt, ob die wichtigsten Wachstumsfaktoren im Gleichgewicht stehen. Der Pfeil zeigt zur Seite mit der relativ höheren Konzentration."
+            :items="balance.growth.rows"
+            :labels="{ left: 'hoch', center: 'ausgewogen', right: 'hoch' }"
+            :foot-label="balance.growth.scale ? `Gleichgewicht verschoben um bis zu ±${balance.growth.scale} %` : ''"
+          />
+        </div>
+      </section>
+
+      <section v-if="analysis.status === 'completed' && analysis.osmosisParameters?.length" v-show="activeTab === 'osmosis'" class="panel osmosis-results">
+        <div class="explorer-head">
+          <div>
+            <span>Osmosewasser</span>
+            <h2>Ergebnisse der Osmoseprobe</h2>
+            <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe.</p>
+          </div>
+          <b class="osmosis-sample-label">ATI Laborbericht {{ analysis.reportNumber }}</b>
+        </div>
+
+        <div class="osmosis-grid">
+          <article v-for="parameter in analysis.osmosisParameters" :key="parameter.key" :class="['osmosis-result', parameter.tone]">
+            <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+            <span class="osmosis-result-name">
+              <strong>{{ parameter.label }}</strong>
+              <small>{{ labStatusLabel(parameter) }}</small>
+            </span>
+            <span :class="['osmosis-result-value', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
+              <strong>{{ displayParameterValue(parameter) }}</strong>
+              <small>{{ readingUnit(parameter) }}</small>
+            </span>
+            <span class="osmosis-result-target">Soll {{ parameter.target }} {{ parameter.unit }}</span>
+          </article>
+        </div>
+      </section>
+
       <section v-if="analysis.status === 'completed'" v-show="activeTab === 'favorites'" class="panel favorites-panel">
         <div class="explorer-head">
           <div>
@@ -410,10 +482,12 @@ import { loadRecommendationProgress, saveRecommendationProgress } from '@/servic
 import { recommendedProductsForKeys } from '@/services/dosingConfig'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
 import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directRecommendations'
+import { waterBalance } from '@/services/waterBalance'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 import ParameterKnowledgePanel from '@/components/analyses/ParameterKnowledgePanel.vue'
+import BalanceChart from '@/components/analyses/BalanceChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info u. Analytik', icon: 'i' },
@@ -504,6 +578,8 @@ const explorerSummary = computed(() => {
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
   return `${issues} ${issues === 1 ? 'Auffälligkeit' : 'Auffälligkeiten'} in ${scope}`
 })
+const balance = computed(() => waterBalance(analysis.value?.parameters || []))
+const compositionUnit = computed(() => balance.value.composition[0]?.unit || '')
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
 const approvedDosingItems = computed(() => buildDosingPlan(analysis.value?.parameters || [], Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0)).filter(item => item.dose))
 const dosingItemCount = computed(() => approvedDosingItems.value.length + (analysis.value?.parameters || []).filter((parameter) => parameter.managedDose).length)
@@ -512,6 +588,7 @@ const activeScale = computed(() => findScale(evaluationScales, analysis.value?.a
 const evaluatedParameters = computed(() => evaluateAnalysis(analysis.value?.parameters || [], activeScale.value))
 const directRecommendations = computed(() => buildDirectRecommendations(evaluatedParameters.value, {
   dosingKeys: new Set(approvedDosingItems.value.map((item) => item.key)),
+  volumeLiters: Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0),
 }))
 const openActionCount = computed(() => directRecommendations.value.filter((item) => !completedActions[item.key]).length)
 const actionsIntro = computed(() => {
@@ -802,6 +879,9 @@ function markPdf() {
 .action-detail-label { display: block; margin-bottom: 11px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
 .action-detail-block ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .action-detail-block li { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #cfe4f3; border-radius: 10px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 700; }
+.detail-shop { display: inline-flex; gap: 5px; align-items: center; color: var(--brand-blue); text-decoration: none; border-bottom: 1px solid rgba(0,114,206,0.3); }
+.detail-shop:hover { border-bottom-color: var(--brand-blue); }
+.detail-shop span { font-size: 10px; }
 .action-detail-block li > b { padding: 2px 7px; border-radius: 999px; background: #0072ce; color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
 .action-card.critical .action-detail-block li > b { background: #e85d4f; }
 .detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 850; cursor: pointer; transition: background .15s, color .15s; }
@@ -827,6 +907,8 @@ function markPdf() {
   .action-rise-enter-active { transition: none; }
   .action-card:hover { transform: none; }
 }
+.balance-stack { display: grid; gap: 14px; }
+.balance-pair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
@@ -948,6 +1030,24 @@ function markPdf() {
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
+.osmosis-results { display: grid; gap: 18px; }
+.osmosis-sample-label { align-self: center; padding: 8px 11px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; }
+.osmosis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 9px; }
+.osmosis-result { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 14px; background: #fff; }
+.osmosis-result.watch { border-left-color: #f59e0b; background: #fffbeb; }
+.osmosis-result.critical { border-left-color: #e85d4f; background: #fff7f5; }
+.osmosis-result-name { min-width: 0; }
+.osmosis-result-name strong,
+.osmosis-result-name small { display: block; }
+.osmosis-result-name strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.osmosis-result-name small,
+.osmosis-result-target { color: var(--text-muted); font-size: 9.5px; font-weight: 700; }
+.osmosis-result-value { text-align: right; white-space: nowrap; }
+.osmosis-result-value strong { color: var(--text); font-size: 14px; }
+.osmosis-result-value small { margin-left: 3px; color: var(--text-muted); font-size: 9px; }
+.osmosis-result-value.undetected strong { color: #94a3b8; font-size: 13px; }
+.osmosis-result-value.undetected small { display: block; margin-left: 0; color: #a9b6c6; font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; }
+.osmosis-result-target { grid-column: 2 / -1; padding-top: 7px; border-top: 1px solid rgba(136,193,233,0.24); }
 .favorites-panel { display: grid; gap: 18px; }
 .favorite-list { margin-top: 2px; }
 .favorites-empty { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); text-align: center; }
