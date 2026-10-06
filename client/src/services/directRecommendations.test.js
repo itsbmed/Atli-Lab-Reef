@@ -117,9 +117,30 @@ test('salinity gets a separate low/high correction based on volume and target PS
   const high = salinity(40, 7)
   assert.equal(low.key, 'salinity')
   assert.equal(low.title, 'Salinität kontrolliert anheben')
-  assert.deepEqual(low.detailItems, [{ label: 'Absolute Ocean 1', value: '4.275 ml' }, { label: 'Absolute Ocean 2', value: '4.275 ml' }])
+  // 4.275 ml je Flasche ist der Wert aus der Arbeitsmappe: (35 - 30) x 1,71 x 500.
+  const shop = { url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-10-2-liter/4600001/', product: 'Absolute Ocean 2 x 10,2 Liter' }
+  assert.deepEqual(low.detailItems, [
+    { label: 'Absolute Ocean 1', value: '4.275 ml', ...shop },
+    { label: 'Absolute Ocean 2', value: '4.275 ml', ...shop },
+  ])
   assert.equal(high.title, 'Salinität kontrolliert senken')
+  // Zu viel Salz kauft man nicht nach, also trägt diese Maßnahme keinen Shop-Link.
   assert.deepEqual(high.detailItems, [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: '62,5 l' }])
+})
+
+test('the linked Absolute Ocean pack covers the calculated amount per bottle', () => {
+  const correction = (volumeLiters) => buildDirectRecommendations(evaluateAnalysis([
+    parameter('salinity', 'Salinität', 'basis', 34, { sourceScore: 3, correctionTarget: 35, unit: 'PSU' }),
+  ], scale), { volumeLiters })[0].detailItems[0]
+
+  const small = correction(200)
+  assert.equal(small.value, '342 ml')
+  assert.equal(small.product, 'Absolute Ocean 2 x 2.700ml', 'the 2,7 l set is enough here')
+
+  const large = correction(3000)
+  assert.equal(large.value, '5.130 ml')
+  assert.equal(large.product, 'Absolute Ocean 2 x 10,2 Liter', 'beyond 2,7 l the larger set is linked')
+  assert.ok(large.url.startsWith('https://shop.atiaquaristik.com/'), 'the link points at the ATI shop')
 })
 
 test('a dosing recommendation only appears when a released product dose exists', () => {
