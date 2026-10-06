@@ -24,3 +24,32 @@ export const ATI_PRODUCT_CATALOG = Object.freeze({
   vanadium: { name: 'ICP Element Vanadium 150ml', url: 'https://shop.atiaquaristik.com/en/icp-element-vanadium-150ml/3520040/', image: 'https://shop.atiaquaristik.com/media/74/32/4a/1749651266/ATI_Vanadium_150ml_3000x2000px_150_2MB_1240.png' },
   zinc: { name: 'ICP Element Zinc 150ml', url: 'https://shop.atiaquaristik.com/en/icp-element-zinc-150ml/3520041/', image: 'https://shop.atiaquaristik.com/media/ce/65/97/1749651370/ATI_Zinc_150ml_3000x2000px_150_2MB_1241.png' },
 })
+
+// Absolute Ocean ist kein ICP-Element, sondern das Meerwasser-Konzentrat aus dem
+// ATI-Shop. Es besteht aus zwei Flaschen (Teil 1 und Teil 2), die zu gleichen
+// Teilen dosiert werden – deshalb zählt für die Packungswahl die Menge je Flasche.
+// Quelle: shop.atiaquaristik.com, Kategorie „Salt Water", geprüft am 06.10.2026.
+export const ATI_ABSOLUTE_OCEAN_SETS = Object.freeze([
+  {
+    name: 'Absolute Ocean 2 x 2.700ml',
+    millilitersPerBottle: 2700,
+    makesLiters: 45,
+    url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-2.700ml/4600002/',
+    image: 'https://shop.atiaquaristik.com/media/d4/e9/3d/1763989495/ATI_Absolute_Ocean_2700ml_SET_1920x1280_1298.png',
+  },
+  {
+    name: 'Absolute Ocean 2 x 10,2 Liter',
+    millilitersPerBottle: 10200,
+    makesLiters: 170,
+    url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-10-2-liter/4600001/',
+    image: '',
+  },
+])
+
+// Kleinste Packung, die die berechnete Menge je Flasche abdeckt; sonst die größte.
+export function absoluteOceanSet(millilitersPerBottle = 0) {
+  const needed = Number(millilitersPerBottle)
+  const sets = ATI_ABSOLUTE_OCEAN_SETS
+  if (!Number.isFinite(needed) || needed <= 0) return sets[0]
+  return sets.find((set) => set.millilitersPerBottle >= needed) || sets[sets.length - 1]
+}
