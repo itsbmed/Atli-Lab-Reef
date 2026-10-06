@@ -1,5 +1,6 @@
 import { SCORE_BAND_MAP, evaluateParameter } from './evaluationScales.js'
 import { templateMap } from './recommendationTemplates.js'
+import { absoluteOceanSet } from './atiProductCatalog.js'
 
 // An imported report keeps the originating laboratory's verdict; only unclassified
 // values fall through to the selected evaluation scale.
@@ -73,13 +74,21 @@ function salinityCorrection(parameter, volumeLiters) {
   const volume = Number(volumeLiters)
   const low = parameter.evaluation.score < 5
   if (!Number.isFinite(current) || !Number.isFinite(target)) return []
-  if (!(volume > 0)) return low
-    ? [{ label: 'Absolute Ocean 1 und 2', value: 'je 1,71 ml pro PSU und Liter' }]
-    : [{ label: 'Meerwasser gegen Osmosewasser tauschen', value: 'Menge nach Beckenvolumen' }]
+  if (!(volume > 0)) {
+    if (!low) return [{ label: 'Meerwasser gegen Osmosewasser tauschen', value: 'Menge nach Beckenvolumen' }]
+    const set = absoluteOceanSet(0)
+    return [{ label: 'Absolute Ocean 1 und 2', value: 'je 1,71 ml pro PSU und Liter', url: set.url, product: set.name }]
+  }
   if (low) {
     const millilitersEach = Math.max(0, (target - current) * 1.71 * volume)
     const amount = `${numberLabel(millilitersEach, 0)} ml`
-    return [{ label: 'Absolute Ocean 1', value: amount }, { label: 'Absolute Ocean 2', value: amount }]
+    // Beide Flaschen werden gleich dosiert, also entscheidet die Menge je Flasche
+    // darüber, welche Packung im Shop reicht.
+    const set = absoluteOceanSet(millilitersEach)
+    return [
+      { label: 'Absolute Ocean 1', value: amount, url: set.url, product: set.name },
+      { label: 'Absolute Ocean 2', value: amount, url: set.url, product: set.name },
+    ]
   }
   const liters = Math.max(0, volume - (target / current * volume))
   return [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: `${numberLabel(liters)} l` }]
