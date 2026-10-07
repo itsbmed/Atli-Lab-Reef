@@ -48,12 +48,13 @@
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
           Alle Werte <b>{{ analysis.parameters.length }}</b>
         </button>
-        <button v-if="balance.composition.length" type="button" :class="{ active: activeTab === 'balance' }" @click="activeTab = 'balance'">
-          Zusammensetzung <b>{{ balance.composition.length }}</b>
-        </button>
-        <button v-if="analysis.osmosisParameters?.length" type="button" :class="{ active: activeTab === 'osmosis' }" @click="activeTab = 'osmosis'">
+         <button v-if="analysis.osmosisParameters?.length" type="button" :class="{ active: activeTab === 'osmosis' }" @click="activeTab = 'osmosis'">
           Osmosewasser <b>{{ analysis.osmosisParameters.length }}</b>
         </button>
+        <button v-if="balance.composition.length" type="button" :class="{ active: activeTab === 'balance' }" @click="activeTab = 'balance'">
+          Diagramme <b>{{ balance.composition.length }}</b>
+        </button>
+       
         <button type="button" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
           Empfehlungen <b v-if="openActionCount">{{ openActionCount }}</b>
         </button>
@@ -65,7 +66,7 @@
         </button>
       </nav>
 
-      <section v-show="activeTab === 'overview'" class="combined-report-flow">
+      <section v-show="activeTab === 'overview' || analysis.status !== 'completed'" class="combined-report-flow">
         <div class="report-layout">
           <main class="report-main">
           <section class="panel direct-actions">
@@ -122,19 +123,11 @@
                   </article>
                 </div>
 
-                <div v-if="item.detailLabel && item.detailItems.length" class="action-detail-block">
+                <div v-if="showDetailBlock(item)" class="action-detail-block">
                   <span class="action-detail-label">{{ item.detailLabel }}</span>
                   <ul>
                     <li v-for="entry in item.detailItems" :key="entry.label">
-                      <a
-                        v-if="entry.url"
-                        :href="entry.url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="detail-shop"
-                        :title="entry.product ? `${entry.product} im ATI-Shop öffnen` : 'Im ATI-Shop öffnen'"
-                      >{{ entry.label }}<span aria-hidden="true">↗</span></a>
-                      <span v-else>{{ entry.label }}</span>
+                      <span>{{ entry.label }}</span>
                       <b v-if="entry.value">{{ entry.value }}</b>
                     </li>
                   </ul>
@@ -151,7 +144,12 @@
                   </div>
                 </aside>
 
-                <ProductSuggestions v-if="recommendationProducts(item).length" class="action-products" :products="recommendationProducts(item)" />
+                <ProductSuggestions
+                  v-if="recommendationProducts(item).length"
+                  class="action-products"
+                  :products="recommendationProducts(item)"
+                  :alternatives="productAlternatives(item)"
+                />
 
                 <div class="action-footer">
                   <button v-if="item.action.label && !item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
@@ -367,24 +365,76 @@
           <div>
             <span>Osmosewasser</span>
             <h2>Ergebnisse der Osmoseprobe</h2>
-            <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe.</p>
+            <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe. Osmosewasser soll frei von Elementen sein – ein Wert ist deshalb entweder nicht nachweisbar oder zu hoch, ein „zu niedrig“ gibt es hier nicht.</p>
           </div>
           <b class="osmosis-sample-label">ATI Laborbericht {{ analysis.reportNumber }}</b>
         </div>
 
-        <div class="osmosis-grid">
-          <article v-for="parameter in analysis.osmosisParameters" :key="parameter.key" :class="['osmosis-result', parameter.tone]">
-            <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-            <span class="osmosis-result-name">
-              <strong>{{ parameter.label }}</strong>
-              <small>{{ labStatusLabel(parameter) }}</small>
+        <div class="parameter-groups" aria-label="Gruppen der Osmoseprobe">
+          <button type="button" :class="[osmosisOverall.tone, { active: !selectedOsmosisGroup }]" @click="selectedOsmosisGroup = ''">
+            <span class="group-dial" :style="groupDialStyle(osmosisOverall.cleanShare, osmosisOverall.tone)" aria-hidden="true"><b>{{ osmosisOverall.cleanShare }}</b><em>%</em></span>
+            <span class="group-filter-copy">
+              <span class="group-filter-label">Alle Gruppen</span>
+              <b class="group-count">{{ analysis.osmosisParameters.length }} Werte</b>
             </span>
-            <span :class="['osmosis-result-value', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
-              <strong>{{ displayParameterValue(parameter) }}</strong>
-              <small>{{ readingUnit(parameter) }}</small>
+          </button>
+          <button
+            v-for="group in osmosisGroupFilters"
+            :key="group.key"
+            type="button"
+            :class="[group.tone, `group-${group.key}`, { active: selectedOsmosisGroup === group.key }]"
+            :title="`${group.cleanShare} % der Werte in dieser Gruppe sind nicht nachweisbar`"
+            @click="selectedOsmosisGroup = selectedOsmosisGroup === group.key ? '' : group.key"
+          >
+            <span class="group-dial" :style="groupDialStyle(group.cleanShare, group.tone)" aria-hidden="true"><b>{{ group.cleanShare }}</b><em>%</em></span>
+            <span class="group-filter-copy">
+              <span class="group-filter-label">{{ group.label }}</span>
+              <b :class="['status-chip', group.tone]">{{ group.dirty ? 'Belastet' : 'Sauber' }}</b>
+              <small>{{ group.dirty ? `${group.dirty} nachweisbar` : 'Nichts nachweisbar' }}</small>
             </span>
-            <span class="osmosis-result-target">Soll {{ parameter.target }} {{ parameter.unit }}</span>
-          </article>
+          </button>
+        </div>
+
+        <div class="element-sections">
+          <section
+            v-for="group in visibleOsmosisSections"
+            :key="group.key"
+            :class="['element-section', `group-${group.key}`, { collapsed: collapsedOsmosisGroups[group.key] }]"
+          >
+            <button type="button" class="element-section-head" :aria-expanded="!collapsedOsmosisGroups[group.key]" @click="toggleOsmosisSection(group.key)">
+              <i class="element-section-dot" aria-hidden="true"></i>
+              <strong>{{ group.label }}</strong>
+              <b>{{ group.items.length }}</b>
+              <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
+              <i class="element-section-chevron" aria-hidden="true">⌄</i>
+            </button>
+            <div v-show="!collapsedOsmosisGroups[group.key]" class="element-list">
+              <article
+                v-for="parameter in group.items"
+                :key="parameter.key"
+                :class="['element-row', 'static', parameter.tone, `group-${group.key}`]"
+              >
+                <div class="element-head">
+                  <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
+                  <span class="element-name">
+                    <strong>{{ parameter.label }}</strong>
+                    <span class="element-meta">
+                      <em :class="['status-chip', parameter.tone]">{{ osmosisStatusLabel(parameter) }}</em>
+                      <small class="element-group">{{ labStatusLabel(parameter) }}</small>
+                    </span>
+                  </span>
+                  <span :class="['purity-meter', parameter.tone]">
+                    <i><b></b></i>
+                    <small>{{ isUndetectable(parameter) ? 'Frei von diesem Element' : `Nachweisbar – Soll ist 0 ${parameter.unit}` }}</small>
+                  </span>
+                  <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
+                    <strong>{{ displayParameterValue(parameter) }}</strong>
+                    <small>{{ readingUnit(parameter) }}</small>
+                  </span>
+                </div>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -480,6 +530,7 @@ import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCata
 import { buildDosingPlan } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
 import { recommendedProductsForKeys } from '@/services/dosingConfig'
+import { essentialsRecommendation } from '@/services/atiProductCatalog'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
 import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directRecommendations'
 import { waterBalance } from '@/services/waterBalance'
@@ -502,12 +553,15 @@ const analyses = useAnalysesStore()
 const auth = useAuthStore()
 const parameterContent = loadAnalysisContent()
 const actionMsg = ref('')
-const activeTab = ref('overview')
+// Der Bericht öffnet auf den Messwerten; die Empfehlungen sind einen Reiter weiter.
+const activeTab = ref('values')
 const selectedGroup = ref('')
 const parameterSearch = ref('')
 const parameterStatus = ref('all')
 const expandedParameters = reactive({})
 const collapsedGroups = reactive({})
+const collapsedOsmosisGroups = reactive({})
+const selectedOsmosisGroup = ref('')
 const parameterDetailPanels = reactive({})
 const completedActions = reactive({})
 const showAllIssues = ref(false)
@@ -596,7 +650,55 @@ const actionsIntro = computed(() => {
   const names = directRecommendations.value.flatMap((item) => item.elements)
   return `Bewertet nach ${activeScale.value?.name || 'ATI Standard'}. Betroffen: ${[...new Set(names)].join(', ')}.`
 })
+// Zwei Kästen mit derselben Aussage sind einer zu viel: trägt die Produktkarte
+// die Menge bereits, entfällt der Korrekturkasten.
+function showDetailBlock(item) {
+  if (!item.detailLabel || !item.detailItems.length) return false
+  return !(item.key === 'salinity' && recommendationProducts(item).length)
+}
+const essentialsSuggestion = computed(() => essentialsRecommendation(
+  analysis.value?.aquariumProfile?.aquariumType,
+  Number(analysis.value?.aquariumProfile?.volumeLiters || 0),
+))
+function productAlternatives(item) {
+  return item.key === 'reduce-supply' ? essentialsSuggestion.value.alternatives : []
+}
 function recommendationProducts(item) {
+  // Salinität wird nicht über ein ICP-Element korrigiert, sondern über das
+  // Meerwasser-Konzentrat. Die Packung steckt bereits in der berechneten
+  // Korrektur, also wird sie hier als Produkt gezeigt wie bei allen anderen.
+  // Beide Komponenten werden in gleicher Menge dosiert, das Set ist also die
+  // richtige Einheit. Die Größe folgt dem Beckenvolumen, Magnesium hat in dieser
+  // Linie kein eigenes Produkt und bleibt beim ICP-Element.
+  if (item.key === 'reduce-supply') {
+    const { primary, reach } = essentialsSuggestion.value
+    const span = reach ? `reicht etwa ${Math.round(reach.fast)}–${Math.round(reach.slow)} Monate` : ''
+    const keys = new Set((item.detailItems || []).map((detail) => detail.label))
+    const magnesium = keys.has(ELEMENT_DEFINITION_MAP.magnesium?.label)
+      ? recommendedProductsForKeys(['magnesium'], analysis.value?.parameters || [])
+      : []
+    return [
+      {
+        parameterKey: 'essentials',
+        productName: primary.name,
+        productNote: ['Beide Komponenten', span].filter(Boolean).join(' · '),
+        productUrl: primary.url,
+        productImage: primary.image,
+      },
+      ...magnesium,
+    ]
+  }
+  if (item.key === 'salinity') {
+    return (item.detailItems || [])
+      .filter((detail) => detail.url)
+      .map((detail) => ({
+        parameterKey: detail.label,
+        productName: detail.label,
+        productNote: detail.value,
+        productUrl: detail.url,
+        productImage: detail.image || '',
+      }))
+  }
   return recommendedProductsForKeys(item.elementKeys, analysis.value?.parameters || [])
 }
 function runRecommendation(item, override) {
@@ -639,6 +741,10 @@ function parameterTargetLabel(parameter) {
 function groupDialStyle(score, tone) {
   const color = tone === 'critical' ? '#e85d4f' : tone === 'watch' ? '#f59e0b' : '#10b981'
   return { background: `conic-gradient(${color} ${Math.max(0, Math.min(100, Number(score) || 0)) * 3.6}deg, #e7eef6 0deg)` }
+}
+// Osmosewasser kennt kein „zu niedrig": sauber oder belastet.
+function osmosisStatusLabel(parameter) {
+  return isUndetectable(parameter) ? 'Sauber' : 'Belastet'
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
@@ -684,6 +790,45 @@ function readingTitle(parameter) {
   return isUndetectable(parameter)
     ? `${parameter.label}: nicht nachweisbar (unter der Nachweisgrenze)`
     : `${parameter.label}: ${displayParameterValue(parameter)} ${parameter.unit}`
+}
+// Die Osmoseprobe folgt derselben Gruppierung wie „Alle Werte", hat aber
+// weder Verlauf noch Dosierung – die Zeilen bleiben deshalb unaufklappbar.
+const osmosisGroupSections = computed(() => {
+  const rows = analysis.value?.osmosisParameters || []
+  if (!rows.length) return []
+  return ANALYSIS_GROUPS
+    .map((group) => {
+      const items = rows.filter((row) => parameterGroup(row).key === group.key)
+      return { ...group, items, issueCount: items.filter((item) => item.tone !== 'good').length }
+    })
+    .filter((group) => group.items.length)
+})
+// Der Anteil nicht nachweisbarer Werte – in Osmosewasser ist das die Reinheit.
+const osmosisGroupFilters = computed(() => osmosisGroupSections.value.map((group) => {
+  const dirty = group.items.filter((item) => item.tone !== 'good').length
+  return {
+    key: group.key,
+    label: group.label,
+    dirty,
+    cleanShare: Math.round(((group.items.length - dirty) / group.items.length) * 100),
+    tone: dirty ? 'critical' : 'good',
+  }
+}))
+const osmosisOverall = computed(() => {
+  const rows = analysis.value?.osmosisParameters || []
+  const dirty = rows.filter((item) => item.tone !== 'good').length
+  return {
+    dirty,
+    cleanShare: rows.length ? Math.round(((rows.length - dirty) / rows.length) * 100) : 100,
+    tone: dirty ? 'critical' : 'good',
+  }
+})
+const visibleOsmosisSections = computed(() => (selectedOsmosisGroup.value
+  ? osmosisGroupSections.value.filter((group) => group.key === selectedOsmosisGroup.value)
+  : osmosisGroupSections.value))
+
+function toggleOsmosisSection(key) {
+  collapsedOsmosisGroups[key] = !collapsedOsmosisGroups[key]
 }
 function toggleGroupSection(key) {
   collapsedGroups[key] = !collapsedGroups[key]
@@ -763,7 +908,7 @@ function markPdf() {
 
 <style scoped>
 .report { display: grid; gap: 18px; }
-.back-link { color: var(--teal-700); font-weight: 800; text-decoration: none; }
+.back-link { color: var(--teal-700); font-weight: 600; text-decoration: none; }
 .missing-card,
 .report-hero,
 .workflow-card,
@@ -771,14 +916,14 @@ function markPdf() {
 .missing-card { max-width: 620px; padding: 34px; }
 .missing-card span,
 .hero-kicker,
-.section-head span { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.missing-card h1 { margin: 8px 0; color: var(--text); font-size: 34px; font-weight: 800; }
+.section-head span { color: var(--teal-700); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.missing-card h1 { margin: 8px 0; color: var(--text); font-size: 34px; font-weight: 700; }
 .missing-card p { margin-bottom: 18px; color: var(--text-muted); }
 .report-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: clamp(24px, 4vw, 34px); color: #fff; background: linear-gradient(115deg, rgba(10,27,67,0.98), rgba(0,114,206,0.72)), url('/reef-tank.webp') center / cover; }
 .report-hero.critical { background: linear-gradient(115deg, rgba(10,27,67,0.98), rgba(232,93,79,0.72)), url('/reef-tank.webp') center / cover; }
 .report-hero.watch { background: linear-gradient(115deg, rgba(10,27,67,0.98), rgba(245,158,11,0.56)), url('/reef-tank.webp') center / cover; }
 .report-hero .hero-kicker { color: var(--teal-200); }
-.report-hero h1 { margin: 8px 0; font-size: clamp(34px, 5vw, 58px); line-height: 0.96; font-weight: 800; letter-spacing: -0.05em; }
+.report-hero h1 { margin: 8px 0; font-size: clamp(34px, 5vw, 58px); line-height: 0.96; font-weight: 700; letter-spacing: -0.05em; }
 .report-hero p { color: rgba(255,255,255,0.72); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .action-msg { margin-top: 12px; color: var(--teal-100); font-size: 13px; font-weight: 800; }
@@ -791,11 +936,11 @@ function markPdf() {
 .score-card span,
 .score-card strong,
 .score-card em { display: block; }
-.score-card span { color: var(--teal-200); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.score-card span { color: var(--teal-200); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
 .score-card strong { margin-top: 5px; font-size: 22px; }
 .score-card em { margin-top: 4px; color: rgba(255,255,255,0.7); font-style: normal; font-size: 13px; }
 .workflow-card { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px; }
-.workflow-step { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 16px; color: var(--text-muted); background: rgba(238,245,251,0.72); font-size: 12px; font-weight: 800; }
+.workflow-step { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 16px; color: var(--text-muted); background: rgba(238,245,251,0.72); font-size: 12px; font-weight: 600; }
 .workflow-step i { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
 .workflow-step.done i { background: var(--teal-500); }
 .workflow-step.active { color: var(--brand-blue); background: var(--teal-50); }
@@ -816,7 +961,7 @@ function markPdf() {
 .panel { padding: 22px; }
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
 .section-head.compact { margin-bottom: 12px; }
-.section-head h2 { color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.section-head h2 { color: var(--text); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .section-head strong { color: var(--text); font-size: 13px; }
 .parameter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
 .parameter-card { padding: 15px; border-radius: 18px; background: rgba(238,245,251,0.72); border: 1px solid var(--border); }
@@ -825,26 +970,26 @@ function markPdf() {
 .parameter-card span,
 .parameter-card strong,
 .parameter-card em { display: block; }
-.parameter-card span { color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.parameter-card span { color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
 .parameter-card strong { margin-top: 5px; color: var(--text); font-size: 24px; }
 .parameter-card small { color: var(--text-muted); font-size: 12px; }
 .parameter-card em { margin-top: 5px; color: var(--text-muted); font-style: normal; font-size: 12px; font-weight: 700; }
-.status-chip { display: inline-flex; align-items: center; width: fit-content; padding: 3px 7px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 9px; font-style: normal; font-weight: 850; line-height: 1.25; }
+.status-chip { display: inline-flex; align-items: center; width: fit-content; padding: 4px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 10.5px; font-style: normal; font-weight: 600; line-height: 1.25; }
 .status-chip.watch { background: #fff4df; color: #9a4d0a; }
 .status-chip.critical { background: #fdecea; color: #b53a2e; }
 .issue-list { display: grid; gap: 8px; }
 .muted { color: var(--text-muted); line-height: 1.55; }
-.overview-sidebar { overflow: hidden; padding: 0; }.sidebar-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; background: #0a1b43; color: #fff; }.sidebar-summary span { color: var(--teal-200); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }.sidebar-summary h2 { margin-top: 5px; font-size: 23px; line-height: 1.15; }.sidebar-summary > b { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 14px; background: #10b981; font-size: 16px; }.sidebar-summary > b.watch { background: #f59e0b; }.sidebar-summary > b.critical { background: #e85d4f; }.sidebar-issues { display: grid; gap: 12px; padding: 18px 20px; }.sidebar-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.sidebar-section-title strong { color: var(--text); font-size: 13px; }.sidebar-section-title span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.issue-list.expanded { max-height: min(340px, 40vh); padding-right: 4px; overflow-y: auto; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.issue-list span { padding: 10px 11px; border-left: 3px solid #f59e0b; border-radius: 9px; background: #fff7ed; color: #92400e; font-size: 11.5px; font-weight: 800; line-height: 1.4; }.issues-clean { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 11px; background: #ecfdf5; color: #047857; }.issues-clean i { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 50%; background: #10b981; color: #fff; font-style: normal; font-weight: 900; }.issues-clean p { font-size: 11.5px; line-height: 1.5; }.issue-toggle { justify-self: start; padding: 6px 0; border: 0; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 850; cursor: pointer; }.issue-toggle:hover { text-decoration: underline; }.context-disclosure { border-top: 1px solid var(--border); }.context-disclosure summary { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 9px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; }.context-disclosure summary::-webkit-details-marker { display: none; }.context-disclosure summary > span { color: var(--text); font-size: 12.5px; font-weight: 850; }.context-disclosure summary > small { max-width: 155px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.context-disclosure summary > i { color: var(--brand-blue); font-size: 17px; font-style: normal; transition: transform .2s; }.context-disclosure[open] summary { background: #f8fbfe; }.context-disclosure[open] summary > i { transform: rotate(180deg); }.context-rows { display: grid; gap: 0; padding: 4px 20px 16px; }.context-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e8eff5; }.context-rows span { color: var(--text-muted); font-size: 10.5px; line-height: 1.35; }.context-rows strong { max-width: 195px; color: var(--text); font-size: 11.5px; line-height: 1.4; text-align: right; }.context-rows > p { margin-top: 9px; padding: 11px; border-radius: 10px; background: #f4f9fd; color: var(--text-muted); font-size: 10.5px; line-height: 1.55; }
+.overview-sidebar { overflow: hidden; padding: 0; }.sidebar-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px; background: #0a1b43; color: #fff; }.sidebar-summary span { color: var(--teal-200); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }.sidebar-summary h2 { margin-top: 5px; font-size: 23px; line-height: 1.15; }.sidebar-summary > b { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 14px; background: #10b981; font-size: 16px; }.sidebar-summary > b.watch { background: #f59e0b; }.sidebar-summary > b.critical { background: #e85d4f; }.sidebar-issues { display: grid; gap: 12px; padding: 18px 20px; }.sidebar-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.sidebar-section-title strong { color: var(--text); font-size: 13px; }.sidebar-section-title span { color: var(--text-muted); font-size: 10px; font-weight: 800; }.issue-list.expanded { max-height: min(340px, 40vh); padding-right: 4px; overflow-y: auto; scrollbar-color: var(--teal-400) transparent; scrollbar-width: thin; }.issue-list span { padding: 10px 11px; border-left: 3px solid #f59e0b; border-radius: 9px; background: #fff7ed; color: #92400e; font-size: 11.5px; font-weight: 800; line-height: 1.4; }.issues-clean { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 11px; background: #ecfdf5; color: #047857; }.issues-clean i { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 50%; background: #10b981; color: #fff; font-style: normal; font-weight: 700; }.issues-clean p { font-size: 11.5px; line-height: 1.5; }.issue-toggle { justify-self: start; padding: 6px 0; border: 0; background: transparent; color: var(--brand-blue); font-size: 11px; font-weight: 700; cursor: pointer; }.issue-toggle:hover { text-decoration: underline; }.context-disclosure { border-top: 1px solid var(--border); }.context-disclosure summary { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 9px; min-height: 56px; padding: 15px 20px; cursor: pointer; list-style: none; }.context-disclosure summary::-webkit-details-marker { display: none; }.context-disclosure summary > span { color: var(--text); font-size: 12.5px; font-weight: 700; }.context-disclosure summary > small { max-width: 155px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.context-disclosure summary > i { color: var(--brand-blue); font-size: 17px; font-style: normal; transition: transform .2s; }.context-disclosure[open] summary { background: #f8fbfe; }.context-disclosure[open] summary > i { transform: rotate(180deg); }.context-rows { display: grid; gap: 0; padding: 4px 20px 16px; }.context-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e8eff5; }.context-rows span { color: var(--text-muted); font-size: 10.5px; line-height: 1.35; }.context-rows strong { max-width: 195px; color: var(--text); font-size: 11.5px; line-height: 1.4; text-align: right; }.context-rows > p { margin-top: 9px; padding: 11px; border-radius: 10px; background: #f4f9fd; color: var(--text-muted); font-size: 10.5px; line-height: 1.55; }
 .direct-actions { display: grid; gap: 18px; min-width: 0; padding: 26px; border-top: 4px solid var(--teal-500); box-shadow: 0 12px 32px rgba(10,27,67,0.07); }
 .actions-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-.actions-head > div:first-child > span { color: var(--teal-700); font-size: 11px; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
-.actions-head h2 { margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 850; letter-spacing: -0.02em; }
+.actions-head > div:first-child > span { color: var(--teal-700); font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+.actions-head h2 { margin-top: 4px; color: var(--text); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .actions-head p { max-width: 620px; margin-top: 6px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
 .actions-count { flex: none; padding: 11px 16px; border: 1px solid var(--border); border-radius: 14px; background: #f6fafc; text-align: center; }
 .actions-count strong { display: block; color: var(--brand-blue); font-size: 26px; line-height: 1; }
-.actions-count small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10px; font-weight: 800; }
+.actions-count small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10px; font-weight: 600; }
 .actions-clean { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 14px; border-radius: 16px; background: #ecfdf5; color: #047857; text-align: left; }
-.actions-clean > span { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 22px; font-weight: 900; }
+.actions-clean > span { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: #10b981; color: #fff; font-size: 22px; font-weight: 700; }
 .actions-clean strong { display: block; color: #065f46; font-size: 18px; }
 .actions-clean p { max-width: 430px; margin-top: 3px; color: #047857; font-size: 13px; line-height: 1.5; }
 .action-cards { display: grid; gap: 14px; }
@@ -854,44 +999,41 @@ function markPdf() {
 .action-card.done { opacity: 0.55; }
 .action-card.done .action-heading h3 { text-decoration: line-through; }
 .action-top { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: start; gap: 16px; }
-.action-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(145deg, #fff4df, #ffe9c2); color: #9a5b0a; font-size: 17px; font-weight: 900; }
+.action-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(145deg, #fff4df, #ffe9c2); color: #9a5b0a; font-size: 17px; font-weight: 700; }
 .action-card.critical .action-icon { background: linear-gradient(145deg, #fdecea, #fbd9d4); color: #b53a2e; }
 .action-heading { min-width: 0; }
-.action-heading > small { display: flex; align-items: center; gap: 8px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
-.priority-chip { padding: 3px 8px; border-radius: 999px; background: #fff4df; color: #9a4d0a; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: 0.04em; }
+.action-heading > small { display: flex; align-items: center; gap: 8px; color: var(--teal-700); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.priority-chip { padding: 3px 8px; border-radius: 999px; background: #fff4df; color: #9a4d0a; font-size: 9px; font-style: normal; font-weight: 600; letter-spacing: 0.04em; }
 .priority-chip.critical { background: #fdecea; color: #b53a2e; }
-.action-heading h3 { margin-top: 8px; color: var(--text); font-size: 20px; font-weight: 850; letter-spacing: -0.02em; }
-.action-heading p { margin-top: 7px; color: var(--text-muted); font-size: 13.5px; line-height: 1.65; }
-.action-done { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 2px solid var(--border); border-radius: 11px; background: #fff; color: transparent; font-size: 15px; font-weight: 900; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.action-heading h3 { margin-top: 8px; color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.action-heading p { margin-top: 7px; color: var(--text-muted); font-size: 13px; line-height: 1.65; }
+.action-done { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 2px solid var(--border); border-radius: 11px; background: #fff; color: transparent; font-size: 15px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
 .action-done:hover { border-color: #10b981; }
 .action-card.done .action-done { border-color: #10b981; background: #10b981; color: #fff; }
-.action-heading p strong { color: var(--text); font-weight: 850; }
+.action-heading p strong { color: var(--text); font-weight: 700; }
 .action-options { display: grid; gap: 10px; margin: 18px 0 0 68px; padding: 17px 19px; border: 1px solid #bae6fd; border-left: 4px solid var(--brand-blue); border-radius: 13px; background: #eff8ff; }
 .action-options article { padding: 14px 15px; border: 1px solid #cfe4f3; border-radius: 11px; background: #fff; }
 .action-options.single article { padding: 0; border: 0; background: transparent; }
-.action-options article > span { display: block; margin-bottom: 6px; color: var(--brand-blue); font-size: 11px; font-weight: 850; letter-spacing: 0.03em; }
+.action-options article > span { display: block; margin-bottom: 6px; color: var(--brand-blue); font-size: 11px; font-weight: 600; letter-spacing: 0.03em; }
 .action-options p { color: #0c4a6e; font-size: 13px; line-height: 1.6; }
-.option-cta { margin-top: 12px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 850; cursor: pointer; box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
+.option-cta { margin-top: 12px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
 .option-cta:hover { background: #005ba8; }
 .option-cta span { display: inline-block; transition: transform .18s; }
 .option-cta:hover span { transform: translateX(3px); }
 .action-detail-block { margin: 14px 0 0 68px; padding: 17px 19px; border: 1px solid #cfe4f3; border-radius: 13px; background: #f4fafe; }
-.action-detail-label { display: block; margin-bottom: 11px; color: var(--teal-700); font-size: 10px; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.action-detail-label { display: block; margin-bottom: 11px; color: var(--teal-700); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 .action-detail-block ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .action-detail-block li { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #cfe4f3; border-radius: 10px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 700; }
-.detail-shop { display: inline-flex; gap: 5px; align-items: center; color: var(--brand-blue); text-decoration: none; border-bottom: 1px solid rgba(0,114,206,0.3); }
-.detail-shop:hover { border-bottom-color: var(--brand-blue); }
-.detail-shop span { font-size: 10px; }
 .action-detail-block li > b { padding: 2px 7px; border-radius: 999px; background: #0072ce; color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
 .action-card.critical .action-detail-block li > b { background: #e85d4f; }
-.detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 850; cursor: pointer; transition: background .15s, color .15s; }
+.detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
 .detail-more:hover { background: var(--brand-blue); color: #fff; }
 .detail-more span { display: inline-block; transition: transform .18s; }
 .detail-more:hover span { transform: translateX(3px); }
 .action-tips { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 13px; margin: 14px 0 0 68px; padding: 16px 18px; border-left: 3px solid #f59e0b; border-radius: 11px; background: #fff8e8; }
 .action-tips > i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: #f59e0b; color: #fff; font-size: 13px; font-style: normal; }
-.action-tips span { display: block; color: #92400e; font-size: 10px; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
-.action-tips p { margin-top: 5px; color: #9a5b0a; font-size: 12.5px; line-height: 1.6; }
+.action-tips span { display: block; color: #92400e; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+.action-tips p { margin-top: 5px; color: #9a5b0a; font-size: 13px; line-height: 1.6; }
 .action-tips p + p { margin-top: 6px; }
 .action-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0 0 68px; }
 .action-cta { box-shadow: 0 6px 16px rgba(0,114,206,0.22); }
@@ -912,8 +1054,8 @@ function markPdf() {
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
-.element-detail span { color: var(--teal-700); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
-.explorer-head h2 { margin-top: 4px; color: var(--text); font-size: 24px; font-weight: 800; }
+.element-detail span { color: var(--teal-700); font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+.explorer-head h2 { margin-top: 5px; color: var(--text); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .explorer-head p { margin-top: 5px; color: var(--text-muted); font-size: 13px; }
 .explorer-controls { display: flex; gap: 8px; }
 .explorer-controls input,
@@ -929,7 +1071,7 @@ function markPdf() {
 .group-dial::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #f8fbfe; }
 .parameter-groups button.active .group-dial::after { background: var(--teal-50); }
 .group-dial b, .group-dial em { position: relative; z-index: 1; }
-.group-dial b { color: var(--text); font-size: 13px; font-weight: 850; }
+.group-dial b { color: var(--text); font-size: 13px; font-weight: 700; }
 .group-dial em { margin: 3px 0 0 1px; color: var(--text-muted); font-size: 8px; font-style: normal; }
 .parameter-groups button:hover { border-color: var(--teal-400); }
 .parameter-groups button.active { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); background: var(--teal-50); }
@@ -949,32 +1091,32 @@ function markPdf() {
 .element-section.group-nutrients { --group-accent: #f59e0b; }
 .element-section.group-trace { --group-accent: #0f9f8f; }
 .element-section.group-pollutants { --group-accent: #d45f72; }
-.element-section-head strong { color: var(--text); font-size: 12px; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
-.element-section-head > b { padding: 2px 8px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 11px; font-weight: 800; }
-.element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 800; }
+.element-section-head strong { color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.element-section-head > b { padding: 3px 10px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 600; }
 .element-section-chevron { margin-left: auto; color: var(--text-muted); font-size: 15px; font-style: normal; line-height: 1; transition: transform .2s; }
 .element-section-head:hover .element-section-chevron { color: var(--brand-blue); }
 .element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
 @media (max-width: 600px) { .element-sections { gap: 20px; } }
-.element-list { display: grid; gap: 9px; }
-.element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 15px; background: #fff; }
+.element-list { display: grid; gap: 11px; }
+.element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 5px solid #10b981; border-radius: 16px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
-.element-head { width: 100%; min-height: 82px; display: grid; grid-template-columns: 46px minmax(150px, 0.9fr) minmax(200px, 1.3fr) 100px 72px; align-items: center; gap: 14px; padding: 12px 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(170px, 0.9fr) minmax(220px, 1.3fr) 124px 72px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
-.element-symbol { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; }
+.element-symbol { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-50); color: var(--brand-blue); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .element-name strong,
 .element-name em,
 .element-reading strong,
 .element-reading small { display: block; }
-.element-name strong { color: var(--text); font-size: 14px; }
+.element-name strong { color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 .element-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .element-name .status-chip { display: inline-flex; }
-.element-group { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 9px; font-weight: 750; }
+.element-group { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 500; }
 .target-gauge i {
   position: relative;
   display: block;
-  height: 10px;
+  height: 12px;
   overflow: visible;
   border: 1px solid rgba(10,27,67,0.08);
   border-radius: 999px;
@@ -1001,12 +1143,12 @@ function markPdf() {
   content: "";
   pointer-events: none;
 }
-.target-gauge i b { position: absolute; z-index: 1; top: 50%; width: 16px; height: 16px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 2px 7px rgba(10,27,67,0.34), 0 0 0 1px rgba(10,27,67,0.08); transform: translate(-50%, -50%); }
-.target-gauge small { display: block; margin-top: 7px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
+.target-gauge i b { position: absolute; z-index: 1; top: 50%; width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 2px 7px rgba(10,27,67,0.34), 0 0 0 1px rgba(10,27,67,0.08); transform: translate(-50%, -50%); }
+.target-gauge small { display: block; margin-top: 9px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
 .element-reading { text-align: right; }
-.element-reading strong { color: var(--text); font-size: 21px; }
-.element-reading small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
-.element-reading.undetected strong { color: #94a3b8; font-size: 17px; letter-spacing: 0.02em; }
+.element-reading strong { color: var(--text); font-size: 27px; font-weight: 700; letter-spacing: -0.03em; }
+.element-reading small { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
+.element-reading.undetected strong { color: #94a3b8; font-size: 21px; letter-spacing: 0.01em; }
 .element-reading.undetected small { color: #a9b6c6; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
 .element-chevron { color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
@@ -1022,32 +1164,27 @@ function markPdf() {
 .parameter-detail-tabs button.active { background: #fff; color: var(--brand-blue); box-shadow: inset 0 0 0 1px rgba(0,114,206,0.08); }
 .parameter-detail-tabs button.active::after { position: absolute; right: 22%; bottom: 0; left: 22%; height: 3px; border-radius: 999px 999px 0 0; background: var(--brand-blue); content: ''; }
 .parameter-detail-tabs button:focus-visible { outline: 3px solid rgba(0,114,206,0.18); outline-offset: 1px; }
-.parameter-detail-tabs .parameter-tab-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 900; line-height: 1; letter-spacing: 0; text-transform: none; }
+.parameter-detail-tabs .parameter-tab-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 700; line-height: 1; letter-spacing: 0; text-transform: none; }
 .parameter-detail-tabs button.active .parameter-tab-icon { background: var(--brand-blue); color: #fff; box-shadow: 0 3px 8px rgba(0,114,206,0.18); }
 .parameter-detail-tabs .parameter-tab-copy { min-width: 0; display: block; color: inherit; letter-spacing: 0; text-transform: none; }
-.parameter-tab-copy strong { display: block; overflow: hidden; color: currentColor; font-size: 11px; font-weight: 850; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-tab-copy strong { display: block; overflow: hidden; color: currentColor; font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .parameter-trend { min-width: 0; padding-top: 2px; }
 .trend-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
 .osmosis-results { display: grid; gap: 18px; }
 .osmosis-sample-label { align-self: center; padding: 8px 11px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; }
-.osmosis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 9px; }
-.osmosis-result { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--border); border-left: 4px solid #10b981; border-radius: 14px; background: #fff; }
-.osmosis-result.watch { border-left-color: #f59e0b; background: #fffbeb; }
-.osmosis-result.critical { border-left-color: #e85d4f; background: #fff7f5; }
-.osmosis-result-name { min-width: 0; }
-.osmosis-result-name strong,
-.osmosis-result-name small { display: block; }
-.osmosis-result-name strong { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.osmosis-result-name small,
-.osmosis-result-target { color: var(--text-muted); font-size: 9.5px; font-weight: 700; }
-.osmosis-result-value { text-align: right; white-space: nowrap; }
-.osmosis-result-value strong { color: var(--text); font-size: 14px; }
-.osmosis-result-value small { margin-left: 3px; color: var(--text-muted); font-size: 9px; }
-.osmosis-result-value.undetected strong { color: #94a3b8; font-size: 13px; }
-.osmosis-result-value.undetected small { display: block; margin-left: 0; color: #a9b6c6; font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; }
-.osmosis-result-target { grid-column: 2 / -1; padding-top: 7px; border-top: 1px solid rgba(136,193,233,0.24); }
+/* Einseitige Skala: links sauber, rechts belastet – ein Unterschreiten gibt es nicht. */
+.purity-meter { min-width: 0; }
+.purity-meter > i { position: relative; display: block; height: 9px; border-radius: 999px; background: linear-gradient(90deg, #d8f3e9, #fde2de); }
+.purity-meter > i > b { position: absolute; top: 50%; left: 8px; width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: #10b981; box-shadow: 0 2px 6px rgba(10,27,67,0.26); transform: translate(-50%, -50%); }
+.purity-meter.critical > i > b { left: calc(100% - 8px); background: #e85d4f; }
+.purity-meter small { display: block; margin-top: 9px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
+.purity-meter.critical small { color: #b3392c; }
+
+/* Gleiche Zeile wie unter „Alle Werte", nur ohne Aufklapp- und Merkspalte. */
+.element-row.static .element-head { grid-template-columns: 54px minmax(170px, 0.9fr) minmax(220px, 1.3fr) 124px; cursor: default; }
+.element-row.static .element-head:hover { background: transparent; }
 .favorites-panel { display: grid; gap: 18px; }
 .favorite-list { margin-top: 2px; }
 .favorites-empty { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 7px; border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); text-align: center; }
@@ -1075,7 +1212,7 @@ function markPdf() {
   .care-card-meta { justify-content: space-between; }
   .care-card-grid { grid-template-columns: 1fr; padding-left: 18px; }
   .explorer-controls input { width: 100%; }
-  .element-head { grid-template-columns: 42px minmax(0, 1fr) auto; }
+  .element-head { grid-template-columns: 50px minmax(0, 1fr) auto; }
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
   .element-reading { grid-column: 3; grid-row: 1; }
   .element-reading { margin-right: 36px; }

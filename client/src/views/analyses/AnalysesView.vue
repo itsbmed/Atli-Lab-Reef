@@ -291,7 +291,7 @@ function formatDate(iso) {
 .empty-state { display: grid; justify-items: center; text-align: center; gap: 10px; padding: clamp(30px, 5vw, 48px); border: 1px solid rgba(136,193,233,0.22); border-radius: 22px; background: #fff; box-shadow: var(--shadow); }
 .empty-state.compact { padding: 28px; }
 .empty-state span { color: var(--brand-blue); font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-.empty-state h2 { color: var(--text); font-size: 24px; font-weight: 800; letter-spacing: -0.03em; }
+.empty-state h2 { color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
 .empty-state p { max-width: 520px; color: var(--text-muted); line-height: 1.6; }
 .error-state { border-color: rgba(232,93,79,0.28); }
 .error-state > span { color: var(--coral); }

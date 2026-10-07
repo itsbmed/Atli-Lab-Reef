@@ -109,8 +109,8 @@ const rows = computed(() => props.items.map((item) => {
 }
 .balance-head { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
 .balance-eyebrow { display: block; color: var(--brand-blue); font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.balance-head h3 { margin-top: 4px; color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
-.balance-head p { flex: 1 1 280px; max-width: 46ch; color: var(--text-muted); font-size: 11.5px; font-weight: 600; line-height: 1.55; }
+.balance-head h3 { margin-top: 4px; color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.balance-head p { flex: 1 1 280px; max-width: 46ch; color: var(--text-muted); font-size: 13px; font-weight: 600; line-height: 1.55; }
 .balance-empty { padding: 16px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 11.5px; font-weight: 600; }
 
 /* Achsenkopf: links niedrig, Mitte Referenz, rechts hoch. */

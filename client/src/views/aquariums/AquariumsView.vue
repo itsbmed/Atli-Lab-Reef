@@ -144,7 +144,7 @@ function osmosisSourceName(aquarium) {
 .aq-empty-step .step-num { position: absolute; top: 14px; right: 16px; font-size: 12px; font-weight: 800; color: rgba(136,193,233,0.75); }
 .aq-empty-step .step-ic { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 12px; border-radius: 13px; background: rgba(136,193,233,0.14); color: var(--brand-blue); }
 .aq-empty-step strong { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 800; color: var(--text); }
-.aq-empty-step p { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
+.aq-empty-step p { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
 
 /* Kartenraster */
 .aq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 22px; width: 100%; min-width: 0; }

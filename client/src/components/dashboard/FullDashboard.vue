@@ -439,9 +439,9 @@ function formatDate(date) {
 .side .panel { background: #fcfdfe; }
 .panel-head { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .panel-head.tight { margin-bottom: 11px; align-items: center; }
-.panel-head h2 { color: var(--text); font-size: 18px; font-weight: 700; letter-spacing: -0.015em; }
-.panel-head.tight h2 { font-size: 14px; }
-.panel-head p { margin-top: 6px; max-width: 68ch; color: var(--text-muted); font-size: 12px; font-weight: 500; line-height: 1.55; }
+.panel-head h2 { color: var(--text); font-size: 22px; font-weight: 700; letter-spacing: -0.015em; }
+.panel-head.tight h2 { font-size: 16px; }
+.panel-head p { margin-top: 6px; max-width: 68ch; color: var(--text-muted); font-size: 13px; font-weight: 500; line-height: 1.55; }
 .panel-link { align-self: center; color: var(--brand-blue); font-size: 11.5px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .panel-link:focus-visible,
 .row:focus-visible,
@@ -524,7 +524,7 @@ function formatDate(date) {
 .tanks .tanks-more { margin-top: auto; }
 .tanks-empty { display: grid; justify-items: start; gap: 8px; padding: 20px; border: 1px dashed var(--hair); border-radius: 15px; }
 .tanks-empty strong { color: var(--text); font-size: 14px; font-weight: 700; }
-.tanks-empty p { max-width: 54ch; color: var(--text-muted); font-size: 12px; font-weight: 400; line-height: 1.55; }
+.tanks-empty p { max-width: 54ch; color: var(--text-muted); font-size: 13px; font-weight: 400; line-height: 1.55; }
 
 .tank-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
 @media (min-width: 1500px) {
@@ -582,8 +582,8 @@ function formatDate(date) {
 .tank-body { display: grid; gap: 9px; padding: 13px 14px 14px; }
 .tank-top { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
 .tank-ident { min-width: 0; }
-.tank-ident h3 { overflow: hidden; color: var(--text); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
-.tank-ident p { margin-top: 2px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
+.tank-ident h3 { overflow: hidden; color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+.tank-ident p { margin-top: 2px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
 .tank-score { display: flex; align-items: baseline; color: #64748b; }
 .tank-score strong { font-size: 26px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
 .tank-score small { margin-left: 1px; font-size: 11px; font-weight: 600; }
