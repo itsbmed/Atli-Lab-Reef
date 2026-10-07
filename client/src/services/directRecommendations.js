@@ -1,6 +1,6 @@
 import { SCORE_BAND_MAP, evaluateParameter } from './evaluationScales.js'
 import { templateMap } from './recommendationTemplates.js'
-import { absoluteOceanSet } from './atiProductCatalog.js'
+import { absoluteOceanSet, DAILY_SUPPLY_KEYS } from './atiProductCatalog.js'
 
 // An imported report keeps the originating laboratory's verdict; only unclassified
 // values fall through to the selected evaluation scale.
@@ -83,11 +83,14 @@ function salinityCorrection(parameter, volumeLiters) {
     const millilitersEach = Math.max(0, (target - current) * 1.71 * volume)
     const amount = `${numberLabel(millilitersEach, 0)} ml`
     // Beide Flaschen werden gleich dosiert, also entscheidet die Menge je Flasche
-    // darüber, welche Packung im Shop reicht.
+    // darüber, welche Packung im Shop reicht. url und product werden nicht in der
+    // Korrekturliste angezeigt, sondern speisen die Produktkarte der Empfehlung.
     const set = absoluteOceanSet(millilitersEach)
+    // Je Flasche eine Zeile. Angezeigt wird das als Produktkarte, nicht als
+    // zweiter Kasten – deshalb trägt jeder Eintrag Menge, Packung und Link.
     return [
-      { label: 'Absolute Ocean 1', value: amount, url: set.url, product: set.name },
-      { label: 'Absolute Ocean 2', value: amount, url: set.url, product: set.name },
+      { label: 'Absolute Ocean 1', value: amount, url: set.url, product: set.name, image: set.image },
+      { label: 'Absolute Ocean 2', value: amount, url: set.url, product: set.name, image: set.image },
     ]
   }
   const liters = Math.max(0, volume - (target / current * volume))
@@ -169,16 +172,28 @@ const RULES = [
     key: 'reduce-supply',
     icon: '▼',
     action: { tool: 'consumption' },
-    match: (parameters) => affected(parameters, (score, parameter) => score !== 5 && !['pollutants', 'nutrients'].includes(parameter.groupKey) && parameter.key !== 'salinity'),
-    build: (items) => ({
+    // Anpassen lässt sich nur, was täglich dosiert wird: KH, Calcium, Magnesium.
+    // Weicht davon nichts ab, hat diese Karte nichts zu sagen und entfällt.
+    match: (parameters) => affected(parameters, (score, parameter) => score !== 5 && DAILY_SUPPLY_KEYS.includes(parameter.key)),
+    build: (items, context) => ({
       summaryParts: [
         ...boldList(items),
         { text: ` ${plural(items, 'weicht', 'weichen')} vom Zielbereich ab. Passen Sie die tägliche Elementversorgung abhängig vom Messwert an.` },
       ],
-      detailItems: items.map((item) => {
-        const adjustment = supplyAdjustment(item)
-        return { label: item.label, value: `${adjustment.direction === 'increase' ? '+' : '−'}${adjustment.percent} %` }
-      }),
+      // Alle drei täglich dosierten Elemente stehen da, auch die, die passen –
+      // sonst bleibt offen, ob sie geprüft wurden oder nur nichts zu tun ist.
+      detailItems: DAILY_SUPPLY_KEYS
+        .map((key) => (context.parameters || []).find((parameter) => parameter.key === key))
+        .filter((parameter) => parameter?.evaluation)
+        .map((parameter) => {
+          const adjustment = supplyAdjustment(parameter)
+          return {
+            label: parameter.label,
+            value: adjustment
+              ? `${adjustment.direction === 'increase' ? '+' : '−'}${adjustment.percent} %`
+              : 'unverändert',
+          }
+        }),
     }),
   },
   {
@@ -258,7 +273,11 @@ function compose(rule, items, templates, context) {
 }
 
 export function buildDirectRecommendations(parameters = [], { dosingKeys = new Set(), templates = templateMap(), volumeLiters = 0 } = {}) {
-  const context = { dosingKeys: dosingKeys instanceof Set ? dosingKeys : new Set(dosingKeys), volumeLiters: Math.max(0, Number(volumeLiters) || 0) }
+  const context = {
+    dosingKeys: dosingKeys instanceof Set ? dosingKeys : new Set(dosingKeys),
+    volumeLiters: Math.max(0, Number(volumeLiters) || 0),
+    parameters,
+  }
   const advisory = RULES
     .map((rule) => {
       const items = rule.match(parameters, context)

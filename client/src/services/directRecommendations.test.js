@@ -118,7 +118,12 @@ test('salinity gets a separate low/high correction based on volume and target PS
   assert.equal(low.key, 'salinity')
   assert.equal(low.title, 'Salinität kontrolliert anheben')
   // 4.275 ml je Flasche ist der Wert aus der Arbeitsmappe: (35 - 30) x 1,71 x 500.
-  const shop = { url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-10-2-liter/4600001/', product: 'Absolute Ocean 2 x 10,2 Liter' }
+  // Je Flasche ein Eintrag; angezeigt werden sie als Produktkarten, nicht als Kasten.
+  const shop = {
+    url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-10-2-liter/4600001/',
+    product: 'Absolute Ocean 2 x 10,2 Liter',
+    image: 'https://shop.atiaquaristik.com/media/11/57/16/1760549068/ATI_Absolute_Ocean_20L_3000x2000px_1262.jpg',
+  }
   assert.deepEqual(low.detailItems, [
     { label: 'Absolute Ocean 1', value: '4.275 ml', ...shop },
     { label: 'Absolute Ocean 2', value: '4.275 ml', ...shop },
@@ -145,6 +150,34 @@ test('the linked Absolute Ocean pack covers the calculated amount per bottle', (
 
 test('a dosing recommendation only appears when a released product dose exists', () => {
   const evaluated = evaluateAnalysis([parameter('iron', 'Eisen', 'trace', 0.1)], scale)
-  assert.deepEqual(buildDirectRecommendations(evaluated).map((item) => item.key), ['reduce-supply'])
-  assert.deepEqual(buildDirectRecommendations(evaluated, { dosingKeys: ['iron'] }).map((item) => item.key), ['reduce-supply', 'dosing'])
+  assert.deepEqual(buildDirectRecommendations(evaluated).map((item) => item.key), [])
+  assert.deepEqual(buildDirectRecommendations(evaluated, { dosingKeys: ['iron'] }).map((item) => item.key), ['dosing'])
+})
+
+test('the daily supply card covers only what is dosed daily', () => {
+  // Eisen lässt sich nicht über die tägliche Grundversorgung regeln.
+  const trace = evaluateAnalysis([parameter('iron', 'Eisen', 'trace', 0.1)], scale)
+  assert.equal(buildDirectRecommendations(trace).find((item) => item.key === 'reduce-supply'), undefined)
+
+  const daily = evaluateAnalysis([
+    parameter('kh', 'Karbonathärte', 'basis', 9.5, { unit: 'dKH' }),
+    parameter('calcium', 'Calcium', 'quantity', 300),
+    parameter('iron', 'Eisen', 'trace', 0.1),
+  ], scale)
+  const card = buildDirectRecommendations(daily).find((item) => item.key === 'reduce-supply')
+  assert.deepEqual(card.detailItems.map((entry) => entry.label), ['Karbonathärte', 'Calcium'],
+    'iron is left out even though it deviates, magnesium was not measured')
+  assert.ok(card.detailItems.every((entry) => /^[+−]\d+ %$/.test(entry.value)))
+})
+
+test('the daily supply card lists all three elements, including the settled ones', () => {
+  const evaluated = evaluateAnalysis([
+    parameter('kh', 'Karbonathärte', 'basis', 9.5, { unit: 'dKH' }),
+    parameter('calcium', 'Calcium', 'quantity', 420),
+    parameter('magnesium', 'Magnesium', 'quantity', 1350),
+  ], scale)
+  const card = buildDirectRecommendations(evaluated).find((item) => item.key === 'reduce-supply')
+  assert.deepEqual(card.detailItems.map((entry) => entry.label), ['Karbonathärte', 'Calcium', 'Magnesium'])
+  // Was im Optimum liegt, bleibt sichtbar – als „unverändert", nicht als Lücke.
+  assert.equal(card.detailItems.filter((entry) => entry.value === 'unverändert').length, 2)
 })

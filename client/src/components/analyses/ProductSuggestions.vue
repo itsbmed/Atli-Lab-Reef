@@ -13,15 +13,34 @@
       >
         <img v-if="product.productImage && !failedImages[product.productImage]" :src="product.productImage" alt="" loading="lazy" @error="failedImages[product.productImage] = true" />
         <span v-else class="product-placeholder" aria-hidden="true">ATI</span>
-        <span class="product-copy"><strong>{{ product.productName }}</strong><small v-if="product.productUrl">Im ATI Shop ansehen ↗</small></span>
+        <span class="product-copy">
+          <strong>{{ product.productName }}</strong>
+          <b v-if="product.productNote" class="product-note">{{ product.productNote }}</b>
+          <small v-if="product.productUrl">Im ATI Shop ansehen ↗</small>
+        </span>
       </component>
     </div>
+
+    <!-- Die übrigen Gebinde bleiben erreichbar, ohne die Karte zu füllen. -->
+    <p v-if="alternatives.length" class="product-alternatives">
+      <span>Auch erhältlich:</span>
+      <a
+        v-for="item in alternatives"
+        :key="item.url"
+        :href="item.url"
+        target="_blank"
+        rel="noopener noreferrer"
+      >{{ item.name }}</a>
+    </p>
   </section>
 </template>
 
 <script setup>
 import { reactive } from 'vue'
-defineProps({ products: { type: Array, default: () => [] } })
+defineProps({
+  products: { type: Array, default: () => [] },
+  alternatives: { type: Array, default: () => [] },
+})
 const failedImages = reactive({})
 </script>
 
@@ -36,4 +55,9 @@ a.suggested-product:hover { border-color: var(--brand-blue); background: var(--t
 .product-copy { min-width: 0; }
 .product-copy strong { display: block; color: var(--text); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .product-copy small { display: block; margin-top: 4px; color: var(--brand-blue); font-size: 10px; }
+.product-note { display: block; margin: 2px 0 1px; color: var(--brand-blue); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.product-alternatives { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); }
+.product-alternatives span { color: var(--text-muted); font-size: 11.5px; font-weight: 600; }
+.product-alternatives a { color: var(--brand-blue); font-size: 11.5px; font-weight: 500; text-decoration: none; }
+.product-alternatives a:hover { text-decoration: underline; text-underline-offset: 3px; }
 </style>

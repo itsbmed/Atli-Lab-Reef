@@ -42,7 +42,7 @@ export const ATI_ABSOLUTE_OCEAN_SETS = Object.freeze([
     millilitersPerBottle: 10200,
     makesLiters: 170,
     url: 'https://shop.atiaquaristik.com/en/absolute-ocean-2-x-10-2-liter/4600001/',
-    image: '',
+    image: 'https://shop.atiaquaristik.com/media/11/57/16/1760549068/ATI_Absolute_Ocean_20L_3000x2000px_1262.jpg',
   },
 ])
 
@@ -52,4 +52,81 @@ export function absoluteOceanSet(millilitersPerBottle = 0) {
   const sets = ATI_ABSOLUTE_OCEAN_SETS
   if (!Number.isFinite(needed) || needed <= 0) return sets[0]
   return sets.find((set) => set.millilitersPerBottle >= needed) || sets[sets.length - 1]
+}
+
+// Die tägliche Grundversorgung läuft über das Zweikomponenten-System. Beide
+// Lösungen werden in gleicher Menge dosiert, sind also ein Paar und kein Entweder-
+// oder. Es gibt zwei Linien (SPS-dominiert und gemischt) und je Linie zwei
+// Gebindegrößen. Quelle: shop.atiaquaristik.com, Kategorie „Essentials",
+// Dosierrichtwerte vom Produktblatt, geprüft am 07.10.2026.
+const SHOP = 'https://shop.atiaquaristik.com/en/'
+
+export const ATI_ESSENTIALS_LINES = Object.freeze({
+  sps: Object.freeze({
+    key: 'sps',
+    label: 'Essentials SPS',
+    note: 'Für SPS-dominierte Becken',
+    dailyMlPer100Liters: Object.freeze([5, 10]),
+    sets: Object.freeze([
+      { size: 'small', bottleMl: 2700, name: 'Essentials SPS Set 2x2.700ml', url: `${SHOP}essentials-sps-set-2x2.700ml/3500026/`, image: 'https://shop.atiaquaristik.com/media/78/a3/63/1749213604/ATI_Essentials_SPS_Set_2x2700ml_115_3000x2000px_1243.png' },
+      { size: 'large', bottleMl: 10000, name: 'Essentials SPS Set 2x10L', url: `${SHOP}Essentials-Set-2-x-10-Liter/3500018`, image: 'https://shop.atiaquaristik.com/media/88/e0/65/1762783942/Essentials_SPS_20L_3000x2000px_600kb_1271.jpg' },
+    ]),
+    components: Object.freeze([
+      { key: 'kh', name: 'Essentials SPS #1 KH 2.700ml', url: `${SHOP}essentials-sps-1-kh-2.700ml/3500021/`, image: 'https://shop.atiaquaristik.com/media/59/a5/3b/1749212747/ATI_Essentials_SPS_1_2700ml_115_3000x2000px_1219.png' },
+      { key: 'calcium', name: 'Essentials SPS #2 Ca 2.700ml', url: `${SHOP}essentials-sps-2-ca-2.700ml/3500022/`, image: 'https://shop.atiaquaristik.com/media/ea/38/15/1749213574/ATI_Essentials_SPS_2_2700ml_115_3000x2000px_1220.png' },
+    ]),
+  }),
+  mixed: Object.freeze({
+    key: 'mixed',
+    label: 'Essentials Mixed Reef',
+    note: 'Für gemischte Becken',
+    dailyMlPer100Liters: Object.freeze([3, 7]),
+    sets: Object.freeze([
+      { size: 'small', bottleMl: 2700, name: 'Essentials Mixed Reef Set 2x2.700ml', url: `${SHOP}essentials-mixed-reef-set-2x2.700ml/3500025/`, image: 'https://shop.atiaquaristik.com/media/8d/70/bb/1749209882/ATI_Essentials_Mixed_Reef_Set_2x2700ml_115_3000x2000px_1242.png' },
+      { size: 'large', bottleMl: 10000, name: 'Essentials Mixed Reef Set 2x10L', url: `${SHOP}essentials-mixed-reef-set-2x10l/3500023/`, image: 'https://shop.atiaquaristik.com/media/3a/d8/3f/1762783940/Essentials_Mixed_Reef_20L_3000x2000px_600kb_1270.jpg' },
+    ]),
+    components: Object.freeze([
+      { key: 'kh', name: 'Essentials Mixed Reef #1 KH 2.700ml', url: `${SHOP}essentials-mixed-reef-1-kh-2.700ml/3500019/`, image: 'https://shop.atiaquaristik.com/media/3a/90/b0/1749215355/ATI_Essentials_Mixed_Reef_1_2700ml_115_3000x2000px_1245.png' },
+      { key: 'calcium', name: 'Essentials Mixed Reef #2 Ca 2.700ml', url: `${SHOP}essentials-mixed-reef-2-ca-2.700ml/3500020/`, image: 'https://shop.atiaquaristik.com/media/35/56/61/1749209944/ATI_Essentials_Mixed_Reef_2_2700ml_115_3000x2000px_1218.png' },
+    ]),
+  }),
+})
+
+// Elemente, die über die tägliche Grundversorgung geregelt werden.
+export const DAILY_SUPPLY_KEYS = Object.freeze(['kh', 'calcium', 'magnesium'])
+
+// Ein Gebinde reicht kürzer, je größer das Becken ist. Unter einem Vierteljahr
+// lohnt die kleine Packung nicht mehr.
+const SMALL_PACK_MIN_MONTHS = 3
+
+// SPS ist die Standardlinie; nur ein ausdrücklich gemischtes oder
+// weichkorallenbetontes Becken bekommt Mixed Reef.
+const MIXED_REEF_TYPES = /misch|gemischt|lps|weich|softie/i
+
+export function essentialsFor(aquariumType = '') {
+  return MIXED_REEF_TYPES.test(String(aquariumType)) ? ATI_ESSENTIALS_LINES.mixed : ATI_ESSENTIALS_LINES.sps
+}
+
+export function packReachMonths(bottleMl, volumeLiters, [low, high]) {
+  const volume = Number(volumeLiters)
+  if (!(volume > 0)) return null
+  const perDayFast = high * volume / 100
+  const perDaySlow = low * volume / 100
+  return { fast: bottleMl / perDayFast / 30, slow: bottleMl / perDaySlow / 30 }
+}
+
+// Empfehlung: das Set der passenden Linie in der Größe, die zum Becken passt.
+// Die Einzelflaschen bleiben als Nachkauf erreichbar.
+export function essentialsRecommendation(aquariumType = '', volumeLiters = 0) {
+  const line = essentialsFor(aquariumType)
+  const [small, large] = line.sets
+  const smallReach = packReachMonths(small.bottleMl, volumeLiters, line.dailyMlPer100Liters)
+  const primary = !smallReach || smallReach.fast >= SMALL_PACK_MIN_MONTHS ? small : large
+  const reach = packReachMonths(primary.bottleMl, volumeLiters, line.dailyMlPer100Liters)
+  return {
+    line,
+    primary,
+    reach,
+    alternatives: [...line.sets.filter((set) => set !== primary), ...line.components],
+  }
 }
