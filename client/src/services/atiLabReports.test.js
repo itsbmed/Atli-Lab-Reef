@@ -4,8 +4,8 @@ import { ELEMENT_DEFINITION_MAP } from './analysisCatalog.js'
 import {
   REPORT_394463_ROWS, REPORT_394527_ROWS, REPORT_394770_ROWS,
   REPORT_394091_ROWS, REPORT_394456_ROWS, REPORT_394515_ROWS,
-  REPORT_392933_ROWS, REPORT_393984_ROWS,
-  createReport392933, createReport393984,
+  REPORT_392933_ROWS, REPORT_393984_ROWS, REPORT_394949_ROWS,
+  createReport392933, createReport393984, createReport394949,
   createReport394463, createReport394527, createReport394770,
   createReport394091, createReport394456, createReport394515, createAtiLabReports,
 } from './atiLabReports.js'
@@ -18,7 +18,7 @@ const byKey = (rows) => Object.fromEntries(rows.map((row) => [row.key, row]))
 const ALL_ROWS = [
   REPORT_394463_ROWS, REPORT_394527_ROWS, REPORT_394770_ROWS,
   REPORT_394091_ROWS, REPORT_394456_ROWS, REPORT_394515_ROWS,
-  REPORT_392933_ROWS, REPORT_393984_ROWS,
+  REPORT_392933_ROWS, REPORT_393984_ROWS, REPORT_394949_ROWS,
 ]
 
 test('every report carries all 43 laboratory parameters and only known elements', () => {
@@ -275,6 +275,48 @@ test('393984 Red Sea Nano Test Flawil matches the printed report', () => {
   const sulfur = analysis.sourceDosing.icpElements.find((item) => item.key === 'sulfur')
   assert.deepEqual([sulfur.totalMl, sulfur.portions, sulfur.unit], [43.49, [21.74, 21.74], 'g'],
     'the laboratory doses sulphur by weight')
+})
+
+test('394949 NanoRiff matches the printed report', () => {
+  const rows = byKey(REPORT_394949_ROWS)
+  assert.deepEqual(REPORT_394949_ROWS.filter((row) => row.tone !== 'good').map((row) => row.key),
+    ['salinity', 'kh', 'boron', 'fluoride', 'silicon', 'iodine', 'barium', 'manganese', 'iron',
+      'phosphorus', 'phosphate'])
+
+  assert.deepEqual([rows.salinity.measured, rows.salinity.ideal], [36.93, 35])
+  assert.equal(rows.salinity.direction, 'high', 'this sample is the first one running too salty')
+  assert.deepEqual([rows.kh.measured, rows.kh.ideal], [14.69, 7.5])
+  assert.equal(rows.kh.tone, 'critical')
+  assert.deepEqual([rows.silicon.measured, rows.silicon.ideal], [366.28, 105.47])
+  assert.deepEqual([rows.barium.measured, rows.barium.ideal], [98.19, 10.55])
+  assert.deepEqual([rows.phosphorus.measured, rows.phosphorus.ideal], [78.93, 15.82])
+  assert.deepEqual([rows.nitrate.measured, rows.nitrate.tone], [6.43, 'good'])
+  assert.equal(REPORT_394949_ROWS.filter((row) => row.measured === null).length, 18)
+
+  const analysis = createReport394949()
+  assert.equal(analysis.score, 58)
+  assert.equal(analysis.barcode, 'QGSE-C8S8-CRLF-3RFM')
+  assert.equal(analysis.reason, 'cyanos')
+  assert.deepEqual(analysis.groupScores, { basis: 58, quantity: 95, trace: 84, pollutants: 100 })
+
+  const osmosis = Object.fromEntries(analysis.osmosisParameters.map((item) => [item.key, item.reportedValue]))
+  assert.deepEqual([osmosis.silicon, osmosis.copper, osmosis.zinc], [97.03, 1.05, 8.18])
+  assert.equal(analysis.osmosisParameters.filter((item) => item.tone === 'critical').length, 3)
+
+  assert.deepEqual(analysis.sourceDosing.icpElements.map((item) => [item.key, item.totalMl, item.portions.length]),
+    [['boron', 808.06, 3], ['iodine', 16.33, 3], ['manganese', 0.99, 1], ['iron', 0.49, 1], ['fluoride', 66.95, 2]])
+  const iron = analysis.sourceDosing.supplements.find((item) => item.key === 'iron')
+  assert.deepEqual(iron.portions, [0.16, 0.16, 0.16, 0.16, 0.16, 0.16], 'the supplement iron dose runs over six days')
+})
+
+test('an osmosis sample can only read normal or too high, never low', () => {
+  for (const build of [createReport394949, createReport392933, createReport393984]) {
+    for (const row of build().osmosisParameters) {
+      assert.notEqual(row.sourceDirection, 'low', `${row.key} must not be rated low in osmosis water`)
+      assert.ok(['in_range', 'high'].includes(row.sourceDirection))
+      assert.ok(['good', 'critical'].includes(row.tone))
+    }
+  }
 })
 
 test('the element grouping follows the printed ATI report', () => {

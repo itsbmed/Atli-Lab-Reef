@@ -1314,8 +1314,163 @@ export function createReport393984() {
   }
 }
 
-export const ATI_LAB_REPORT_IDS = Object.freeze([REPORT_394463_ID, REPORT_394527_ID, REPORT_394770_ID, REPORT_394091_ID, REPORT_394456_ID, REPORT_394515_ID, REPORT_392933_ID, REPORT_393984_ID])
+/* ───────────────────────── 394949 · NanoRiff ───────────────────────── */
+
+export const REPORT_394949_ID = 'ati-real-394949'
+export const REPORT_394949_AQUARIUM_ID = 'demo-nanoriff'
+export const REPORT_394949_OSMOSIS_ID = 'demo-nanoriff-osmose'
+
+const CSV_394949 = `
+"Salinity";"Sal. total";"36,93";"35,00";"+1,93";"PSU";"+"
+"Carbonate hardness";"KH";"14,69";"7,50";"+7,19";"dKH";"++"
+"Chloride";"Cl";"20457,80";"20882,30";"-424,50";"mg/l";"o"
+"Sodium";"Na";"11837,10";"11601,30";"+235,80";"mg/l";"o"
+"Magnesium";"Mg";"1328,98";"1386,88";"-57,90";"mg/l";"o"
+"Sulfur";"S";"938,42";"959,74";"-21,32";"mg/l";"o"
+"Calcium";"Ca";"429,73";"444,01";"-14,28";"mg/l";"o"
+"Potassium";"K";"416,91";"430,30";"-13,40";"mg/l";"o"
+"Bromine";"Br";"72,94";"70,66";"+2,28";"mg/l";"o"
+"Strontium";"Sr";"7,04";"8,54";"-1,50";"mg/l";"o"
+"Boron";"B";"3,67";"4,75";"-1,08";"mg/l";"-"
+"Fluorine";"F";"1,01";"1,37";"+-0,36";"mg/l";"-"
+"Lithium";"Li";"259,63";"179,29";"+80,34";"ug/l";"o"
+"Silicon";"Si";"366,28";"105,47";"+260,81";"ug/l";"+"
+"Iodine";"I";"25,00";"68,55";"-43,55";"ug/l";"--"
+"Barium";"Ba";"98,19";"10,55";"+87,65";"ug/l";"+"
+"Molybdenum";"Mo";"23,75";"12,66";"+11,10";"ug/l";"o"
+"Nickel";"Ni";"1,65";"0,53";"+1,12";"ug/l";"o"
+"Manganese";"Mn";"0,00";"1,05";"0,00";"ug/l";"n.n."
+"Arsenic";"As";"0,00";"0,53";"0,00";"ug/l";"n.n."
+"Beryllium";"Be";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Chrome";"Cr";"0,00";"0,53";"0,00";"ug/l";"n.n."
+"Cobalt";"Co";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Iron";"Fe";"0,00";"0,53";"0,00";"ug/l";"n.n."
+"Copper";"Cu";"1,44";"0,53";"+0,91";"ug/l";"o"
+"Selenium";"Se";"0,00";"0,53";"0,00";"ug/l";"n.n."
+"Silver";"Ag";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Vanadium";"V";"1,75";"1,58";"+0,17";"ug/l";"o"
+"Zinc";"Zn";"2,87";"2,11";"+0,76";"ug/l";"o"
+"Tin";"Sn";"0,00";"0,53";"0,00";"ug/l";"n.n."
+"Nitrate";"NO3";"6,43";"2,00";"+4,43";"mg/l";"o"
+"Phosphorus";"P";"78,93";"15,82";"+63,11";"ug/l";"++"
+"Phosphate";"PO4";"0,24";"0,05";"+0,19";"mg/l";"++"
+"Aluminium";"Al.";"45,40";"0,11";"+45,30";"ug/l";"o"
+"Antimony";"Sb";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Bismuth";"Bi";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Lead";"Pb";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Cadmium";"Cd";"0,00";"0,21";"0,00";"ug/l";"n.n."
+"Lanthanum";"La.";"0,00";"0,00";"0,00";"ug/l";"n.n."
+"Thallium";"Tl";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Titanium";"Ti";"0,00";"0,11";"0,00";"ug/l";"n.n."
+"Tungsten";"W";"0,00";"0,00";"0,00";"ug/l";"n.n."
+"Mercury";"Hg";"0,00";"0,00";"0,00";"ug/l";"n.n."
+`
+
+export const REPORT_394949_ROWS = Object.freeze(parseCsv(CSV_394949, {
+  belowNormal: { manganese: '-', iron: '-' },
+}))
+
+const RECOMMENDATIONS_394949 = [
+  {
+    key: 'ati-phosphorus-394949', groupKey: 'nutrients', tone: 'critical', priority: 'Hoch', recheckDays: 7,
+    title: 'Phosphor senken', parameterKeys: ['phosphorus', 'phosphate'],
+    summary: 'Phosphor ist zu hoch. Filterung verbessern und/oder Futtermenge reduzieren. Einen eisenbasierten PO₄-Adsorber (zum Beispiel ATI Phosphate Stop) einsetzen, um den Phosphorwert auf 13–17 µg/l zu senken.',
+    why: 'ATI bewertete Phosphor mit 78,93 µg/l und Phosphat mit 0,24 mg/l als kritisch hoch.',
+    steps: ['Filterung verbessern und Futtereintrag reduzieren.', 'Eisenbasierten PO₄-Adsorber einsetzen.', 'Phosphor auf 13–17 µg/l zurückführen.'],
+  },
+  {
+    key: 'ati-kh-394949', groupKey: 'basis', tone: 'critical', priority: 'Hoch', recheckDays: 7,
+    title: 'Karbonathärte senken', parameterKeys: ['kh'],
+    summary: 'KH-Zugabe reduzieren oder stoppen, um den Wert auf 7–8 °dKH zu senken.',
+    why: 'ATI bewertete die Karbonathärte mit 14,69 °dKH als kritisch hoch.',
+    steps: ['KH-Zugabe reduzieren oder stoppen.', 'Wert auf 7–8 °dKH zurückführen.'],
+  },
+  {
+    key: 'ati-silicon-394949', groupKey: 'trace', tone: 'watch', priority: 'Mittel', recheckDays: 14,
+    title: 'Siliziumquelle finden', parameterKeys: ['silicon'],
+    summary: 'Silizium ist erhöht. Die Ursache finden und abstellen (zum Beispiel Osmosewasser, Frostfutter …).',
+    why: 'ATI bewertete Silizium mit 366,28 µg/l als erhöht.',
+    steps: ['Osmosewasser auf Silizium prüfen.', 'Frostfutter und weitere Eintragsquellen prüfen.', 'Ursache abstellen.'],
+  },
+  {
+    key: 'ati-fluoride-394949', groupKey: 'quantity', tone: 'watch', priority: 'Mittel', recheckDays: 14,
+    title: 'Fluorid und Iod versorgen', parameterKeys: ['fluoride', 'iodine'],
+    summary: 'Wenn Fluorid und Iod regelmäßig zu niedrig sind, empfehlen wir die tägliche Verwendung von „Daily Traces B“.',
+    why: 'ATI bewertete Fluorid mit 1,01 mg/l als unter Soll und Iod als kritisch niedrig.',
+    steps: ['„Daily Traces B“ täglich verwenden.', 'Fluorid und Iod gemeinsam kontrollieren.'],
+  },
+  {
+    key: 'ati-salinity-394949', groupKey: 'basis', tone: 'watch', priority: 'Mittel', recheckDays: 14,
+    title: 'Salinität senken', parameterKeys: ['salinity'],
+    summary: 'Die Salinität auf 35 PSU senken. Dafür 19,64 Liter Aquarienwasser entnehmen und durch dieselbe Menge Osmosewasser ersetzen.',
+    why: 'ATI bewertete die Salinität mit 36,93 PSU als über Soll.',
+    steps: ['19,64 Liter Aquarienwasser entnehmen.', 'Durch dieselbe Menge Osmosewasser ersetzen.', 'Salinität auf 35 PSU führen.'],
+  },
+  {
+    key: 'ati-osmosis-394949', groupKey: 'trace', tone: 'critical', priority: 'Hoch', recheckDays: 7,
+    title: 'Osmoseanlage warten', parameterKeys: ['silicon'],
+    summary: 'Osmoseanlage warten beziehungsweise das Mischbettharz tauschen.',
+    why: 'Die Osmoseprobe zeigt Silizium mit 97,03 µg/l, Zink mit 8,18 µg/l und Kupfer mit 1,05 µg/l kritisch hoch.',
+    steps: ['Mischbettharz tauschen.', 'Leitwert direkt nach dem Harz messen.', 'Osmosewasser erneut prüfen.'],
+  },
+]
+
+export function createReport394949() {
+  const issues = [
+    'Salinität über Soll', 'Karbonathärte kritisch hoch', 'Bor unter Soll', 'Fluorid unter Soll',
+    'Silizium über Soll', 'Iod kritisch niedrig', 'Barium über Soll', 'Mangan nicht nachweisbar',
+    'Eisen nicht nachweisbar', 'Phosphor kritisch hoch', 'Phosphat kritisch hoch',
+    'Osmosewasser: Silizium, Zink und Kupfer kritisch hoch',
+  ]
+  return {
+    id: REPORT_394949_ID,
+    scenario: 'real-ati-394949',
+    sourceType: 'ati-lab-import',
+    preserveSourceEvaluation: true,
+    preserveSourceRecommendations: true,
+    barcode: 'QGSE-C8S8-CRLF-3RFM',
+    reportNumber: '394949',
+    aquariumName: 'NanoRiff',
+    waterType: 'Meerwasser',
+    package: 'ultimate-ms',
+    reason: 'cyanos',
+    status: 'completed',
+    score: 58,
+    resultLevel: 'critical',
+    issueCount: issues.length,
+    issues,
+    groupScores: { basis: 58, quantity: 95, trace: 84, pollutants: 100 },
+    createdAt: '2026-09-27T12:00:00+02:00',
+    receivedAt: '2026-10-02T12:00:00+02:00',
+    completedAt: '2026-10-06T08:40:39+02:00',
+    aquariumId: REPORT_394949_AQUARIUM_ID,
+    osmoseAquariumId: REPORT_394949_OSMOSIS_ID,
+    sample: { voucherCode: 'QGSE-C8S8-CRLF-3RFM', type: 'Meerwasser', comment: 'NanoRiff', receivedAt: '2026-10-02T12:00:00+02:00' },
+    lab: { provider: 'ATI Aquaristik', method: 'ATI ICP-Wasseranalyse · Originalbericht', processed: true, sourceReportId: '394949' },
+    parameters: REPORT_394949_ROWS.map(labParameter),
+    osmosisParameters: osmosisRows({ silicon: 97.03, copper: 1.05, zinc: 8.18 }, OSMOSIS_KEYS).map(labParameter),
+    recommendations: RECOMMENDATIONS_394949.map((item) => item.summary),
+    recommendationGroups: RECOMMENDATIONS_394949.map((item) => ({ ...item, steps: [...item.steps], parameterKeys: [...item.parameterKeys] })),
+    sourceDosing: {
+      icpElements: [
+        { key: 'boron', totalMl: 808.06, portions: [269.35, 269.35, 269.35] },
+        { key: 'iodine', totalMl: 16.33, portions: [5.44, 5.44, 5.44] },
+        { key: 'manganese', totalMl: 0.99, portions: [0.99] },
+        { key: 'iron', totalMl: 0.49, portions: [0.49] },
+        { key: 'fluoride', totalMl: 66.95, portions: [33.47, 33.47] },
+      ],
+      supplements: [
+        { key: 'iodine', totalMl: 16.33, portions: [5.44, 5.44, 5.44] },
+        { key: 'manganese', totalMl: 1.98, portions: [1.98] },
+        { key: 'iron', totalMl: 0.99, portions: [0.16, 0.16, 0.16, 0.16, 0.16, 0.16] },
+        { key: 'fluoride', totalMl: 66.95, portions: [33.47, 33.47] },
+      ],
+    },
+  }
+}
+
+export const ATI_LAB_REPORT_IDS = Object.freeze([REPORT_394463_ID, REPORT_394527_ID, REPORT_394770_ID, REPORT_394091_ID, REPORT_394456_ID, REPORT_394515_ID, REPORT_392933_ID, REPORT_393984_ID, REPORT_394949_ID])
 
 export function createAtiLabReports() {
-  return [createReport394463(), createReport394527(), createReport394770(), createReport394091(), createReport394456(), createReport394515(), createReport392933(), createReport393984()]
+  return [createReport394463(), createReport394527(), createReport394770(), createReport394091(), createReport394456(), createReport394515(), createReport392933(), createReport393984(), createReport394949()]
 }
