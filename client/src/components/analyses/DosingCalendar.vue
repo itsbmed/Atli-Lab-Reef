@@ -36,6 +36,23 @@
       </div>
 
       <p class="plan-footer">Tag 1 ist der Tag, an dem Sie beginnen. Die Tagesdosis bleibt immer innerhalb des freigegebenen Tageslimits. Nach Abschluss des Kurses erneut messen und den Kurs nicht automatisch wiederholen.</p>
+
+      <footer class="print-brand">
+        <img class="print-brand-logo" :src="logoUrl" alt="ATI Aquaristik" />
+        <span class="print-brand-site">
+          <b>lab.atiaquaristik.com</b>
+          <small>by ATI Aquaristik</small>
+        </span>
+        <span class="print-brand-col">
+          <b>Herbert-Rust-Weg 14</b>
+          <small>59071 Hamm</small>
+        </span>
+        <span class="print-brand-col">
+          <b>Tel. +49-(0) 2381-871012-0</b>
+          <small>E-Mail: info@atiaquaristik.com</small>
+        </span>
+        <span class="print-brand-meta">{{ printDate }}</span>
+      </footer>
     </div>
 
     <ProductSuggestions v-if="products.length" class="dose-products" :products="products" />
@@ -63,6 +80,12 @@ const ticked = reactive({})
 const printContent = ref(null)
 const error = ref('')
 const number = value => Number(value).toLocaleString('de-DE', { maximumFractionDigits: 6 })
+// Das Druckfenster hat keine eigene Basis-URL, der Pfad muss absolut sein.
+// Beim Rendern ohne Browser bleibt der relative Pfad stehen.
+const logoUrl = computed(() => (typeof window === 'undefined'
+  ? '/ati-logo.png'
+  : `${window.location.origin}/ati-logo.png`))
+const printDate = computed(() => `Erstellt am ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`)
 function printPlan() {
   error.value = ''
   const popup = window.open('', '_blank', 'width=1100,height=800')
@@ -71,13 +94,20 @@ function printPlan() {
   popup.document.close()
   popup.opener = null
   popup.focus()
+  const logo = popup.document.querySelector('.print-brand-logo')
+  if (logo && !logo.complete) {
+    logo.addEventListener('load', () => popup.print(), { once: true })
+    logo.addEventListener('error', () => popup.print(), { once: true })
+    popup.setTimeout(() => popup.print(), 1500)
+    return
+  }
   popup.setTimeout(() => popup.print(), 250)
 }
-const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dosing-grid{display:grid;border:1px solid #cbd9e7;border-radius:8px;overflow:hidden;margin:14px 0}.dosing-head,.dosing-element,.dose-cell{min-height:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid #cbd9e7;border-bottom:1px solid #cbd9e7;padding:5px}.dosing-head{background:#eef7ff;color:#0072ce;font-size:8px;text-transform:uppercase}.dosing-element{flex-direction:column;align-items:flex-start;padding:7px 9px;font-weight:bold}.dosing-element span{font-size:9px;color:#526780;font-weight:normal}.dosing-element small{color:#0072ce;font-size:8px}.dose-cell.summary{background:#f6fafc;font-weight:bold}.dose-check{display:flex;align-items:center;justify-content:center;gap:4px}.dose-check input{display:none}.dose-check span{width:9px;height:9px;border:1px solid #526780;flex:none}.dose-check b{font-size:9px}.dose-empty{color:#98a8ba}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}`
+const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dosing-grid{display:grid;border:1px solid #cbd9e7;border-radius:8px;overflow:hidden;margin:14px 0}.dosing-head,.dosing-element,.dose-cell{min-height:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid #cbd9e7;border-bottom:1px solid #cbd9e7;padding:5px}.dosing-head{background:#eef7ff;color:#0072ce;font-size:8px;text-transform:uppercase}.dosing-element{flex-direction:column;align-items:flex-start;padding:7px 9px;font-weight:bold}.dosing-element span{font-size:9px;color:#526780;font-weight:normal}.dosing-element small{color:#0072ce;font-size:8px}.dose-cell.summary{background:#f6fafc;font-weight:bold}.dose-check{display:flex;align-items:center;justify-content:center;gap:4px}.dose-check input{display:none}.dose-check span{width:9px;height:9px;border:1px solid #526780;flex:none}.dose-check b{font-size:9px}.dose-empty{color:#98a8ba}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}.print-brand{display:flex;align-items:center;gap:26px;margin-top:18px;padding-top:11px;border-top:2px solid #0072ce}.print-brand-logo{height:30px;width:auto;flex:none}.print-brand b{display:block;font-size:10px;font-weight:bold;line-height:1.35}.print-brand small{display:block;color:#7a8da3;font-size:9px;line-height:1.35}.print-brand-site b{color:#0072ce;font-size:12px}.print-brand-col b{color:#526780;font-weight:normal}.print-brand-meta{margin-left:auto;color:#7a8da3;font-size:9px;white-space:nowrap}`
 </script>
 
 <style scoped>
-.dose-plan{display:grid;gap:16px;min-width:0}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.dose-scroll{overflow-x:auto;padding-bottom:2px}
+.dose-plan{display:grid;gap:16px;min-width:0}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.print-brand{display:none}.dose-scroll{overflow-x:auto;padding-bottom:2px}
 .dosing-grid{display:grid;min-width:620px;border:1px solid var(--border);border-radius:18px;overflow:hidden}
 .dosing-head,.dosing-element,.dose-cell{min-height:62px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,.84)}
 .dosing-head{background:rgba(234,249,252,.9);color:var(--text-muted);font-size:11px;font-weight:var(--fw-label,800);letter-spacing:.04em;text-transform:uppercase}
