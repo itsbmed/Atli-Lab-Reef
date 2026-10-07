@@ -134,7 +134,7 @@
         </div>
       </header>
 
-      <main :class="['main-content', { wide: wideLayout }]">
+      <main class="main-content">
         <RouterView />
       </main>
 
@@ -281,11 +281,6 @@ watch(() => route.fullPath, () => { mobileMenuOpen.value = false })
 
 const displayName = computed(() => auth.user?.name || 'Gast')
 const initials = computed(() => displayName.value.slice(0, 2).toUpperCase())
-
-// Fließtextseiten brauchen eine begrenzte Zeilenlänge, ein Kachel-Dashboard
-// nicht – es darf die ganze Breite nutzen.
-const WIDE_ROUTES = ['Dashboard']
-const wideLayout = computed(() => WIDE_ROUTES.includes(route.name))
 
 const routeMeta = {
   '/dashboard': { title: 'Übersicht', sub: (u) => `Willkommen zurück, ${u}!` },
@@ -477,9 +472,8 @@ const sheetNav = computed(() => [...mainNav, ...accountNav.value])
 .dropdown-item.danger { color: #e85d4f; }
 
 /* ── Content + footer ── */
-.main-content { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 1560px; margin-inline: auto; padding: 34px 36px; }
-.main-content.wide { max-width: none; }
-.main-footer { padding: 16px 32px; border-top: 1px solid rgba(93,132,145,0.14); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+.main-content { flex: 1; display: flex; flex-direction: column; width: 100%; padding: 34px 36px; }
+.main-footer { padding: 16px 36px; border-top: 1px solid rgba(93,132,145,0.14); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
 .footer-links { display: flex; gap: 20px; }
 .footer-links a { color: var(--text-muted); }
 .footer-links a:hover { color: var(--teal-500); }
