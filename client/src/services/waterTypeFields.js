@@ -1,5 +1,14 @@
 export const WATER_TYPES = ['Meerwasser', 'Süßwasser', 'Osmosewasser', 'Meersalz', 'Aquakultur']
 
+// Karten für die Wassertyp-Auswahl: Kurzbeschreibung und Farbton (wie die Badges in der Liste).
+export const WATER_TYPE_CARDS = [
+  { value: 'Meerwasser', tone: 'sea', description: 'Riff- oder Fischbecken mit Salzwasser' },
+  { value: 'Süßwasser', tone: 'fresh', description: 'Gesellschafts-, Pflanzen- oder Zuchtbecken' },
+  { value: 'Osmosewasser', tone: 'osmo', description: 'Reines RO/DI-Wasser aus der Osmoseanlage' },
+  { value: 'Meersalz', tone: 'salt', description: 'Frisch angesetztes Salzwasser prüfen' },
+  { value: 'Aquakultur', tone: 'aqua', description: 'Zucht- und Hälterungsanlagen' },
+]
+
 // Auswahl für Favoriten und Einzelelemente; gespeichert wird wie bisher ein kommagetrennter Text.
 export const ELEMENT_OPTIONS = ['Iod', 'Kalium', 'Strontium', 'Magnesium', 'Calcium', 'Bor', 'Fluor', 'Eisen', 'Mangan', 'Zink', 'Molybdän', 'Barium', 'Lithium', 'Nitrat', 'Phosphat']
 
