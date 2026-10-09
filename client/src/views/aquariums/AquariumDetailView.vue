@@ -187,14 +187,14 @@
               <input v-model="editForm.name" type="text" required />
             </div>
             <div class="form-group">
-              <label>Wassertyp</label>
-              <select v-model="editForm.water_type">
-                <option v-for="type in WATER_TYPES" :key="type">{{ type }}</option>
-              </select>
-            </div>
-            <div class="form-group">
               <label>Nettovolumen (L)</label>
               <input v-model.number="editForm.net_volume" type="number" min="1" required />
+            </div>
+            <div class="form-group wide">
+              <WaterTypePicker v-model="editForm.water_type" />
+            </div>
+            <div v-if="supportsSupplySystem(editForm.water_type)" class="form-group wide">
+              <SupplySystemPicker :form="editForm" />
             </div>
             <div class="form-group wide">
               <OsmosisSourcePicker :form="editForm" :sources="availableOsmosisSources" />
@@ -285,11 +285,14 @@ import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
 import OsmosisSourcePicker from '@/components/aquariums/OsmosisSourcePicker.vue'
 import WaterTypeFields from '@/components/aquariums/WaterTypeFields.vue'
+import WaterTypePicker from '@/components/aquariums/WaterTypePicker.vue'
+import SupplySystemPicker from '@/components/aquariums/SupplySystemPicker.vue'
+import { supportsSupplySystem } from '@/services/supplySystem'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
-import { WATER_TYPES, waterTypeSummary } from '@/services/waterTypeFields'
+import { waterTypeSummary } from '@/services/waterTypeFields'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -475,7 +478,9 @@ function save() {
   saving.value = true
   saveError.value = ''
   try {
-    aquariums.update(profile.value.id, { ...editForm.value, image_theme: themeFor(editForm.value) })
+    const data = { ...editForm.value, image_theme: themeFor(editForm.value) }
+    if (!supportsSupplySystem(data.water_type)) Object.assign(data, { supply_mode: '', supply_line: '', supply_bottles: null, supply_product: '', supply_system: '' })
+    aquariums.update(profile.value.id, data)
     editing.value = false
     showEditPresetPicker.value = false
   } catch (e) {
