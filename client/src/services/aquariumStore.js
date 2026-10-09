@@ -29,6 +29,7 @@ export function emptyAquarium() {
     name: '', water_type: 'Meerwasser', net_volume: null,
     aquarium_type: '', dimensions: '', target_mode: 'ati',
     stocking_density: '', lighting_type: '', supply_system: '',
+    supply_mode: '', supply_line: '', supply_bottles: null, supply_product: '',
     sump: false, refugium: false, skimmer: false, skimmer_model: '',
     notes: '', image_theme: 'reef-mixed', image: null, water_details: {},
     osmosis_source_id: '', evaluation_scale_id: DEFAULT_SCALE_ID,
