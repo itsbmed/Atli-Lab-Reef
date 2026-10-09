@@ -61,8 +61,7 @@ export const WATER_TYPE_FIELDSETS = {
       { key: 'flow_total_lh', label: 'Gesamtleistung', type: 'number', unit: 'l/h', model: 'water_details.flow_total_lh' },
       { key: 'flow_products', label: 'Produkte', model: 'water_details.flow_products' },
     ] },
-    { title: 'Versorgung', fields: [
-      { key: 'supply_system', label: 'Versorgungssystem', model: 'supply_system' },
+    { title: 'Spurenelemente & Zusätze', fields: [
       { key: 'trace_mix', label: 'Spurenmix/e', model: 'water_details.trace_mix' },
       { key: 'single_elements', label: 'Einzelelemente', type: 'tags', model: 'water_details.single_elements', options: ELEMENT_OPTIONS },
     ] },
