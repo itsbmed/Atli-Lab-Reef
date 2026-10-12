@@ -1098,12 +1098,20 @@ function markPdf() {
 .element-section-chevron { margin-left: auto; color: var(--text-muted); font-size: 15px; font-style: normal; line-height: 1; transition: transform .2s; }
 .element-section-head:hover .element-section-chevron { color: var(--brand-blue); }
 .element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
-@media (max-width: 600px) { .element-sections { gap: 20px; } }
+@media (max-width: 600px) {
+  .element-sections { gap: 20px; }
+  /* Schmal steht der Messwert schon in der Sprechblase der Skala – die große Zahl
+     daneben würde nur den Namen verdrängen. */
+  .element-head > .element-reading { display: none; }
+  .element-name { padding-right: 44px; }
+}
 .element-list { display: grid; gap: 11px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 5px solid #10b981; border-radius: 16px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
-.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(170px, 0.9fr) minmax(220px, 1.3fr) 124px 72px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+/* Die Messwertspalte wächst mit dem Wert; feste Mindestbreiten haben das Raster
+   bei mittleren Breiten über den Rand geschoben und die Zahl unter dem Stern versteckt. */
+.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(130px, 0.9fr) minmax(180px, 1.3fr) minmax(96px, max-content) 72px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-50); color: var(--brand-blue); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .element-name strong,
@@ -1153,7 +1161,7 @@ function markPdf() {
 .purity-meter.critical small { color: #b3392c; }
 
 /* Gleiche Zeile wie unter „Alle Werte", nur ohne Aufklapp- und Merkspalte. */
-.element-row.static .element-head { grid-template-columns: 54px minmax(170px, 0.9fr) minmax(220px, 1.3fr) 124px; cursor: default; }
+.element-row.static .element-head { grid-template-columns: 54px minmax(130px, 0.9fr) minmax(180px, 1.3fr) minmax(96px, max-content); cursor: default; }
 .element-row.static .element-head:hover { background: transparent; }
 .favorites-panel { display: grid; gap: 18px; }
 .favorite-list { margin-top: 2px; }
