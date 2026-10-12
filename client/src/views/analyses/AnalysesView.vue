@@ -66,18 +66,7 @@
               <span>{{ findingLabel(analysis) }}</span>
             </span>
           </span>
-          <span class="row-timeline" :style="{ '--tl-progress': timelineProgress(analysis) }" aria-hidden="true">
-            <span
-              v-for="step in timelineSteps(analysis)"
-              :key="step.key"
-              :class="['tl-step', { done: step.done, current: step.current }]"
-              :title="step.date ? `${step.label} · ${step.date}` : step.label"
-            >
-              <i></i>
-              <small>{{ step.short }}</small>
-              <em>{{ step.date || '–' }}</em>
-            </span>
-          </span>
+          <AnalysisTimeline class="row-timeline" :analysis="analysis" />
           <span :class="['row-status', analysis.status]">{{ analysis.statusLabel }}</span>
           <span class="row-chevron" aria-hidden="true">›</span>
         </RouterLink>
@@ -89,7 +78,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useAnalysesStore } from '@/stores/analyses'
-import { WORKFLOW_STEPS } from '@/services/analysisStore'
+import AnalysisTimeline from '@/components/analyses/AnalysisTimeline.vue'
 
 // Filters only earn their space once the list stops fitting on one screen.
 const FILTER_THRESHOLD = 4
@@ -169,32 +158,6 @@ function trendFor(analysis) {
     title: `${delta > 0 ? 'Besser' : 'Schlechter'} als der letzte Bericht dieses Aquariums (${previous}%)`,
   }
 }
-// Short, evenly weighted captions so all four stops occupy the same visual width.
-const TIMELINE_LABELS = { registered: 'Registriert', received: 'Eingang', in_analysis: 'Analyse', completed: 'Fertig' }
-
-// The lab workflow as a four stop timeline, dated where the report knows the date.
-function timelineSteps(analysis) {
-  const current = WORKFLOW_STEPS.find((step) => step.key === analysis.status)?.rank || 0
-  const dates = { registered: analysis.createdAt, received: analysis.receivedAt, completed: analysis.completedAt }
-  return WORKFLOW_STEPS.map((step) => ({
-    key: step.key,
-    label: step.label,
-    short: TIMELINE_LABELS[step.key],
-    done: step.rank <= current,
-    current: step.rank === current,
-    date: dates[step.key] ? shortDate(dates[step.key]) : '',
-  }))
-}
-// How far the filled rail runs, as a share of the distance between first and last stop.
-function timelineProgress(analysis) {
-  const current = WORKFLOW_STEPS.find((step) => step.key === analysis.status)?.rank || 0
-  return Math.max(0, Math.min(1, (current - 1) / (WORKFLOW_STEPS.length - 1)))
-}
-function shortDate(iso) {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }).replace(/\.$/, '')
-}
 function formatDate(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -242,46 +205,11 @@ function formatDate(iso) {
 .row-meta > span::before { margin-right: 6px; color: #b9c7d1; content: '·'; }
 .row-number { padding: 2px 7px; border-radius: 6px; background: #eef5fb; color: var(--brand-blue); font-size: 11px; font-weight: 850; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
 .row-timeline { display: none; }
-/* Four equal columns put every stop on the same centre, whatever its caption reads. */
-.tl-step { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; min-width: 0; }
-.tl-step i { width: 14px; height: 14px; border: 2px solid #d5dfe9; border-radius: 50%; background: #fff; transition: background .2s, border-color .2s; }
-.tl-step.done i { border-color: var(--teal-500); background: var(--teal-500); }
-.tl-step.current i { border-color: var(--brand-blue); background: var(--brand-blue); box-shadow: 0 0 0 5px rgba(0,114,206,0.14); }
-.tl-step small { color: var(--text-muted); font-size: 10.5px; font-weight: 800; letter-spacing: 0.01em; line-height: 1; white-space: nowrap; }
-.tl-step.done small { color: #6b8196; }
-.tl-step.current small { color: var(--brand-blue); }
-.tl-step em { color: #a9b8c6; font-size: 9.5px; font-style: normal; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.tl-step.done em { color: #8fa2b3; }
 @media (min-width: 1180px) {
-  .analysis-row { grid-template-columns: 54px minmax(0, 1fr) minmax(300px, 380px) auto 18px; gap: 26px; }
-  .row-timeline {
-    /* Punktgröße und Schienenstärke stehen hier, damit die Schiene unten exakt
-       auf der Punktmitte sitzt und beides nicht getrennt verstellt werden kann. */
-    --tl-dot: 14px;
-    --tl-rail: 2px;
-    --tl-top: 2px;
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    align-items: start;
-    min-width: 0;
-    padding-top: var(--tl-top);
-    margin-right: 18px;
-  }
-  /* Eine durchgehende Schiene von der ersten bis zur letzten Punktmitte,
-     waagerecht auf 12,5 % und 87,5 % (den Spaltenmitten), senkrecht auf
-     Punktmitte = Innenabstand + halbe Punkthöhe − halbe Schienenstärke. */
-  .row-timeline::before,
-  .row-timeline::after {
-    content: '';
-    position: absolute;
-    top: calc(var(--tl-top) + (var(--tl-dot) - var(--tl-rail)) / 2);
-    left: 12.5%;
-    height: var(--tl-rail);
-    border-radius: 999px;
-  }
-  .row-timeline::before { right: 12.5%; background: #e4ecf3; }
-  .row-timeline::after { width: calc(75% * var(--tl-progress, 0)); background: var(--teal-500); transition: width .3s ease; }
+  .analysis-row { grid-template-columns: 54px minmax(0, 1fr) minmax(300px, 380px) 18px; gap: 26px; }
+  .row-timeline { display: block; margin-right: 18px; }
+  /* Die Zeitleiste zeigt den Status schon; der Text bleibt nur für Screenreader. */
+  .row-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 .row-status { padding: 6px 11px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .row-status.completed { background: #dcfce7; color: #047857; }

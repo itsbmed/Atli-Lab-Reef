@@ -37,12 +37,7 @@
         </div>
       </section>
 
-      <section class="workflow-card">
-        <div v-for="step in WORKFLOW_STEPS" :key="step.key" :class="['workflow-step', { done: step.rank <= currentRank, active: step.key === analysis.status }]">
-          <i></i>
-          <span>{{ step.label }}</span>
-        </div>
-      </section>
+      <AnalysisTimeline class="workflow-card" size="full" :analysis="analysis" />
 
       <nav v-if="analysis.status === 'completed'" class="report-tabs" aria-label="Berichtsbereiche">
         <button type="button" :class="{ active: activeTab === 'values' }" @click="activeTab = 'values'">
@@ -524,7 +519,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { useAuthStore } from '@/stores/auth'
-import { WORKFLOW_STEPS } from '@/services/analysisStore'
+import AnalysisTimeline from '@/components/analyses/AnalysisTimeline.vue'
 import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysisContent'
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import { buildDosingPlan } from '@/services/dosingPlan'
@@ -573,7 +568,6 @@ watch(analysis, (current) => {
   if (current) Object.assign(completedActions, loadRecommendationProgress(auth.user?.id, current.id))
 }, { immediate: true })
 const visibleIssues = computed(() => showAllIssues.value ? (analysis.value?.issues || []) : (analysis.value?.issues || []).slice(0, ISSUE_PREVIEW_LIMIT))
-const currentRank = computed(() => WORKFLOW_STEPS.find((step) => step.key === analysis.value?.status)?.rank || 0)
 const resultLabel = computed(() => {
   if (!analysis.value || analysis.value.status !== 'completed') return 'Laborprozess läuft'
   if (analysis.value.severity === 'critical') return 'Korrektur nötig'
@@ -939,11 +933,6 @@ function markPdf() {
 .score-card span { color: var(--teal-200); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
 .score-card strong { margin-top: 5px; font-size: 22px; }
 .score-card em { margin-top: 4px; color: rgba(255,255,255,0.7); font-style: normal; font-size: 13px; }
-.workflow-card { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px; }
-.workflow-step { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 16px; color: var(--text-muted); background: rgba(238,245,251,0.72); font-size: 12px; font-weight: 600; }
-.workflow-step i { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
-.workflow-step.done i { background: var(--teal-500); }
-.workflow-step.active { color: var(--brand-blue); background: var(--teal-50); }
 .report-tabs { display: flex; gap: 6px; max-width: 100%; width: fit-content; overflow-x: auto; padding: 5px; border-radius: 15px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .report-tabs button { flex: 0 0 auto; min-height: 40px; padding: 0 16px; border: 0; border-radius: 11px; color: var(--text-muted); background: transparent; font-weight: 800; white-space: nowrap; cursor: pointer; }
 .report-tabs button.active { color: #fff; background: var(--brand-blue); }
@@ -1197,7 +1186,6 @@ function markPdf() {
   .report-hero,
   .score-card { align-items: flex-start; flex-direction: column; }
   .score-card { min-width: 0; width: 100%; }
-  .workflow-card,
   .report-layout { grid-template-columns: 1fr; }
   .report-side { position: static; }
   .combined-report-flow .report-main > .panel,
