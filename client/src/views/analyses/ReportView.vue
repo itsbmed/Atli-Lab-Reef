@@ -269,10 +269,11 @@
                             <small class="element-group">{{ parameterGroup(parameter).label }}</small>
                           </span>
                         </span>
-                        <span class="target-gauge">
-                          <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
-                          <small>Ziel {{ parameterTargetLabel(parameter) }} {{ parameter.unit }}</small>
-                        </span>
+                        <TargetGauge
+                          class="target-gauge"
+                          v-bind="gaugeProps(parameter)"
+                          :title="`Ziel ${parameterTargetLabel(parameter)} ${parameter.unit}`"
+                        />
                         <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
                           <strong>{{ displayParameterValue(parameter) }}</strong>
                           <small>{{ readingUnit(parameter) }}</small>
@@ -457,10 +458,11 @@
                   <small class="element-group">{{ parameterGroup(parameter).label }}</small>
                 </span>
               </span>
-              <span class="target-gauge">
-                <i><b :style="{ left: `${gaugePosition(parameter)}%` }"></b></i>
-                <small>Ziel {{ parameterTargetLabel(parameter) }} {{ parameter.unit }}</small>
-              </span>
+              <TargetGauge
+                class="target-gauge"
+                v-bind="gaugeProps(parameter)"
+                :title="`Ziel ${parameterTargetLabel(parameter)} ${parameter.unit}`"
+              />
               <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
                 <strong>{{ displayParameterValue(parameter) }}</strong>
                 <small>{{ readingUnit(parameter) }}</small>
@@ -533,6 +535,8 @@ import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 import ParameterKnowledgePanel from '@/components/analyses/ParameterKnowledgePanel.vue'
+import TargetGauge from '@/components/analyses/TargetGauge.vue'
+import { formatReading } from '@/services/targetGauge'
 import BalanceChart from '@/components/analyses/BalanceChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
@@ -756,17 +760,25 @@ function targetBounds(target) {
   const values = String(target || '').match(/-?\d+(?:[.,]\d+)?/g)?.map((value) => Number(value.replace(',', '.'))) || []
   return values.length >= 2 ? [values[0], values[1]] : [0, Math.max(values[0] || 1, 1)]
 }
-function gaugePosition(parameter) {
-  if (parameter.sourceDirection) {
-    if (parameter.sourceDirection === 'in_range') return 50
-    if (parameter.sourceDirection === 'low') return parameter.tone === 'critical' ? 4 : 18
-    return parameter.tone === 'critical' ? 96 : 82
+// Zielbereich der Anzeige: die gepflegten Zielwerte, sonst der Referenzbereich,
+// sonst das, was im Zieltext steht.
+function gaugeBounds(parameter) {
+  const guide = parameterGuide(parameter)
+  const pairs = [[guide.targetMin, guide.targetMax], [parameter.referenceRange?.min, parameter.referenceRange?.max]]
+  const pair = pairs.find(([lo, hi]) => Number.isFinite(Number(lo)) && Number.isFinite(Number(hi)) && lo !== null && hi !== null)
+  return pair ? pair.map(Number) : targetBounds(parameter.target)
+}
+function gaugeProps(parameter) {
+  const [min, max] = gaugeBounds(parameter)
+  const undetectable = isUndetectable(parameter)
+  const value = Number(parameter.value)
+  return {
+    min,
+    max,
+    value: Number.isFinite(value) ? value : null,
+    label: undetectable ? 'n. n.' : `${formatReading(displayParameterValue(parameter))} ${parameter.unit}`,
+    undetectable,
   }
-  const [minimum, maximum] = targetBounds(parameter.target)
-  const span = Math.max(maximum - minimum, Math.abs(maximum) * 0.15, 0.01)
-  const scaleMinimum = minimum - span
-  const scaleMaximum = maximum + span
-  return Math.min(96, Math.max(4, ((Number(parameter.value) - scaleMinimum) / (scaleMaximum - scaleMinimum)) * 100))
 }
 function isUndetectable(parameter) {
   return parameter.resultStatus === 'below_detection'
@@ -1102,38 +1114,7 @@ function markPdf() {
 .element-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .element-name .status-chip { display: inline-flex; }
 .element-group { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 500; }
-.target-gauge i {
-  position: relative;
-  display: block;
-  height: 12px;
-  overflow: visible;
-  border: 1px solid rgba(10,27,67,0.08);
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    #e85d4f 0%,
-    #f28a35 13%,
-    #f4c84a 25%,
-    #8fd06a 38%,
-    #20b77a 50%,
-    #8fd06a 62%,
-    #f4c84a 75%,
-    #f28a35 87%,
-    #e85d4f 100%
-  );
-  box-shadow: inset 0 1px 2px rgba(255,255,255,0.45), 0 2px 6px rgba(10,27,67,0.08);
-}
-.target-gauge i::after {
-  position: absolute;
-  inset: 1px 4px auto;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.5), rgba(255,255,255,0.22));
-  content: "";
-  pointer-events: none;
-}
-.target-gauge i b { position: absolute; z-index: 1; top: 50%; width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: var(--brand-dark); box-shadow: 0 2px 7px rgba(10,27,67,0.34), 0 0 0 1px rgba(10,27,67,0.08); transform: translate(-50%, -50%); }
-.target-gauge small { display: block; margin-top: 9px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
+.target-gauge { min-width: 0; }
 .element-reading { text-align: right; }
 .element-reading strong { color: var(--text); font-size: 27px; font-weight: 700; letter-spacing: -0.03em; }
 .element-reading small { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
