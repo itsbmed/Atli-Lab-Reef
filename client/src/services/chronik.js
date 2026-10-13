@@ -1,0 +1,247 @@
+// Chronik: alle ausgewerteten Laborberichte eines Kontos als Verlauf je Aquarium.
+// Reine Datenaufbereitung – keine Vue-, Store- oder DOM-Abhängigkeiten, damit sich
+// Vergleich, Verlauf und Übersicht dieselben Zahlen teilen und testbar bleiben.
+
+import { ANALYSIS_GROUPS, ELEMENT_DEFINITIONS, ELEMENT_DEFINITION_MAP } from './analysisCatalog.js'
+import { gaugeScale } from './targetGauge.js'
+
+// Farben je Aquarium (Reihenfolge geprüft auf Farbfehlsichtigkeit, siehe dataviz-Validator).
+// Mehr als sechs farbige Linien unterscheidet niemand sicher – weitere Aquarien bleiben grau.
+export const TANK_COLORS = Object.freeze(['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6'])
+export const TANK_COLOR_OTHER = '#9aa8b6'
+
+export const PARAMETER_SETS = Object.freeze([
+  { key: 'core', label: 'Hauptelemente', keys: ['kh', 'calcium', 'magnesium'] },
+  { key: 'nutrients', label: 'Nährstoffe', keys: ['nitrate', 'phosphate'] },
+  { key: 'balance', label: 'Salzbalance', keys: ['salinity', 'sodium', 'chloride', 'potassium', 'sulfur'] },
+])
+
+export const DEFAULT_PARAMETERS = Object.freeze(['kh', 'calcium', 'magnesium', 'nitrate', 'phosphate'])
+
+export const RANGES = Object.freeze([
+  { key: '3m', label: '3 Monate', months: 3 },
+  { key: '6m', label: '6 Monate', months: 6 },
+  { key: '12m', label: '12 Monate', months: 12 },
+  { key: 'all', label: 'Alles', months: null },
+])
+
+const DAY = 24 * 60 * 60 * 1000
+
+// Das Probendatum: registriert wird die Probe am Tag der Entnahme.
+export function reportDate(analysis) {
+  return analysis.createdAt || analysis.receivedAt || analysis.completedAt || null
+}
+
+function reading(parameter) {
+  const undetectable = parameter.resultStatus === 'below_detection'
+  const value = Number(parameter.value)
+  return {
+    value: undetectable || !Number.isFinite(value) ? null : value,
+    reported: parameter.reportedValue ?? parameter.value,
+    undetectable,
+    tone: parameter.tone || 'good',
+    direction: parameter.sourceDirection || '',
+    unit: parameter.unit,
+  }
+}
+
+// Aquarien mit mindestens einem ausgewerteten Bericht, je Aquarium chronologisch.
+export function buildTanks(analyses = [], aquariums = []) {
+  const byTank = new Map()
+  for (const analysis of analyses) {
+    if (analysis.status !== 'completed' || !analysis.parameters?.length || !analysis.aquariumId) continue
+    const date = reportDate(analysis)
+    if (!date) continue
+    const values = Object.fromEntries(analysis.parameters.map((parameter) => [parameter.key, reading(parameter)]))
+    const list = byTank.get(analysis.aquariumId) || []
+    list.push({ id: analysis.id, date, time: new Date(date).getTime(), score: analysis.score ?? null, severity: analysis.severity || '', number: analysis.reportNumber || '', values, parameters: analysis.parameters })
+    byTank.set(analysis.aquariumId, list)
+  }
+  const names = new Map(aquariums.map((aquarium) => [aquarium.id, aquarium]))
+  return [...byTank.entries()]
+    .map(([id, reports]) => {
+      reports.sort((a, b) => a.time - b.time)
+      const aquarium = names.get(id)
+      const fallback = analyses.find((analysis) => analysis.aquariumId === id)
+      return {
+        id,
+        name: aquarium?.name || fallback?.aquariumName || 'Aquarium',
+        waterType: aquarium?.water_type || fallback?.waterType || '',
+        volume: Number(aquarium?.net_volume) || null,
+        reports,
+        latest: reports.at(-1),
+      }
+    })
+    // Zuletzt untersuchte Aquarien zuerst – das sind die, über die man gerade nachdenkt.
+    .sort((a, b) => b.latest.time - a.latest.time || a.name.localeCompare(b.name, 'de'))
+}
+
+export function rangeStart(rangeKey, now = Date.now()) {
+  const range = RANGES.find((item) => item.key === rangeKey)
+  if (!range?.months) return -Infinity
+  const start = new Date(now)
+  start.setMonth(start.getMonth() - range.months)
+  return start.getTime()
+}
+
+// Berichte im Zeitraum; der Filter wirkt auf alle Ansichten gleich.
+export function reportsInRange(tank, rangeKey, now = Date.now()) {
+  const start = rangeStart(rangeKey, now)
+  return tank.reports.filter((report) => report.time >= start)
+}
+
+// Farben bleiben am Aquarium haften: wer dazukommt, nimmt den ersten freien Platz,
+// wer geht, gibt seinen frei – die anderen behalten ihre Farbe.
+export function assignColors(selectedIds, previous = {}) {
+  const next = {}
+  const taken = new Set()
+  for (const id of selectedIds) {
+    const slot = previous[id]
+    if (Number.isInteger(slot) && slot < TANK_COLORS.length && !taken.has(slot)) { next[id] = slot; taken.add(slot) }
+  }
+  for (const id of selectedIds) {
+    if (id in next) continue
+    const free = TANK_COLORS.findIndex((_, index) => !taken.has(index))
+    next[id] = free === -1 ? -1 : free
+    if (free !== -1) taken.add(free)
+  }
+  return next
+}
+
+export function colorFor(slot) {
+  return slot >= 0 ? TANK_COLORS[slot] : TANK_COLOR_OTHER
+}
+
+export function parameterMeta(key, content = {}) {
+  const definition = ELEMENT_DEFINITION_MAP[key]
+  if (!definition) return null
+  const guide = content[key] || {}
+  const pick = (a, b) => (Number.isFinite(Number(a)) && a !== null && a !== '' ? Number(a) : b)
+  const range = definition.referenceRanges.Meerwasser
+  return {
+    key,
+    label: definition.label,
+    symbol: definition.symbol,
+    unit: guide.unit || definition.unit,
+    groupKey: definition.groupKey,
+    group: definition.group,
+    min: pick(guide.targetMin, range.min),
+    max: pick(guide.targetMax, range.max),
+  }
+}
+
+export function parameterCatalog(content = {}) {
+  return ANALYSIS_GROUPS.map((group) => ({
+    ...group,
+    items: ELEMENT_DEFINITIONS.filter((definition) => definition.groupKey === group.key).map((definition) => parameterMeta(definition.key, content)),
+  }))
+}
+
+// Parameter, die im jeweils letzten Bericht der Auswahl außerhalb des Zielbereichs liegen.
+export function flaggedParameters(tanks, content = {}) {
+  return ELEMENT_DEFINITIONS.map((definition) => definition.key).filter((key) => {
+    const meta = parameterMeta(key, content)
+    return tanks.some((tank) => {
+      const item = tank.latest?.values[key]
+      return item && !item.undetectable && position(item.value, meta.min, meta.max) !== 'in'
+    })
+  })
+}
+
+// Lage eines Werts zum Zielbereich, nach der Zahl – nicht nach dem Laborurteil.
+export function position(value, min, max) {
+  if (!Number.isFinite(value)) return 'none'
+  const span = max - min || Math.abs(max) || 1
+  const off = value < min ? min - value : value > max ? value - max : 0
+  if (off === 0) return 'in'
+  return `${off > span ? 'far' : 'near'}-${value < min ? 'low' : 'high'}`
+}
+
+// Eine gemeinsame Skala für mehrere Werte: Zielbereich in der Mitte, Ausreißer gedehnt.
+export function sharedScale(min, max, values = []) {
+  const finite = values.filter(Number.isFinite)
+  if (!finite.length) return gaugeScale(min, max, null)
+  const high = gaugeScale(min, max, Math.max(...finite))
+  const low = gaugeScale(min, max, Math.min(...finite))
+  return { start: Math.min(low.start, high.start), end: Math.max(low.end, high.end) }
+}
+
+// Veränderung gegenüber dem vorigen Bericht desselben Aquariums.
+export function delta(reports, key) {
+  const withValue = reports.filter((report) => Number.isFinite(report.values[key]?.value))
+  if (withValue.length < 2) return null
+  const [previous, current] = withValue.slice(-2)
+  const change = current.values[key].value - previous.values[key].value
+  const days = Math.round((current.time - previous.time) / DAY)
+  return { change, previous: previous.values[key].value, since: previous.date, days }
+}
+
+// Zeitreihe eines Parameters für ein Aquarium.
+export function series(reports, key) {
+  return reports
+    .filter((report) => report.values[key])
+    .map((report) => ({ time: report.time, date: report.date, reportId: report.id, ...report.values[key] }))
+}
+
+// Der Wert eines Aquariums an einem Datum: der letzte Bericht bis dahin.
+export function valueAt(points, time) {
+  let found = null
+  for (const point of points) if (point.time <= time + DAY / 2) found = point
+  return found
+}
+
+// Gerundete Achsenteilung mit 3–5 Strichen.
+export function niceTicks(start, end, count = 4) {
+  const span = end - start
+  if (!(span > 0)) return [start]
+  const raw = span / count
+  const magnitude = 10 ** Math.floor(Math.log10(raw))
+  const step = [1, 2, 2.5, 5, 10].map((factor) => factor * magnitude).find((candidate) => span / candidate <= count + 0.5)
+  const first = Math.ceil(start / step - 1e-9) * step
+  const ticks = []
+  for (let value = first; value <= end + step * 1e-9; value += step) ticks.push(Number(value.toPrecision(12)))
+  return ticks
+}
+
+export function formatValue(value, digits) {
+  if (!Number.isFinite(value)) return '—'
+  const decimals = digits ?? (Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 10 ? 1 : Math.abs(value) >= 1 ? 2 : 3)
+  return value.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: decimals })
+}
+
+export function formatDate(iso, style = 'short') {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  if (style === 'long') return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })
+  if (style === 'month') return date.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+// CSV für die Übersicht: eine Zeile je Parameter, eine Spalte je Aquarium.
+export function toCsv(tanks, keys, content = {}) {
+  const escape = (text) => (/[";\n]/.test(text) ? `"${String(text).replaceAll('"', '""')}"` : String(text))
+  const header = ['Parameter', 'Einheit', 'Ziel min', 'Ziel max', ...tanks.map((tank) => `${tank.name} (${formatDate(tank.latest.date)})`)]
+  const rows = keys.map((key) => {
+    const meta = parameterMeta(key, content)
+    return [meta.label, meta.unit, meta.min, meta.max, ...tanks.map((tank) => {
+      const item = tank.latest.values[key]
+      if (!item) return ''
+      return item.undetectable ? 'n. n.' : String(item.value).replace('.', ',')
+    })]
+  })
+  return [header, ...rows].map((row) => row.map((cell) => escape(String(cell).replace(/^(-?\d+)\.(\d+)$/, '$1,$2'))).join(';')).join('\n')
+}
+
+// Auswahl in der Adresszeile: teilbar, Zurück-Taste funktioniert.
+export function readQuery(query, tanks) {
+  const list = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean)
+  const known = new Set(tanks.map((tank) => tank.id))
+  const tankIds = list(query.tanks).filter((id) => known.has(id))
+  const keys = list(query.params).filter((key) => ELEMENT_DEFINITION_MAP[key])
+  return {
+    tankIds: tankIds.length ? tankIds : tanks.slice(0, 4).map((tank) => tank.id),
+    keys,
+    view: ['compare', 'trend', 'matrix'].includes(query.view) ? query.view : 'compare',
+    range: RANGES.some((range) => range.key === query.range) ? query.range : 'all',
+  }
+}
