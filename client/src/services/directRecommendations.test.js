@@ -40,13 +40,13 @@ test('one card per advisory type at most, most severe first, dosing pinned below
   }
 })
 
-test('element supply adjusts in both directions with the client percentage curve', () => {
+test('element supply adjusts in both directions by 10–20 % (V2.2)', () => {
   const elevated = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 500)], scale))
   const reduced = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 300)], scale))
   assert.equal(elevated[0].key, 'reduce-supply')
   assert.equal(elevated[0].detailLabel, 'Tägliche Elementversorgung anpassen')
-  assert.deepEqual(elevated[0].detailItems, [{ label: 'Calcium', value: '−20 %' }])
-  assert.deepEqual(reduced[0].detailItems, [{ label: 'Calcium', value: '+30 %' }])
+  assert.deepEqual(elevated[0].detailItems, [{ label: 'Calcium', value: '−10–20 %' }])
+  assert.deepEqual(reduced[0].detailItems, [{ label: 'Calcium', value: '+10–20 %' }])
 })
 
 test('element names are bold inside the sentence instead of a separate chip row', () => {
@@ -82,12 +82,12 @@ test('cards without a blue box simply carry no options', () => {
   assert.deepEqual(recommendation.options, [])
 })
 
-test('only the water change card carries tips for now', () => {
+test('tips appear only where the evaluation sheet has them', () => {
   const withTips = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 700)], scale))
   assert.ok(withTips[0].tips.length, 'the water change keeps its tips')
   for (const value of [[parameter('lead', 'Blei', 'pollutants', 3)], [parameter('calcium', 'Calcium', 'quantity', 500)], [parameter('nitrate', 'Nitrat', 'nutrients', 15)]]) {
-    for (const card of buildDirectRecommendations(evaluateAnalysis(value, scale))) {
-      if (card.key !== 'water-change') assert.deepEqual(card.tips, [], `${card.key} should not show tips yet`)
+    for (const card of buildDirectRecommendations(evaluateAnalysis(value, scale), { supplyParts: 3 })) {
+      if (card.key !== 'water-change') assert.deepEqual(card.tips, [], `${card.key} should not show tips`)
     }
   }
 })
@@ -124,10 +124,13 @@ test('salinity gets a separate low/high correction based on volume and target PS
     product: 'Absolute Ocean 2 x 10,2 Liter',
     image: 'https://shop.atiaquaristik.com/media/11/57/16/1760549068/ATI_Absolute_Ocean_20L_3000x2000px_1262.jpg',
   }
+  // Alternativ Nyos pure: (35 - 30) x 1,06 x 500 = 2.650 g, wie in der Arbeitsmappe V2.2.
   assert.deepEqual(low.detailItems, [
     { label: 'Absolute Ocean 1', value: '4.275 ml', ...shop },
     { label: 'Absolute Ocean 2', value: '4.275 ml', ...shop },
+    { label: 'oder Nyos pure Salz', value: '2.650 g' },
   ])
+  assert.ok(low.summary.includes('oder ergänzen Sie 2.650 g Nyos pure Salz, um die Salinität auf 35 PSU anzuheben.'))
   assert.equal(high.title, 'Salinität kontrolliert senken')
   // Zu viel Salz kauft man nicht nach, also trägt diese Maßnahme keinen Shop-Link.
   assert.deepEqual(high.detailItems, [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: '62,5 l' }])
@@ -167,7 +170,7 @@ test('the daily supply card covers only what is dosed daily', () => {
   const card = buildDirectRecommendations(daily).find((item) => item.key === 'reduce-supply')
   assert.deepEqual(card.detailItems.map((entry) => entry.label), ['Karbonathärte', 'Calcium'],
     'iron is left out even though it deviates, magnesium was not measured')
-  assert.ok(card.detailItems.every((entry) => /^[+−]\d+ %$/.test(entry.value)))
+  assert.ok(card.detailItems.every((entry) => /^[+−]10–20 %$/.test(entry.value)))
 })
 
 test('the daily supply card lists all three elements, including the settled ones', () => {
@@ -180,4 +183,82 @@ test('the daily supply card lists all three elements, including the settled ones
   assert.deepEqual(card.detailItems.map((entry) => entry.label), ['Karbonathärte', 'Calcium', 'Magnesium'])
   // Was im Optimum liegt, bleibt sichtbar – als „unverändert", nicht als Lücke.
   assert.equal(card.detailItems.filter((entry) => entry.value === 'unverändert').length, 2)
+})
+
+// ── Auswertung V2.2 ──────────────────────────────────────────────────────────
+// Ausgangswerte der Arbeitsmappe: KH 5 (Score 1), Ca 300 (2), Mg 1315 (5), Zn 10 (7).
+const workbook = (scores = {}) => evaluateAnalysis([
+  parameter('kh', 'Karbonathärte', 'basis', 5, { unit: 'dKH', sourceScore: scores.kh ?? 1 }),
+  parameter('calcium', 'Calcium', 'quantity', 300, { sourceScore: scores.calcium ?? 2 }),
+  parameter('magnesium', 'Magnesium', 'quantity', 1315, { sourceScore: scores.magnesium ?? 5 }),
+  parameter('zinc', 'Zink', 'trace', 10, { unit: 'µg/l', sourceScore: scores.zinc ?? 7 }),
+], scale)
+const supplyCard = (parts, scores) => buildDirectRecommendations(workbook(scores), { supplyParts: parts }).find((item) => item.key === 'reduce-supply')
+
+test('V2.2 baseline, two parts: KH and Ca/Mg up, trace elements off', () => {
+  assert.deepEqual(supplyCard(2).detailItems, [
+    { label: 'KH', value: '+10–20 %' },
+    { label: 'Ca/Mg', value: '+10–20 %' },
+    { label: 'Spuren/DT', value: '−100 %' },
+  ])
+})
+
+test('V2.2: the channels follow the number of supply parts', () => {
+  assert.deepEqual(supplyCard(1).detailItems.map((item) => item.label), ['All-in-one', 'Spuren/DT'])
+  assert.deepEqual(supplyCard(3).detailItems.map((item) => item.label), ['KH', 'Ca', 'Mg', 'Spuren/DT'])
+  const none = supplyCard(0)
+  assert.deepEqual(none.detailItems.map((item) => item.label), ['Spuren/DT'])
+  assert.ok(none.summary.includes('Essentials SPS'))
+})
+
+test('V2.2: low calcium in a three-part system is raised, not lowered', () => {
+  // Die Arbeitsmappe gibt hier „- 10-20 %“ aus – ein Tippfehler, beide Zweige tragen ein Minus.
+  assert.equal(supplyCard(3).detailItems.find((item) => item.label === 'Ca').value, '+10–20 %')
+  assert.equal(supplyCard(3, { magnesium: 3 }).detailItems.find((item) => item.label === 'Mg').value, '+10–20 %')
+})
+
+test('V2.2: two parts and high magnesium point to natural salts', () => {
+  assert.deepEqual(supplyCard(2, { magnesium: 7 }).tips, ['Nutzen Sie ausschließlich Meersalze mit naturnahen Werten für Wasserwechsel.'])
+  assert.deepEqual(supplyCard(2).tips, [])
+  // Mit All-in-one spielt Magnesium keine Rolle: allein erhöhtes Mg ergibt keine Karte.
+  assert.equal(supplyCard(1, { kh: 5, calcium: 5, zinc: 5, magnesium: 7 }), undefined)
+})
+
+test('V2.2: zinc steers the trace elements by +25, −50 and −100 %', () => {
+  const trace = (zinc) => supplyCard(2, { kh: 5, calcium: 5, zinc })?.detailItems.find((item) => item.label === 'Spuren/DT')?.value
+  assert.equal(trace(4), '+25 %')
+  assert.equal(trace(6), '−50 %')
+  assert.equal(trace(7), '−100 %')
+  assert.equal(trace(9), '−100 %')
+  assert.equal(trace(5), undefined)
+})
+
+test('V2.2: water changes only for calcium, magnesium or zinc from score 8', () => {
+  const keys = (list) => buildDirectRecommendations(evaluateAnalysis(list, scale)).map((item) => item.key)
+  assert.ok(keys([parameter('calcium', 'Calcium', 'quantity', 600, { sourceScore: 8 })]).includes('water-change'))
+  assert.ok(keys([parameter('zinc', 'Zink', 'trace', 30, { unit: 'µg/l', sourceScore: 8 })]).includes('water-change'))
+  assert.ok(!keys([parameter('calcium', 'Calcium', 'quantity', 500, { sourceScore: 7 })]).includes('water-change'))
+  assert.ok(!keys([parameter('kh', 'Karbonathärte', 'basis', 12, { unit: 'dKH', sourceScore: 9 })]).includes('water-change'))
+})
+
+test('V2.2: elevated zinc opens the contamination-source card', () => {
+  const keys = (score) => buildDirectRecommendations(evaluateAnalysis([parameter('zinc', 'Zink', 'trace', 8, { unit: 'µg/l', sourceScore: score })], scale)).map((item) => item.key)
+  assert.ok(keys(6).includes('pollutants'))
+  assert.ok(!keys(5).includes('pollutants'))
+})
+
+test('V2.2: RO water findings use the workbook sentences, depending on RO and resin filter', () => {
+  const ro = (rows, ro, resin) => buildDirectRecommendations([], { osmosis: { parameters: rows, ro, resin } }).find((item) => item.key === 'osmosis')
+  const silicon = [{ key: 'silicon', value: 26, resultStatus: 'valid' }]
+  assert.equal(ro(silicon, true, true).detailItems[0].label, 'Wechseln Sie das Harz im Reinstfilter aus.')
+  assert.equal(ro(silicon, true, false).detailItems[0].label, 'Nutzen Sie einen Harzfilter hinter der Osmoseanlage.')
+  assert.equal(ro(silicon, false, false).detailItems[0].label, 'Nutzen Sie eine Osmoseanlage und einen Harzfilter.')
+  assert.equal(ro([{ key: 'silicon', value: 25, resultStatus: 'valid' }], true, true), undefined, 'exactly 25 is not above the limit')
+  assert.equal(ro([{ key: 'zinc', value: 0, resultStatus: 'below_detection' }], true, true), undefined)
+
+  const all = ro([...silicon, { key: 'zinc', value: 1.2, resultStatus: 'valid' }, { key: 'phosphorus', value: 4, resultStatus: 'valid' }], true, true)
+  assert.equal(all.summary, 'Durch die Wasseranalyse wurde herausgefunden, dass sich Silizium, Zink und Phosphor in der Osmoseprobe befinden.')
+  assert.equal(all.detailItems.length, 3)
+  assert.ok(all.detailItems[2].label.startsWith('Zink kann im RO Wasser vorkommen'))
+  assert.deepEqual(all.tips, ['Mindestens 1 l Harz pro 30 GPD Tagesleistung der Osmoseanlage.'])
 })

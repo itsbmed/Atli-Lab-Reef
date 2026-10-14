@@ -642,6 +642,13 @@ const evaluatedParameters = computed(() => evaluateAnalysis(analysis.value?.para
 const directRecommendations = computed(() => buildDirectRecommendations(evaluatedParameters.value, {
   dosingKeys: new Set(approvedDosingItems.value.map((item) => item.key)),
   volumeLiters: Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0),
+  supplyParts: analysis.value?.aquariumProfile?.supplyParts ?? null,
+  // Wer eine Osmoseprobe einschickt, hat eine Osmoseanlage – auch ohne verknüpftes Profil.
+  osmosis: {
+    parameters: analysis.value?.osmosisParameters || [],
+    ro: Boolean(analysis.value?.aquariumProfile?.hasOsmosisSource || analysis.value?.osmosisParameters?.length),
+    resin: Boolean(analysis.value?.aquariumProfile?.resinFilter),
+  },
 }))
 const openActionCount = computed(() => directRecommendations.value.filter((item) => !completedActions[item.key]).length)
 const actionsIntro = computed(() => {
@@ -669,11 +676,13 @@ function recommendationProducts(item) {
   // Beide Komponenten werden in gleicher Menge dosiert, das Set ist also die
   // richtige Einheit. Die Größe folgt dem Beckenvolumen, Magnesium hat in dieser
   // Linie kein eigenes Produkt und bleibt beim ICP-Element.
+  // Gegen Funde im Osmosewasser hilft kein Element-Produkt, sondern Harz und Anlage.
+  if (item.key === 'osmosis') return []
   if (item.key === 'reduce-supply') {
     const { primary, reach } = essentialsSuggestion.value
     const span = reach ? `reicht etwa ${Math.round(reach.fast)}–${Math.round(reach.slow)} Monate` : ''
     const keys = new Set((item.detailItems || []).map((detail) => detail.label))
-    const magnesium = keys.has(ELEMENT_DEFINITION_MAP.magnesium?.label)
+    const magnesium = keys.has(ELEMENT_DEFINITION_MAP.magnesium?.label) || keys.has('Mg')
       ? recommendedProductsForKeys(['magnesium'], analysis.value?.parameters || [])
       : []
     return [

@@ -23,15 +23,55 @@ export function evaluateAnalysis(parameters = [], scale = null) {
   })
 }
 
-// The client workbook assigns the same measured-value-dependent adjustment curve in
-// both directions: slight deviations change the daily dose by 10 %, moderate ones by
-// 20 %, and strong deviations by 30 %.
-const SUPPLY_ADJUSTMENT_PERCENT = Object.freeze({ 1: 30, 2: 30, 3: 20, 4: 10, 6: 10, 7: 20, 8: 30, 9: 30 })
+// Tägliche Elementversorgung nach Auswertung V2.2: Welche Kanäle sich anpassen lassen,
+// hängt vom Versorgungssystem ab (Teile 0–3). Jeder Kanal folgt einem Leitwert und wird
+// pauschal um 10–20 % angepasst; die Spurenelemente (Spuren/DT) folgen dem Zink.
+const SUPPLY_STEP = '10–20 %'
+const SUPPLY_CHANNELS = Object.freeze({
+  1: [{ label: 'All-in-one', key: 'kh' }],
+  2: [{ label: 'KH', key: 'kh' }, { label: 'Ca/Mg', key: 'calcium' }],
+  3: [{ label: 'KH', key: 'kh' }, { label: 'Ca', key: 'calcium' }, { label: 'Mg', key: 'magnesium' }],
+})
+// Ohne Angabe zum System: jedes täglich dosierte Element einzeln, wie bei drei Teilen.
+const UNKNOWN_SYSTEM_CHANNELS = Object.freeze([{ key: 'kh' }, { key: 'calcium' }, { key: 'magnesium' }])
 
-function supplyAdjustment(parameter) {
-  const percent = SUPPLY_ADJUSTMENT_PERCENT[parameter.evaluation.score]
-  if (!percent) return null
-  return { percent, direction: parameter.evaluation.score < 5 ? 'increase' : 'reduce' }
+function supplyChange(score) {
+  if (!Number.isFinite(score) || score === 5) return 'unverändert'
+  // V2.2 gibt für drei Teile bei niedrigem Calcium „- 10-20 %“ aus – in beiden Zweigen
+  // dasselbe Vorzeichen, ein Tippfehler: zu wenig Calcium heißt mehr Calcium.
+  return `${score < 5 ? '+' : '−'}${SUPPLY_STEP}`
+}
+
+// Zink steuert die Spurenelemente: zu wenig +25 %, leicht erhöht −50 %, deutlich erhöht −100 %.
+function traceChange(score) {
+  if (!Number.isFinite(score) || score === 5) return null
+  if (score < 5) return '+25 %'
+  return score > 6 ? '−100 %' : '−50 %'
+}
+
+function scoreOf(parameters, key) {
+  return parameters.find((parameter) => parameter.key === key)?.evaluation?.score
+}
+
+// Magnesium hat nur bei drei Teilen einen eigenen Kanal. Bei zwei Teilen zählt es nur,
+// wenn es erhöht ist (Salztipp), bei All-in-one gar nicht.
+function magnesiumCounts(score, parts) {
+  if (parts === 1) return false
+  if (parts === 2) return score > 5
+  return true
+}
+
+function supplyPlan(parameters, parts) {
+  const known = [0, 1, 2, 3].includes(parts)
+  const channels = (known ? SUPPLY_CHANNELS[parts] || [] : UNKNOWN_SYSTEM_CHANNELS)
+    .filter((channel) => Number.isFinite(scoreOf(parameters, channel.key)))
+    .map((channel) => ({
+      label: channel.label || parameters.find((parameter) => parameter.key === channel.key).label,
+      value: supplyChange(scoreOf(parameters, channel.key)),
+    }))
+  const trace = traceChange(scoreOf(parameters, 'zinc'))
+  if (trace) channels.push({ label: 'Spuren/DT', value: trace })
+  return channels
 }
 
 function affected(parameters, predicate) {
@@ -68,6 +108,14 @@ function numberLabel(value, maximumFractionDigits = 1) {
   return Number(value).toLocaleString('de-DE', { maximumFractionDigits })
 }
 
+// Wortlaut der Auswertung V2.2: Absolute Ocean 1 und 2 oder alternativ Nyos pure Salz.
+function lowSalinityText(target, current, volumeLiters) {
+  const volume = Number(volumeLiters)
+  const goal = Number.isFinite(target) ? ` auf ${numberLabel(target)} PSU` : ''
+  if (!(volume > 0) || !Number.isFinite(target)) return `Ergänzen Sie Absolute Ocean 1 und 2 jeweils in der berechneten Menge oder ergänzen Sie Nyos pure Salz, um die Salinität${goal} anzuheben.`
+  return `Ergänzen Sie Absolute Ocean 1 und 2 jeweils in der berechneten Menge oder ergänzen Sie ${numberLabel(nyosGrams(target, current, volume), 0)} g Nyos pure Salz, um die Salinität${goal} anzuheben.`
+}
+
 function salinityCorrection(parameter, volumeLiters) {
   const current = Number(parameter.value)
   const target = targetValue(parameter)
@@ -77,7 +125,10 @@ function salinityCorrection(parameter, volumeLiters) {
   if (!(volume > 0)) {
     if (!low) return [{ label: 'Meerwasser gegen Osmosewasser tauschen', value: 'Menge nach Beckenvolumen' }]
     const set = absoluteOceanSet(0)
-    return [{ label: 'Absolute Ocean 1 und 2', value: 'je 1,71 ml pro PSU und Liter', url: set.url, product: set.name }]
+    return [
+      { label: 'Absolute Ocean 1 und 2', value: 'je 1,71 ml pro PSU und Liter', url: set.url, product: set.name },
+      { label: 'oder Nyos pure Salz', value: '1,06 g pro PSU und Liter' },
+    ]
   }
   if (low) {
     const millilitersEach = Math.max(0, (target - current) * 1.71 * volume)
@@ -91,10 +142,16 @@ function salinityCorrection(parameter, volumeLiters) {
     return [
       { label: 'Absolute Ocean 1', value: amount, url: set.url, product: set.name, image: set.image },
       { label: 'Absolute Ocean 2', value: amount, url: set.url, product: set.name, image: set.image },
+      // V2.2: alternativ Nyos pure Salz, (Ziel − Messwert) × 1,06 × Volumen in Gramm.
+      { label: 'oder Nyos pure Salz', value: `${numberLabel(nyosGrams(target, current, volume), 0)} g` },
     ]
   }
   const liters = Math.max(0, volume - (target / current * volume))
   return [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: `${numberLabel(liters)} l` }]
+}
+
+function nyosGrams(target, current, volume) {
+  return Math.max(0, (target - current) * 1.06 * volume)
 }
 
 function nutrientPair(parameters) {
@@ -139,7 +196,8 @@ const RULES = [
     key: 'water-change',
     icon: '≈',
     action: { tool: 'waterchange' },
-    match: (parameters) => affected(parameters, (score, parameter) => score >= 8 && !['pollutants', 'nutrients'].includes(parameter.groupKey) && parameter.key !== 'salinity'),
+    // V2.2: nur Calcium, Magnesium und Zink, und erst ab „zu hoch“ (Score 8 und 9).
+    match: (parameters) => affected(parameters, (score, parameter) => score > 7 && ['calcium', 'magnesium', 'zinc'].includes(parameter.key)),
     build: (items) => ({
       summaryParts: [
         { text: `Durch die Wasseranalyse ${plural(items, 'wurde ein stark erhöhter Wert', 'wurden stark erhöhte Werte')} bei ` },
@@ -162,7 +220,7 @@ const RULES = [
         summaryParts: [
           { text: 'Die ' },
           { text: item.label, bold: true },
-          { text: ` liegt bei ${numberLabel(item.value)} ${item.unit || 'PSU'} und damit ${low ? 'unter' : 'über'} dem Zielwert${Number.isFinite(target) ? ` von ${numberLabel(target)} PSU` : ''}. ${low ? 'Ergänzen Sie Absolute Ocean 1 und 2 jeweils in der berechneten Menge.' : 'Entnehmen Sie die berechnete Menge Meerwasser und ersetzen Sie diese durch Osmosewasser.'}` },
+          { text: ` liegt bei ${numberLabel(item.value)} ${item.unit || 'PSU'} und damit ${low ? 'unter' : 'über'} dem Zielwert${Number.isFinite(target) ? ` von ${numberLabel(target)} PSU` : ''}. ${low ? lowSalinityText(target, Number(item.value), context.volumeLiters) : 'Entnehmen Sie die berechnete Menge Meerwasser und ersetzen Sie diese durch Osmosewasser.'}` },
         ],
         detailItems: salinityCorrection(item, context.volumeLiters),
       }
@@ -172,29 +230,30 @@ const RULES = [
     key: 'reduce-supply',
     icon: '▼',
     action: { tool: 'consumption' },
-    // Anpassen lässt sich nur, was täglich dosiert wird: KH, Calcium, Magnesium.
-    // Weicht davon nichts ab, hat diese Karte nichts zu sagen und entfällt.
-    match: (parameters) => affected(parameters, (score, parameter) => score !== 5 && DAILY_SUPPLY_KEYS.includes(parameter.key)),
-    build: (items, context) => ({
-      summaryParts: [
-        ...boldList(items),
-        { text: ` ${plural(items, 'weicht', 'weichen')} vom Zielbereich ab. Passen Sie die tägliche Elementversorgung abhängig vom Messwert an.` },
-      ],
-      // Alle drei täglich dosierten Elemente stehen da, auch die, die passen –
-      // sonst bleibt offen, ob sie geprüft wurden oder nur nichts zu tun ist.
-      detailItems: DAILY_SUPPLY_KEYS
-        .map((key) => (context.parameters || []).find((parameter) => parameter.key === key))
-        .filter((parameter) => parameter?.evaluation)
-        .map((parameter) => {
-          const adjustment = supplyAdjustment(parameter)
-          return {
-            label: parameter.label,
-            value: adjustment
-              ? `${adjustment.direction === 'increase' ? '+' : '−'}${adjustment.percent} %`
-              : 'unverändert',
-          }
-        }),
-    }),
+    // Anpassen lässt sich, was täglich dosiert wird (KH, Calcium, Magnesium), dazu die
+    // Spurenelemente über Zink. Weicht davon nichts ab, entfällt die Karte.
+    match: (parameters, context) => affected(parameters, (score, parameter) => score !== 5
+      && (DAILY_SUPPLY_KEYS.includes(parameter.key) || parameter.key === 'zinc')
+      && (parameter.key !== 'magnesium' || magnesiumCounts(score, context.supplyParts))),
+    build: (items, context) => {
+      const parts = context.supplyParts
+      const parameters = context.parameters || []
+      const tips = []
+      // Zwei Teile: Magnesium hat keinen eigenen Kanal; ist es erhöht, hilft nur das richtige Salz.
+      if (parts === 2 && scoreOf(parameters, 'magnesium') > 5) tips.push('Nutzen Sie ausschließlich Meersalze mit naturnahen Werten für Wasserwechsel.')
+      if (parts === null || parts === undefined) tips.push('Hinterlegen Sie im Aquarium Ihr Versorgungssystem – dann passen wir die Empfehlung an seine Teile an.')
+      return {
+        summaryParts: [
+          ...boldList(items),
+          { text: parts === 0
+            ? ` ${plural(items, 'weicht', 'weichen')} vom Zielbereich ab. Wir empfehlen Ihnen ein Versorgungssystem wie z. B. Essentials SPS zu nutzen.`
+            : ` ${plural(items, 'weicht', 'weichen')} vom Zielbereich ab. Passen Sie die tägliche Elementversorgung abhängig vom Messwert an.` },
+        ],
+        // Alle Kanäle stehen da, auch die, die passen – sonst bleibt offen, ob sie geprüft wurden.
+        detailItems: supplyPlan(parameters, parts),
+        tips,
+      }
+    },
   },
   {
     key: 'nutrients',
@@ -217,7 +276,8 @@ const RULES = [
     icon: '!',
     action: { tab: 'values' },
     detailAction: { label: 'Mögliche Quellen prüfen', tool: 'sources' },
-    match: (parameters) => affected(parameters, (score, parameter) => parameter.groupKey === 'pollutants' && score >= 6),
+    // Zink zählt zu den Spurenelementen, kann laut V2.2 aber aus einer Schadstoffquelle stammen (ab Score 6).
+    match: (parameters) => affected(parameters, (score, parameter) => score >= 6 && (parameter.groupKey === 'pollutants' || parameter.key === 'zinc')),
     build: (items) => ({
       summaryParts: [
         ...boldList(items),
@@ -226,6 +286,54 @@ const RULES = [
     }),
   },
 ]
+
+// Osmosewasser nach Auswertung V2.2: Silizium über 25, Zink oder Phosphor über 0 in der
+// Osmoseprobe. Was zu tun ist, hängt davon ab, ob Osmoseanlage (RO) und Harzfilter (MBF)
+// vorhanden sind. Die Sätze sind der Wortlaut der Arbeitsmappe.
+const OSMOSIS_LIMITS = Object.freeze([
+  { keys: ['silicon'], label: 'Silizium', limit: 25 },
+  { keys: ['zinc'], label: 'Zink', limit: 0 },
+  { keys: ['phosphorus', 'phosphate'], label: 'Phosphor', limit: 0 },
+])
+
+function osmosisFindings(osmosis) {
+  const rows = osmosis?.parameters || []
+  return OSMOSIS_LIMITS.map((entry) => {
+    const row = entry.keys.map((key) => rows.find((parameter) => parameter.key === key)).find(Boolean)
+    const value = row && row.resultStatus !== 'below_detection' ? Number(row.value) : null
+    // Ohne Laborbewertung zählt ein Fund wie „erhöht“ (Score 7) – für die Reihenfolge der Karten.
+    return Number.isFinite(value) && value > entry.limit ? { key: row.key, label: entry.label, value, evaluation: { score: 7 } } : null
+  }).filter(Boolean)
+}
+
+function osmosisMeasures(items, osmosis) {
+  const found = new Set(items.map((item) => item.label))
+  const measures = []
+  if (found.has('Silizium')) {
+    const text = osmosis.ro && osmosis.resin
+      ? 'Wechseln Sie das Harz im Reinstfilter aus.'
+      : osmosis.ro ? 'Nutzen Sie einen Harzfilter hinter der Osmoseanlage.' : 'Nutzen Sie eine Osmoseanlage und einen Harzfilter.'
+    measures.push({ label: text, value: '' })
+  }
+  if (found.has('Phosphor')) measures.push({ label: 'PO4 kann im RO Wasser vorkommen, wenn der Harzfilter entweder zu klein oder erschöpft ist, oder etwas im Vorratstank PO4 freisetzt.', value: '' })
+  if (found.has('Zink')) measures.push({ label: 'Zink kann im RO Wasser vorkommen, wenn der Harzfilter entweder zu klein oder erschöpft ist, oder etwas im Vorratstank Zink freisetzt.', value: '' })
+  return measures
+}
+
+const OSMOSIS_RULE = {
+  key: 'osmosis',
+  icon: 'RO',
+  action: { tab: 'osmosis' },
+  match: (parameters, context) => osmosisFindings(context.osmosis),
+  build: (items, context) => ({
+    summaryParts: [
+      { text: 'Durch die Wasseranalyse wurde herausgefunden, dass sich ' },
+      ...boldList(items),
+      { text: ` in der Osmoseprobe ${plural(items, 'befindet', 'befinden')}.` },
+    ],
+    detailItems: osmosisMeasures(items, context.osmosis),
+  }),
+}
 
 // Pinned below the advisory cards: it is the plan, not a finding.
 const DOSING_RULE = {
@@ -243,7 +351,9 @@ const DOSING_RULE = {
 }
 
 // One card per advisory type at most; the dosing course is appended below them.
-const MAX_ADVISORY = 4
+// Die Auswertung V2.2 zeigt alle Blöcke gleichzeitig: Wasserwechsel, Versorgung, Nährstoffe,
+// Schadstoffquellen, Salinität und Osmosewasser.
+const MAX_ADVISORY = 6
 
 function compose(rule, items, templates, context) {
   const template = templates[rule.templateKey ? rule.templateKey(items, context) : rule.key]
@@ -272,13 +382,15 @@ function compose(rule, items, templates, context) {
   }
 }
 
-export function buildDirectRecommendations(parameters = [], { dosingKeys = new Set(), templates = templateMap(), volumeLiters = 0 } = {}) {
+export function buildDirectRecommendations(parameters = [], { dosingKeys = new Set(), templates = templateMap(), volumeLiters = 0, supplyParts = null, osmosis = null } = {}) {
   const context = {
     dosingKeys: dosingKeys instanceof Set ? dosingKeys : new Set(dosingKeys),
     volumeLiters: Math.max(0, Number(volumeLiters) || 0),
     parameters,
+    supplyParts: [0, 1, 2, 3].includes(supplyParts) ? supplyParts : null,
+    osmosis: { parameters: osmosis?.parameters || [], ro: Boolean(osmosis?.ro), resin: Boolean(osmosis?.resin) },
   }
-  const advisory = RULES
+  const advisory = [...RULES, OSMOSIS_RULE]
     .map((rule) => {
       const items = rule.match(parameters, context)
       return items.length ? compose(rule, items, templates, context) : null
