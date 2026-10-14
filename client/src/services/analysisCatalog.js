@@ -95,7 +95,7 @@ export const DEMO_AQUARIUM_PROFILE = Object.freeze({
   livestock: 'SPS, LPS, 11 Fische',
   stockingDensity: 'Mittel',
   runningSince: 'März 2023',
-  supplySystem: 'Essentials Pro',
+  supplySystem: 'Essentials SPS',
   filtration: ['Eiweißabschäumer', 'Aktivkohle sporadisch', 'Algenrefugium'],
 })
 

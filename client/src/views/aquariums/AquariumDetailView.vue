@@ -363,7 +363,7 @@ const systemSpecs = computed(() => [
   { label: 'Abschäumer', value: profile.value.skimmer ? (profile.value.skimmer_model || 'Ja') : 'Nein' },
   { label: 'Erstellt', value: formatDate(profile.value.createdAt) },
   { label: 'Osmosequelle', value: osmosisSpecValue.value },
-  { label: 'Versorgung', value: profile.value.water_type === 'Osmosewasser' ? 'RO/DI Kontrolle' : (profile.value.supply_system || 'ATI Essentials Pro') },
+  { label: 'Versorgung', value: profile.value.water_type === 'Osmosewasser' ? 'RO/DI Kontrolle' : (profile.value.supply_system || 'Nicht angegeben') },
   { label: 'Licht', value: profile.value.lighting_type || (profile.value.aquarium_type === 'SPS' ? 'High PAR' : 'Standard Profil') },
 ])
 const osmosisSpecValue = computed(() => {

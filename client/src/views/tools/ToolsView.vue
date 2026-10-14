@@ -673,9 +673,9 @@ const dosingHint = computed(() => {
 })
 
 const recipeParameters = [
-  { key: 'calcium', product: 'ATI Essentials Pro' },
+  { key: 'calcium', product: 'ATI Essentials' },
   { key: 'magnesium', product: 'ATI Magnesium' },
-  { key: 'kh', product: 'ATI Essentials Pro' },
+  { key: 'kh', product: 'ATI Essentials' },
   { key: 'iodine', product: 'ATI ICP Elements Jod' },
   { key: 'iron', product: 'ATI Daily Traces' },
 ]

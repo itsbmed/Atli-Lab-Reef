@@ -103,7 +103,10 @@ const SMALL_PACK_MIN_MONTHS = 3
 // weichkorallenbetontes Becken bekommt Mixed Reef.
 const MIXED_REEF_TYPES = /misch|gemischt|lps|weich|softie/i
 
-export function essentialsFor(aquariumType = '') {
+// Die selbst gewählte Linie gilt; sonst entscheidet der Beckentyp.
+export function essentialsFor(aquariumType = '', chosenLine = '') {
+  const chosen = Object.values(ATI_ESSENTIALS_LINES).find((line) => line.label === chosenLine)
+  if (chosen) return chosen
   return MIXED_REEF_TYPES.test(String(aquariumType)) ? ATI_ESSENTIALS_LINES.mixed : ATI_ESSENTIALS_LINES.sps
 }
 
@@ -117,8 +120,8 @@ export function packReachMonths(bottleMl, volumeLiters, [low, high]) {
 
 // Empfehlung: das Set der passenden Linie in der Größe, die zum Becken passt.
 // Die Einzelflaschen bleiben als Nachkauf erreichbar.
-export function essentialsRecommendation(aquariumType = '', volumeLiters = 0) {
-  const line = essentialsFor(aquariumType)
+export function essentialsRecommendation(aquariumType = '', volumeLiters = 0, chosenLine = '') {
+  const line = essentialsFor(aquariumType, chosenLine)
   const [small, large] = line.sets
   const smallReach = packReachMonths(small.bottleMl, volumeLiters, line.dailyMlPer100Liters)
   const primary = !smallReach || smallReach.fast >= SMALL_PACK_MIN_MONTHS ? small : large

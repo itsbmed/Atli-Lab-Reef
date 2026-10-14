@@ -528,6 +528,7 @@ import { buildDosingPlan } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
 import { recommendedProductsForKeys } from '@/services/dosingConfig'
 import { essentialsRecommendation } from '@/services/atiProductCatalog'
+import { NYOS_LINK_LABEL, nyosRecommendation } from '@/services/nyosProductCatalog'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
 import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directRecommendations'
 import { waterBalance } from '@/services/waterBalance'
@@ -664,9 +665,17 @@ function showDetailBlock(item) {
 const essentialsSuggestion = computed(() => essentialsRecommendation(
   analysis.value?.aquariumProfile?.aquariumType,
   Number(analysis.value?.aquariumProfile?.volumeLiters || 0),
+  analysis.value?.aquariumProfile?.supplyMode === 'ati' ? analysis.value?.aquariumProfile?.supplyLine : '',
 ))
+// Wer mit NYOS ION-B versorgt, bekommt NYOS-Produkte statt der ATI Essentials.
+const usesNyos = computed(() => analysis.value?.aquariumProfile?.supplyMode === 'nyos')
+function nyosSuggestion(item) {
+  const trace = (item.detailItems || []).some((detail) => detail.label === 'Spuren/DT')
+  return nyosRecommendation(analysis.value?.aquariumProfile?.supplyLine, { trace })
+}
 function productAlternatives(item) {
-  return item.key === 'reduce-supply' ? essentialsSuggestion.value.alternatives : []
+  if (item.key !== 'reduce-supply') return []
+  return usesNyos.value ? nyosSuggestion(item).alternatives : essentialsSuggestion.value.alternatives
 }
 function recommendationProducts(item) {
   // Salinität wird nicht über ein ICP-Element korrigiert, sondern über das
@@ -677,6 +686,17 @@ function recommendationProducts(item) {
   // Linie kein eigenes Produkt und bleibt beim ICP-Element.
   // Gegen Funde im Osmosewasser hilft kein Element-Produkt, sondern Harz und Anlage.
   if (item.key === 'osmosis') return []
+  if (item.key === 'reduce-supply' && usesNyos.value) {
+    return nyosSuggestion(item).products.map((product) => ({
+      parameterKey: product.url,
+      productName: product.name,
+      productNote: product.note,
+      productUrl: product.url,
+      productImage: product.image,
+      linkLabel: NYOS_LINK_LABEL,
+      brand: 'NYOS',
+    }))
+  }
   if (item.key === 'reduce-supply') {
     const { primary, reach } = essentialsSuggestion.value
     const span = reach ? `reicht etwa ${Math.round(reach.fast)}–${Math.round(reach.slow)} Monate` : ''
