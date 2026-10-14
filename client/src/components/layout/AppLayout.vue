@@ -291,6 +291,7 @@ const routeMeta = {
   '/support': { title: 'Hilfe & Support', sub: () => 'Antworten finden und das ATI Team kontaktieren' },
   '/tools': { title: 'Tools', sub: () => 'Wasserwechsel, Verbrauch und Dosierung planen' },
   '/chronik': { title: 'Chronik', sub: () => 'Entwicklung Ihrer Wasserwerte' },
+  '/chronik/v1': { title: 'Chronik v1', sub: () => 'Gesicherte Fassung mit Übersicht-Matrix' },
   '/tools/trends': { title: 'Trenddiagramme', sub: () => 'Analysewerte im Verlauf vergleichen' },
   '/settings': { title: 'Admin-Einstellungen', sub: () => 'Elementinformationen und Berichtsinhalte verwalten' },
 }
