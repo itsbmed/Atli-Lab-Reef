@@ -1,12 +1,16 @@
 import { getAquarium, getAquariums } from '@/services/aquariumStore'
 import { ATI_LAB_REPORT_IDS, createAtiLabReports } from '@/services/atiLabReports'
+import { withDemoHistory } from '@/services/demoHistory'
 import { loadAnalysisContent } from '@/services/analysisContent'
 import { evaluateRecommendationRules } from '@/services/recommendationRules'
 
 const ANALYSES_KEY = 'reef-pilot:analyses'
 const FAVORITES_KEY = 'reef-pilot:analysis-favorites'
 const DEMO_OWNER = 'demo-full'
-export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze([...ATI_LAB_REPORT_IDS])
+// Die echten ATI-Berichte plus je Aquarium zwei frühere Beispielberichte (demo: true),
+// damit Chronik und Messverlauf eine Linie zeigen. Ohne Beispiele: withDemoHistory weglassen.
+const DEMO_ANALYSES = withDemoHistory(createAtiLabReports())
+export const APPROVED_COMPLETED_ANALYSIS_IDS = Object.freeze([...ATI_LAB_REPORT_IDS, ...DEMO_ANALYSES.filter((analysis) => analysis.demo).map((analysis) => analysis.id)])
 const approvedCompletedAnalysisIds = new Set(APPROVED_COMPLETED_ANALYSIS_IDS)
 
 export const ANALYSIS_PACKAGES = [
@@ -192,8 +196,6 @@ function demoParameterHistory(analysisId, parameterKey) {
     ?.parameters?.find((parameter) => parameter.key === parameterKey)?.history || []
 }
 
-// Nur die importierten ATI-Originalberichte. Erfundene Beispielanalysen gibt es nicht mehr.
-const DEMO_ANALYSES = createAtiLabReports()
 
 const demoAnalysisIds = new Set(DEMO_ANALYSES.map((analysis) => analysis.id))
 

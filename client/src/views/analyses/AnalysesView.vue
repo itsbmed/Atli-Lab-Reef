@@ -62,6 +62,7 @@
             <strong>{{ analysis.aquariumName }}</strong>
             <span class="row-meta">
               <b class="row-number">Nr. {{ reportLabel(analysis) }}</b>
+              <b v-if="analysis.demo" class="row-demo" title="Für die Demo abgeleitet – keine Labormessung">Beispiel</b>
               <span>{{ formatDate(analysis.createdAt) }}</span>
               <span>{{ findingLabel(analysis) }}</span>
             </span>
@@ -203,6 +204,7 @@ function formatDate(iso) {
 .row-main strong { display: block; overflow: hidden; color: var(--text); font-size: 17px; font-weight: 800; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
 .row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-muted); font-size: 12.5px; }
 .row-meta > span::before { margin-right: 6px; color: #b9c7d1; content: '·'; }
+.row-demo { padding: 2px 7px; border-radius: 6px; background: #f1f5f9; color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; }
 .row-number { padding: 2px 7px; border-radius: 6px; background: #eef5fb; color: var(--brand-blue); font-size: 11px; font-weight: 850; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
 .row-timeline { display: none; }
 @media (min-width: 1180px) {
