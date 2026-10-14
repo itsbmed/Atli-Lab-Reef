@@ -32,3 +32,13 @@ export function describeSupply(form) {
   }
   return ''
 }
+
+// Teile des Versorgungssystems, wie die Auswertung (V2.2, „Vers. Sys. Teile“) sie zählt:
+// 0 = keines, 1 = All-in-one, 2 = KH und Ca/Mg getrennt, 3 = KH, Ca und Mg getrennt.
+// ATI Essentials ist ein Zwei-Komponenten-System. Ohne Angabe: null.
+export function supplyParts(form) {
+  if (form?.supply_mode === 'none') return 0
+  if (form?.supply_mode === 'ati') return 2
+  if (form?.supply_mode === 'other') return [1, 2, 3].includes(Number(form.supply_bottles)) ? Number(form.supply_bottles) : null
+  return null
+}

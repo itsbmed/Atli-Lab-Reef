@@ -1,4 +1,5 @@
-import { getAquarium, getAquariums } from '@/services/aquariumStore'
+import { getAquarium, getAquariums, linkedOsmosisSource } from '@/services/aquariumStore'
+import { supplyParts } from '@/services/supplySystem'
 import { ATI_LAB_REPORT_IDS, createAtiLabReports } from '@/services/atiLabReports'
 import { withDemoHistory } from '@/services/demoHistory'
 import { loadAnalysisContent } from '@/services/analysisContent'
@@ -172,6 +173,12 @@ function enrichAnalysis(analysis) {
       aquariumType: aquarium.aquarium_type || 'Nicht angegeben',
       livestock: aquarium.stocking_density || 'Nicht angegeben',
       supplySystem: aquarium.supply_system || 'Nicht angegeben',
+      // Für die Auswertung V2.2: Teile des Versorgungssystems sowie Osmoseanlage (RO) und Harzfilter (MBF).
+      supplyParts: supplyParts(aquarium),
+      supplyMode: aquarium.supply_mode || '',
+      supplyLine: aquarium.supply_line || '',
+      hasOsmosisSource: Boolean(linkedOsmosisSource(aquarium)),
+      resinFilter: Boolean(linkedOsmosisSource(aquarium)?.water_details?.resin_filter),
       evaluationScaleId: aquarium.evaluation_scale_id || '',
       filtration: [aquarium.skimmer && 'Eiweißabschäumer', aquarium.refugium && 'Refugium', aquarium.sump && 'Technikbecken'].filter(Boolean),
     } : (analysis.aquariumProfile || null),
