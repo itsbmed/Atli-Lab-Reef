@@ -10,6 +10,7 @@
     </section>
 
     <template v-else>
+      <p v-if="analysis.demo" class="simulation-notice">Beispielbericht · Für die Demo aus dem ATI-Bericht {{ analysis.reportNumber.split('-')[1] }} abgeleitet, damit Verläufe sichtbar sind – keine Labormessung.</p>
       <p v-if="analysis.simulation" class="simulation-notice">Simulation · Messwerte sind Testdaten. Produkte und Dosierangaben stammen vom Hersteller. Aquarium und Nettovolumen kommen aus dem verknüpften Profil.</p>
       <section :class="['report-hero', analysis.severity]">
         <div>
