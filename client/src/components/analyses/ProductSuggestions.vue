@@ -12,11 +12,11 @@
         :rel="product.productUrl ? 'noopener noreferrer' : undefined"
       >
         <img v-if="product.productImage && !failedImages[product.productImage]" :src="product.productImage" alt="" loading="lazy" @error="failedImages[product.productImage] = true" />
-        <span v-else class="product-placeholder" aria-hidden="true">ATI</span>
+        <span v-else class="product-placeholder" aria-hidden="true">{{ product.brand || 'ATI' }}</span>
         <span class="product-copy">
           <strong>{{ product.productName }}</strong>
           <b v-if="product.productNote" class="product-note">{{ product.productNote }}</b>
-          <small v-if="product.productUrl">Im ATI Shop ansehen ↗</small>
+          <small v-if="product.productUrl">{{ product.linkLabel || 'Im ATI Shop ansehen' }} ↗</small>
         </span>
       </component>
     </div>

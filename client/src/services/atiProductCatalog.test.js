@@ -41,3 +41,10 @@ test('the reach is derived from the published dosage range', () => {
   assert.equal(Math.round(reach.slow), 8)
   assert.equal(packReachMonths(2700, 0, [3, 7]), null, 'without a volume nothing is claimed')
 })
+
+test('a line the customer picked wins over the tank type', () => {
+  assert.equal(essentialsFor('LPS', 'Essentials SPS').key, 'sps')
+  assert.equal(essentialsFor('SPS', 'Essentials Mixed Reef').key, 'mixed')
+  assert.equal(essentialsFor('LPS', 'Essentials Pro').key, 'mixed', 'an unknown line falls back to the tank type')
+  assert.equal(essentialsRecommendation('LPS', 375, 'Essentials SPS').line.key, 'sps')
+})
