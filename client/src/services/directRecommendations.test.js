@@ -107,6 +107,12 @@ test('nutrient management covers all four NO₃/P combinations with volume-based
   assert.deepEqual(lowHigh.detailItems, [{ label: 'PO₄-Adsorber', value: 'nutzen' }, { label: 'Essential Nitro', value: '2,5 ml täglich' }])
   assert.deepEqual(highHigh.detailItems, [{ label: 'Futtereintrag', value: 'reduzieren' }, { label: 'Eiweißabschäumer', value: 'reinigen' }, { label: 'PO₄-Adsorber', value: 'nutzen' }])
   for (const recommendation of [lowLow, highLow, lowHigh, highHigh]) assert.equal(recommendation.action.label, '')
+  // Wortlaut und Tipp aus der Arbeitsmappe V2.2 (Q27–Q34).
+  assert.equal(highLow.summary, 'Wir empfehlen Ihnen das Nährstoffmanagement zu optimieren, da Nitrat erhöht ist und Phosphor reduziert ist.')
+  assert.deepEqual(highLow.summaryParts.filter((part) => part.bold).map((part) => part.text), ['Nitrat', 'Phosphor'])
+  for (const recommendation of [lowLow, highLow, lowHigh, highHigh]) {
+    assert.deepEqual(recommendation.tips, ['Messen Sie regelmäßig NO₃ und PO₄, um Nährstoff-Anreicherungen und Limitierungen zu vermeiden.'])
+  }
 })
 
 test('salinity gets a separate low/high correction based on volume and target PSU', () => {

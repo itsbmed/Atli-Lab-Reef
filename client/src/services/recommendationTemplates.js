@@ -82,7 +82,7 @@ const DEFAULT_TEMPLATES = Object.freeze([
     detailLabel: 'Empfohlene Maßnahmen',
     detailItems: ['Futtereintrag reduzieren', 'Eiweißabschäumer reinigen', 'PO₄-Adsorber nutzen'],
     dynamicDetail: true,
-    tips: [],
+    tips: ['Messen Sie regelmäßig NO₃ und PO₄, um Nährstoff-Anreicherungen und Limitierungen zu vermeiden.'],
   },
   {
     key: 'nutrients-low',
@@ -95,7 +95,7 @@ const DEFAULT_TEMPLATES = Object.freeze([
     detailLabel: 'Empfohlene Maßnahmen',
     detailItems: [],
     dynamicDetail: true,
-    tips: [],
+    tips: ['Messen Sie regelmäßig NO₃ und PO₄, um Nährstoff-Anreicherungen und Limitierungen zu vermeiden.'],
   },
   {
     key: 'nutrients-high-low',
@@ -108,7 +108,7 @@ const DEFAULT_TEMPLATES = Object.freeze([
     detailLabel: 'Empfohlene Maßnahmen',
     detailItems: [],
     dynamicDetail: true,
-    tips: [],
+    tips: ['Messen Sie regelmäßig NO₃ und PO₄, um Nährstoff-Anreicherungen und Limitierungen zu vermeiden.'],
   },
   {
     key: 'nutrients-low-high',
@@ -121,7 +121,7 @@ const DEFAULT_TEMPLATES = Object.freeze([
     detailLabel: 'Empfohlene Maßnahmen',
     detailItems: [],
     dynamicDetail: true,
-    tips: [],
+    tips: ['Messen Sie regelmäßig NO₃ und PO₄, um Nährstoff-Anreicherungen und Limitierungen zu vermeiden.'],
   },
   {
     key: 'pollutants',

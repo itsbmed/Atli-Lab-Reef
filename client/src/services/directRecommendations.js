@@ -262,11 +262,13 @@ const RULES = [
     match: nutrientPair,
     templateKey: nutrientTemplateKey,
     build: (items, context) => ({
+      // Wortlaut der Auswertung V2.2 (Nährstoffmanagement, Q27–Q29).
       summaryParts: [
+        { text: 'Wir empfehlen Ihnen das Nährstoffmanagement zu optimieren, da ' },
         { text: items[0].label, bold: true },
-        { text: ` ist ${nutrientDirection(items[0]) === 'low' ? 'zu niedrig' : 'zu hoch'}, ` },
+        { text: ` ${nutrientDirection(items[0]) === 'low' ? 'reduziert' : 'erhöht'} ist und ` },
         { text: items[1].label, bold: true },
-        { text: ` ist ${nutrientDirection(items[1]) === 'low' ? 'zu niedrig' : 'zu hoch'}. Die Maßnahmen werden als gemeinsame Nährstoffkorrektur aufeinander abgestimmt.` },
+        { text: ` ${nutrientDirection(items[1]) === 'low' ? 'reduziert' : 'erhöht'} ist.` },
       ],
       detailItems: nutrientMeasures(items, context.volumeLiters),
     }),
