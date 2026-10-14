@@ -49,14 +49,21 @@ const props = defineProps({
   form: { type: Object, required: true },
   // Bereiche, die anderswo abgefragt werden (z. B. „Auswertung“ im letzten Schritt des Assistenten).
   exclude: { type: Array, default: () => [] },
+  // Einzelne Felder, die schon an anderer Stelle stehen (Schnellauswahl im Assistenten).
+  excludeKeys: { type: Array, default: () => [] },
+  // Alle Bereiche zugeklappt beginnen statt mit dem ersten offen.
+  collapsed: { type: Boolean, default: false },
 })
 
-const groups = computed(() => waterTypeGroups(props.form.water_type).filter((group) => !props.exclude.includes(group.title)))
+const groups = computed(() => waterTypeGroups(props.form.water_type)
+  .filter((group) => !props.exclude.includes(group.title))
+  .map((group) => (props.excludeKeys.length ? { ...group, fields: group.fields.filter((field) => !props.excludeKeys.includes(field.key)) } : group))
+  .filter((group) => group.fields.length))
 const openTitles = ref(new Set())
 
 watch(() => props.form.water_type, () => {
   ensureWaterTypeDetails(props.form)
-  openTitles.value = new Set(groups.value.slice(0, 1).map((group) => group.title))
+  openTitles.value = new Set(props.collapsed ? [] : groups.value.slice(0, 1).map((group) => group.title))
 }, { immediate: true })
 
 // Was in einem Bereich schon steht, lesbar im zugeklappten Kopf.
