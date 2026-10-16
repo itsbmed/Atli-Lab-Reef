@@ -89,3 +89,47 @@ test('pairs without both measurements are dropped rather than guessed', () => {
   assert.deepEqual(growth.map((item) => item.leftLabel), ['KH', 'KH'])
   assert.deepEqual(growth.map((item) => item.rightLabel), ['P', 'Ca'])
 })
+
+test('composition in percent puts every element on one comparable axis', async () => {
+  const { compositionPercent, compositionSummary } = await import('./waterBalance.js')
+  const rows = [
+    { key: 'chloride', label: 'Chlorid', measured: 20457.8, ideal: 20882.3, delta: -424.5, tone: 'good' },
+    { key: 'fluoride', label: 'Fluorid', measured: 1.01, ideal: 1.37, delta: -0.36, tone: 'watch' },
+    { key: 'boron', label: 'Bor', measured: 3.67, ideal: 4.75, delta: -1.08, tone: 'watch' },
+  ]
+  const view = compositionPercent(rows)
+  assert.equal(view.scale, 30, 'the smallest scale that holds −26 %')
+  assert.deepEqual(view.ticks, [-30, -15, 0, 15, 30])
+  const [cl, f] = view.rows
+  assert.ok(Math.abs(cl.percent + 2.03) < 0.01)
+  assert.ok(f.extent > cl.extent * 10, 'fluoride at −26 % is drawn far longer than chloride at −2 %')
+  assert.deepEqual(compositionPercent(rows, { sort: 'deviation' }).rows.map((row) => row.key), ['fluoride', 'boron', 'chloride'])
+
+  const outlier = compositionPercent([{ key: 'fluoride', ideal: 1, delta: 3.76, tone: 'critical' }])
+  assert.equal(outlier.scale, 50)
+  assert.equal(outlier.rows[0].clamped, true)
+  assert.equal(outlier.rows[0].extent, 1)
+
+  const summary = compositionSummary(rows)
+  assert.deepEqual([summary.total, summary.fitting], [3, 1])
+  assert.deepEqual(summary.flagged.map((item) => item.label), ['Fluorid', 'Bor'])
+})
+
+test('the client view: index 100 per element, sulfate from sulfur, average min and max', async () => {
+  const { compositionIndex, withSulfate, BALANCE_BAND } = await import('./waterBalance.js')
+  const rows = withSulfate([
+    { key: 'chloride', label: 'Chlorid', symbol: 'Cl', measured: 100, ideal: 100, delta: 0 },
+    { key: 'sulfur', label: 'Schwefel', symbol: 'S', measured: 120, ideal: 100, delta: 20 },
+    { key: 'potassium', label: 'Kalium', symbol: 'K', measured: 80, ideal: 100, delta: -20 },
+    { key: 'boron', label: 'Bor', symbol: 'B', measured: 450, ideal: 100, delta: 350 },
+  ])
+  assert.deepEqual(rows.map((row) => row.symbol), ['Cl', 'S', 'SO₄', 'K', 'B'])
+  assert.ok(Math.abs(rows[2].measured / rows[2].ideal - 1.2) < 1e-9, 'sulfate keeps the ratio of sulfur')
+  const view = compositionIndex(rows)
+  assert.deepEqual(view.band, [100 - BALANCE_BAND, 100 + BALANCE_BAND])
+  assert.deepEqual(view.items.map((item) => Math.round(item.index)), [100, 120, 120, 80, 450])
+  assert.deepEqual(view.items.map((item) => item.inBand), [true, false, false, false, false])
+  assert.equal(view.items[4].y, 200)
+  assert.equal(view.items[4].clamped, true)
+  assert.deepEqual([Math.round(view.stats.avg), Math.round(view.stats.min), Math.round(view.stats.max)], [174, 80, 450])
+})

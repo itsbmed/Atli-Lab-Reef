@@ -190,3 +190,76 @@ export function waterBalance(parameters = []) {
 }
 
 export const WATER_BALANCE_SCALE_STEPS = SCALE_STEPS
+
+/* ──────────────── Zusammensetzung in Prozent vom Sollwert ──────────────── */
+
+// Der Sollwert des Labors ist schon auf die gemessene Salinität bezogen. Die Abweichung in
+// Prozent macht alle Elemente auf einer Achse vergleichbar – in mg/l wirkt Chlorid mit −2 %
+// sonst dramatischer als Fluorid mit −26 %.
+const PERCENT_SCALES = Object.freeze([5, 10, 20, 30, 50])
+
+export function compositionPercent(rows = [], { sort = 'lab' } = {}) {
+  const withPercent = rows.map((row) => ({ ...row, percent: (row.delta / row.ideal) * 100 }))
+  const largest = Math.max(0, ...withPercent.map((row) => Math.abs(row.percent)))
+  const scale = PERCENT_SCALES.find((step) => step >= largest) || PERCENT_SCALES.at(-1)
+  const half = scale / 2
+  const items = withPercent.map((row) => ({
+    ...row,
+    extent: Math.min(1, Math.abs(row.percent) / scale),
+    clamped: Math.abs(row.percent) > scale,
+  }))
+  if (sort === 'deviation') items.sort((a, b) => Math.abs(b.percent) - Math.abs(a.percent))
+  return { scale, ticks: [-scale, -half, 0, half, scale], rows: items }
+}
+
+// Kurzfazit über dem Diagramm, nach der Bewertung des Labors.
+export function compositionSummary(rows = []) {
+  const flagged = rows.filter((row) => row.tone && row.tone !== 'good')
+  return {
+    total: rows.length,
+    fitting: rows.length - flagged.length,
+    flagged: flagged
+      .map((row) => ({ key: row.key, label: row.label, percent: (row.delta / row.ideal) * 100, tone: row.tone }))
+      .sort((a, b) => Math.abs(b.percent) - Math.abs(a.percent)),
+  }
+}
+
+/* ──────────────── Vorschlag des Kunden: Index 100 und Säulen ──────────────── */
+
+// Konzentration im Verhältnis zum salinitätsbezogenen Sollwert: 100 = passt zur Salinität.
+// Der grüne Bereich der Kunden-Arbeitsmappe liegt bei etwa ±15 %.
+export const BALANCE_BAND = 15
+
+// Sulfat wird wie in der Arbeitsmappe des Kunden aus Schwefel abgeleitet (SO₄ = S × 2,996);
+// das Verhältnis zum Soll ist dasselbe, nur die Konzentration nicht.
+const SULFATE_PER_SULFUR = 2.996
+
+export function withSulfate(rows = []) {
+  const index = rows.findIndex((row) => row.key === 'sulfur')
+  if (index === -1) return rows
+  const sulfur = rows[index]
+  const sulfate = {
+    ...sulfur,
+    key: 'sulfate',
+    symbol: 'SO₄',
+    label: 'Sulfat',
+    derived: true,
+    measured: sulfur.measured * SULFATE_PER_SULFUR,
+    ideal: sulfur.ideal * SULFATE_PER_SULFUR,
+    delta: sulfur.delta * SULFATE_PER_SULFUR,
+  }
+  return [...rows.slice(0, index + 1), sulfate, ...rows.slice(index + 1)]
+}
+
+// Punkte auf der Index-Achse 0–200; Werte darüber stehen am Rand. Dazu Ø, Min und Max.
+export function compositionIndex(rows = [], { top = 200 } = {}) {
+  const items = rows.map((row) => {
+    const index = (row.measured / row.ideal) * 100
+    return { ...row, index, y: Math.min(index, top), clamped: index > top, inBand: Math.abs(index - 100) <= BALANCE_BAND }
+  })
+  const values = items.map((item) => item.index)
+  const stats = values.length
+    ? { avg: values.reduce((sum, value) => sum + value, 0) / values.length, min: Math.min(...values), max: Math.max(...values) }
+    : null
+  return { top, band: [100 - BALANCE_BAND, 100 + BALANCE_BAND], items, stats }
+}
