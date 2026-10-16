@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assignColors, buildTanks, delta, flaggedParameters, niceTicks, position, rangeStart, readQuery, reportsInRange, series, sharedScale, toCsv, valueAt } from './chronik.js'
+import { DEFAULT_PARAMETERS, clearStartView, loadStartView, resolveStart, sameView, saveStartView, assignColors, buildTanks, delta, flaggedParameters, niceTicks, position, rangeStart, readQuery, reportsInRange, series, sharedScale, toCsv, valueAt } from './chronik.js'
 
 const parameter = (key, value, extra = {}) => ({ key, value, unit: 'mg/l', tone: 'good', resultStatus: 'valid', ...extra })
 const analysis = (id, aquariumId, createdAt, parameters, extra = {}) => ({ id, aquariumId, createdAt, status: 'completed', parameters, ...extra })
@@ -97,4 +97,40 @@ test('the address bar restores a selection and ignores unknown entries', () => {
   const tanks = buildTanks(analyses, aquariums)
   assert.deepEqual(readQuery({ tanks: 'nano,ghost', params: 'calcium,unobtainium', view: 'trend', range: '6m' }, tanks), { tankIds: ['nano'], keys: ['calcium'], view: 'trend', range: '6m' })
   assert.deepEqual(readQuery({}, tanks), { tankIds: ['reef', 'nano'], keys: [], view: 'compare', range: 'all' })
+})
+
+const memoryStorage = () => {
+  const data = new Map()
+  return { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), removeItem: (key) => data.delete(key) }
+}
+const threeTanks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+const known = ['kh', 'calcium', 'magnesium', 'nitrate', 'iodine']
+
+test('without a link or saved view the Chronik starts lean: two tanks, three parameters', () => {
+  const start = resolveStart({ tanks: threeTanks, knownKeys: known })
+  assert.deepEqual(start, { source: 'default', tankIds: ['a', 'b'], keys: ['kh', 'calcium', 'magnesium'], view: 'trend', layout: 'combined', range: 'all' })
+  assert.equal(DEFAULT_PARAMETERS.length, 3)
+})
+
+test('a saved start view is restored, without tanks or parameters that no longer exist', () => {
+  const storage = memoryStorage()
+  saveStartView(storage, 'u1', { tankIds: ['c', 'gone'], keys: ['iodine', 'unobtainium'], view: 'compare', layout: 'separate', range: '6m' })
+  const start = resolveStart({ tanks: threeTanks, saved: loadStartView(storage, 'u1'), knownKeys: known })
+  assert.deepEqual(start, { source: 'saved', tankIds: ['c'], keys: ['iodine'], view: 'compare', layout: 'separate', range: '6m' })
+  assert.equal(loadStartView(storage, 'u2'), null, 'start views belong to one account')
+  clearStartView(storage, 'u1')
+  assert.equal(loadStartView(storage, 'u1'), null)
+})
+
+test('a shared link wins over the saved start view', () => {
+  const start = resolveStart({ query: { tanks: 'b', params: 'nitrate', view: 'compare' }, tanks: threeTanks, saved: { tankIds: ['a'], keys: ['kh'] }, knownKeys: known })
+  assert.equal(start.source, 'link')
+  assert.deepEqual([start.tankIds, start.keys, start.view], [['b'], ['nitrate'], 'compare'])
+})
+
+test('the current selection is recognised as the saved one regardless of order', () => {
+  const base = { tankIds: ['a', 'b'], keys: ['kh', 'calcium'], view: 'trend', layout: 'combined', range: 'all' }
+  assert.ok(sameView(base, { ...base, tankIds: ['b', 'a'] }))
+  assert.ok(!sameView(base, { ...base, range: '3m' }))
+  assert.ok(!sameView(base, null))
 })

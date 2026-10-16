@@ -16,7 +16,9 @@ export const PARAMETER_SETS = Object.freeze([
   { key: 'balance', label: 'Salzbalance', keys: ['salinity', 'sodium', 'chloride', 'potassium', 'sulfur'] },
 ])
 
-export const DEFAULT_PARAMETERS = Object.freeze(['kh', 'calcium', 'magnesium', 'nitrate', 'phosphate'])
+// Ohne gespeicherte Startansicht: die zwei zuletzt untersuchten Aquarien und drei Hauptwerte.
+export const DEFAULT_PARAMETERS = Object.freeze(['kh', 'calcium', 'magnesium'])
+export const DEFAULT_TANK_COUNT = 2
 
 export const RANGES = Object.freeze([
   { key: '3m', label: '3 Monate', months: 3 },
@@ -239,9 +241,70 @@ export function readQuery(query, tanks) {
   const tankIds = list(query.tanks).filter((id) => known.has(id))
   const keys = list(query.params).filter((key) => ELEMENT_DEFINITION_MAP[key])
   return {
-    tankIds: tankIds.length ? tankIds : tanks.slice(0, 4).map((tank) => tank.id),
+    tankIds: tankIds.length ? tankIds : tanks.slice(0, DEFAULT_TANK_COUNT).map((tank) => tank.id),
     keys,
     view: ['compare', 'trend', 'matrix'].includes(query.view) ? query.view : 'compare',
     range: RANGES.some((range) => range.key === query.range) ? query.range : 'all',
   }
+}
+
+// Startansicht: was die Chronik beim Öffnen zeigt, je Konto im Browser gespeichert.
+const START_VIEW_PREFIX = 'reef-pilot:chronik-start:'
+const VIEW_KEYS = ['compare', 'trend']
+const LAYOUT_KEYS = ['combined', 'separate']
+
+function startViewKey(ownerId) {
+  return `${START_VIEW_PREFIX}${ownerId || 'guest'}`
+}
+
+export function saveStartView(storage, ownerId, state) {
+  const view = { tankIds: [...state.tankIds], keys: [...state.keys], view: state.view, layout: state.layout, range: state.range }
+  try { storage.setItem(startViewKey(ownerId), JSON.stringify(view)); return view } catch { return null }
+}
+
+export function loadStartView(storage, ownerId) {
+  try { return JSON.parse(storage.getItem(startViewKey(ownerId)) || 'null') } catch { return null }
+}
+
+export function clearStartView(storage, ownerId) {
+  try { storage.removeItem(startViewKey(ownerId)) } catch { /* nichts zu tun */ }
+}
+
+export function sameView(a, b) {
+  if (!a || !b) return false
+  const same = (x, y) => x.length === y.length && x.every((item) => y.includes(item))
+  return same(a.tankIds, b.tankIds) && same(a.keys, b.keys) && a.view === b.view && a.layout === b.layout && a.range === b.range
+}
+
+// Was die Chronik beim Öffnen zeigt: ein geteilter Link gewinnt, dann die gespeicherte
+// Startansicht, sonst die schlanke Voreinstellung. Gelöschte Aquarien fallen heraus.
+export function resolveStart({ query = {}, tanks = [], saved = null, knownKeys = [] }) {
+  const fromLink = ['tanks', 'params', 'view', 'layout', 'range'].some((key) => query[key])
+  const known = new Set(tanks.map((tank) => tank.id))
+  const allowedKeys = new Set(knownKeys)
+  const defaults = { tankIds: tanks.slice(0, DEFAULT_TANK_COUNT).map((tank) => tank.id), keys: [...DEFAULT_PARAMETERS], view: 'trend', layout: 'combined', range: 'all' }
+  if (fromLink) {
+    const state = readQuery(query, tanks)
+    return {
+      source: 'link',
+      tankIds: state.tankIds,
+      keys: state.keys.length ? state.keys : defaults.keys,
+      view: query.view === 'compare' || query.view === 'matrix' ? 'compare' : 'trend',
+      layout: query.layout === 'separate' ? 'separate' : 'combined',
+      range: state.range,
+    }
+  }
+  if (saved) {
+    const tankIds = (saved.tankIds || []).filter((id) => known.has(id))
+    const keys = (saved.keys || []).filter((key) => allowedKeys.has(key))
+    return {
+      source: 'saved',
+      tankIds: tankIds.length ? tankIds : defaults.tankIds,
+      keys: keys.length ? keys : defaults.keys,
+      view: VIEW_KEYS.includes(saved.view) ? saved.view : defaults.view,
+      layout: LAYOUT_KEYS.includes(saved.layout) ? saved.layout : defaults.layout,
+      range: RANGES.some((item) => item.key === saved.range) ? saved.range : defaults.range,
+    }
+  }
+  return { source: 'default', ...defaults }
 }

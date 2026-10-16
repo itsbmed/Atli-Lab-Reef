@@ -92,6 +92,20 @@
           <button v-for="item in RANGES" :key="item.key" type="button" role="radio" :aria-checked="range === item.key" :class="{ active: range === item.key }" @click="range = item.key">{{ item.label }}</button>
         </div>
 
+        <div class="ch-start">
+          <button
+            type="button"
+            :class="['ch-start-btn', { on: isStartView }]"
+            :aria-pressed="isStartView"
+            :title="isStartView ? 'Diese Auswahl ist Ihre Startansicht' : 'Aquarien, Parameter, Ansicht und Zeitraum als Startansicht speichern'"
+            @click="isStartView ? null : saveStart()"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.6l2.3 4.7 5.2.8-3.8 3.6.9 5.1L10 14.4l-4.6 2.4.9-5.1-3.8-3.6 5.2-.8z" /></svg>
+            {{ isStartView ? 'Startansicht' : savedStart ? 'Startansicht ersetzen' : 'Startansicht speichern' }}
+          </button>
+          <button v-if="savedStart" type="button" class="ch-start-reset" title="Gespeicherte Startansicht entfernen" @click="resetStart">Zurücksetzen</button>
+        </div>
+        <p v-if="startNotice" class="ch-start-note" role="status">{{ startNotice }}</p>
       </section>
 
       <!-- Zusammenfassung -->
@@ -154,9 +168,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { analysisApi, profileApi } from '@/services/toolsData'
 import { loadAnalysisContent } from '@/services/analysisContent'
 import { useAnalysesStore } from '@/stores/analyses'
+import { useAuthStore } from '@/stores/auth'
 import {
-  DEFAULT_PARAMETERS, PARAMETER_SETS, RANGES, assignColors, buildTanks, colorFor, flaggedParameters,
-  formatDate, parameterCatalog, position, rangeStart, readQuery, reportsInRange,
+  PARAMETER_SETS, RANGES, assignColors, buildTanks, clearStartView, colorFor, flaggedParameters,
+  formatDate, loadStartView, parameterCatalog, position, rangeStart, reportsInRange, resolveStart, sameView, saveStartView,
 } from '@/services/chronik'
 import '@/assets/styles/report-base.css'
 import '@/assets/styles/chronik.css'
@@ -199,6 +214,28 @@ const layout = ref('combined')
 const emphasis = ref('')
 const showTankLegend = computed(() => view.value === 'compare' || layout.value === 'separate')
 
+// Startansicht: die aktuelle Auswahl merken, damit die Chronik jedes Mal so öffnet.
+const auth = useAuthStore()
+const ownerId = computed(() => auth.user?.id || 'guest')
+const savedStart = ref(null)
+const currentState = computed(() => ({ tankIds: selectedIds.value, keys: keys.value, view: view.value, layout: layout.value, range: range.value }))
+const isStartView = computed(() => sameView(savedStart.value, currentState.value))
+const startNotice = ref('')
+let noticeTimer = null
+function flash(text) {
+  startNotice.value = text
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => { startNotice.value = '' }, 2600)
+}
+function saveStart() {
+  savedStart.value = saveStartView(localStorage, ownerId.value, currentState.value)
+  flash(savedStart.value ? 'Gespeichert – die Chronik öffnet ab jetzt mit dieser Auswahl.' : 'Speichern nicht möglich.')
+}
+function resetStart() {
+  clearStartView(localStorage, ownerId.value)
+  savedStart.value = null
+  flash('Startansicht entfernt – beim nächsten Öffnen gilt wieder die Voreinstellung.')
+}
 const slots = ref({})
 
 watch(selectedIds, (ids) => { slots.value = assignColors(ids, slots.value) }, { immediate: true })
@@ -291,14 +328,14 @@ onMounted(async () => {
     const [profileRes, analysisRes] = await Promise.all([profileApi.list(), analysisApi.list({ status: 'completed' })])
     profiles.value = profileRes
     analyses.value = analysisRes
-    const state = readQuery(route.query, tanks.value)
-    selectedIds.value = state.tankIds
-    const favorites = analysesStore.favoriteParameters.filter((key) => metaByKey[key])
-    keys.value = sortKeys(state.keys.length ? state.keys : favorites.length ? favorites : DEFAULT_PARAMETERS)
-    range.value = state.range
-    // Alte Links mit der Übersicht öffnen den Vergleich.
-    view.value = route.query.view === 'compare' || route.query.view === 'matrix' ? 'compare' : 'trend'
-    layout.value = route.query.layout === 'separate' ? 'separate' : 'combined'
+    // Geteilter Link → gespeicherte Startansicht → schlanke Voreinstellung.
+    savedStart.value = loadStartView(localStorage, ownerId.value)
+    const start = resolveStart({ query: route.query, tanks: tanks.value, saved: savedStart.value, knownKeys: catalogOrder })
+    selectedIds.value = start.tankIds
+    keys.value = sortKeys(start.keys)
+    range.value = start.range
+    view.value = start.view
+    layout.value = start.layout
   } finally {
     loading.value = false
     ready = true
@@ -350,7 +387,7 @@ onMounted(async () => {
 .ch-views button:focus-visible, .ch-range button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .ch-range { margin-left: auto; }
 /* Gewählte Parameter in derselben Zeile, einzeilig: passt es nicht, scrollt der Streifen seitlich. */
-.ch-chips { display: flex; flex: 1 1 200px; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); padding-right: 24px; }
+.ch-chips { display: flex; flex: 1 1 0; min-width: 90px; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); padding-right: 24px; }
 .ch-chips::-webkit-scrollbar { display: none; }
 .ch-chip { flex: none; }
 .ch-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid #dbe5ef; border-radius: 999px; background: #f6f9fc; color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -381,6 +418,16 @@ onMounted(async () => {
 .ch-layout button svg { width: 18px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .ch-layout button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 1px 3px rgba(10,27,67,0.12); }
 .ch-layout button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.ch-start { display: flex; flex: none; align-items: center; gap: 2px; }
+.ch-start-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.ch-start-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.ch-start-btn:hover { border-color: #f5b301; }
+.ch-start-btn.on { border-color: #fcd34d; background: #fffbeb; color: #9a6b00; cursor: default; }
+.ch-start-btn.on svg { fill: #f5b301; stroke: #e0a100; }
+.ch-start-btn:focus-visible, .ch-start-reset:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.ch-start-reset { padding: 8px 6px; border: 0; background: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ch-start-reset:hover { color: var(--brand-blue); text-decoration: underline; }
+.ch-start-note { flex-basis: 100%; margin: 0; padding: 0 4px; color: #047857; font-size: 12px; font-weight: 600; }
 .ch-note { flex-basis: 100%; color: var(--text-muted); font-size: 11.5px; }
 
 
@@ -408,6 +455,8 @@ onMounted(async () => {
   .ch-views button { flex: 1; justify-content: center; padding: 0 8px; }
   .ch-range { flex: 1 1 100%; }
   .ch-layout { flex: 1 1 100%; }
+  .ch-start { flex: 1 1 100%; }
+  .ch-start-btn { flex: 1; justify-content: center; }
   .ch-layout button { flex: 1; justify-content: center; }
   .ch-layout-bar small { display: none; }
   .ch-range button { flex: 1; justify-content: center; padding: 0 6px; }
