@@ -325,14 +325,7 @@
 
 
       <section v-if="analysis.status === 'completed' && balance.composition.length" v-show="activeTab === 'balance'" class="balance-stack">
-        <BalanceChart
-          eyebrow="Zusammensetzung"
-          title="Zusammensetzung des Aquarienwassers"
-          description="Das Diagramm zeigt, ob die Hauptelemente zur gemessenen Salinität passen oder ob einzelne Elemente unabhängig davon angereichert oder verbraucht sind. Jede Größenordnung hat ihren eigenen Maßstab."
-          :items="balance.composition"
-          :labels="{ left: 'niedrig', center: 'natürlich', right: 'hoch' }"
-          :foot-label="`Abweichung vom Sollwert des Labors${compositionUnit ? ` in ${compositionUnit}` : ''}`"
-        />
+        <CompositionChart :rows="balance.composition" :salinity="measuredSalinity" :unit="compositionUnit" />
 
         <div class="balance-pair-grid">
           <BalanceChart
@@ -540,6 +533,7 @@ import ParameterKnowledgePanel from '@/components/analyses/ParameterKnowledgePan
 import TargetGauge from '@/components/analyses/TargetGauge.vue'
 import { formatReading } from '@/services/targetGauge'
 import BalanceChart from '@/components/analyses/BalanceChart.vue'
+import CompositionChart from '@/components/analyses/CompositionChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info u. Analytik', icon: 'i' },
@@ -634,6 +628,11 @@ const explorerSummary = computed(() => {
 })
 const balance = computed(() => waterBalance(analysis.value?.parameters || []))
 const compositionUnit = computed(() => balance.value.composition[0]?.unit || '')
+// Auf diese Salinität hat das Labor die Sollwerte der Zusammensetzung umgerechnet.
+const measuredSalinity = computed(() => {
+  const value = Number((analysis.value?.parameters || []).find((parameter) => parameter.key === 'salinity')?.value)
+  return Number.isFinite(value) ? value : null
+})
 const issueParameters = computed(() => (analysis.value?.parameters || []).filter((parameter) => parameter.tone !== 'good'))
 const approvedDosingItems = computed(() => buildDosingPlan(analysis.value?.parameters || [], Number(analysis.value?.aquariumProfile?.volumeLiters || analysis.value?.aquariumProfile?.net_volume || 0)).filter(item => item.dose))
 const dosingItemCount = computed(() => approvedDosingItems.value.length + (analysis.value?.parameters || []).filter((parameter) => parameter.managedDose).length)
@@ -1093,7 +1092,8 @@ function markPdf() {
   .action-rise-enter-active { transition: none; }
   .action-card:hover { transform: none; }
 }
-.balance-stack { display: grid; gap: 14px; }
+.balance-stack { display: grid; gap: 14px; min-width: 0; }
+.balance-stack > * { min-width: 0; }
 .balance-pair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
