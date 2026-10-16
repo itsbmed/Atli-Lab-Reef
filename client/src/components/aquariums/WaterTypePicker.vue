@@ -121,8 +121,8 @@ function choose(value) {
 .wtp-card.on .wtp-wave.back { fill: color-mix(in srgb, var(--tone) 45%, #fff); }
 .wtp-card.on .wtp-wave.front { fill: color-mix(in srgb, var(--tone) 72%, #fff); }
 /* Ausgewählt: das Wasser steigt und bewegt sich sanft */
-.wtp-card.on .wtp-waves { transform: translateY(-6px); transition: transform .5s cubic-bezier(.2,.8,.3,1); }
-.wtp-waves { transition: transform .5s cubic-bezier(.2,.8,.3,1); }
+.wtp-card.on .wtp-waves { transform: translateY(4px); transition: transform .5s cubic-bezier(.2,.8,.3,1); }
+.wtp-waves { transform: translateY(10px); transition: transform .5s cubic-bezier(.2,.8,.3,1); }
 .wtp-card.on .wtp-wave.back { animation: wtp-sway 5s ease-in-out infinite; }
 .wtp-card.on .wtp-wave.front { animation: wtp-sway 4s ease-in-out infinite reverse; }
 @keyframes wtp-sway { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-14px); } }
