@@ -1,6 +1,6 @@
 <template>
   <div class="aqn">
-    <RouterLink to="/aquariums" class="back-link">← Zurück zu den Aquarien</RouterLink>
+    <RouterLink to="/aquariums" class="back-link"><ArrowIcon direction="left" /> Zurück zu den Aquarien</RouterLink>
 
     <section class="aqn-hero">
       <div>
@@ -269,7 +269,7 @@
 
         <div class="aqn-foot">
           <RouterLink v-if="step === 0" to="/aquariums" class="aqn-btn-quiet">Abbrechen</RouterLink>
-          <button v-else type="button" class="aqn-btn-quiet" @click="goTo(step - 1)">← Zurück</button>
+          <button v-else type="button" class="aqn-btn-quiet" @click="goTo(step - 1)"><ArrowIcon direction="left" /> Zurück</button>
 
           <div class="aqn-foot-main">
             <button v-if="step === 1" type="button" class="aqn-btn-outline" @click="goTo(2)">{{ detailCount ? 'Rest überspringen' : 'Überspringen' }}</button>
@@ -315,6 +315,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAuthStore } from '@/stores/auth'

@@ -6,7 +6,7 @@
         <h1>Trenddiagramme</h1>
         <p>Laborwerte über mehrere Analysen vergleichen und Veränderungen früh erkennen.</p>
       </div>
-      <RouterLink to="/tools" class="btn btn-ghost">← Zurück zu Tools</RouterLink>
+      <RouterLink to="/tools" class="btn btn-ghost"><ArrowIcon direction="left" /> Zurück zu Tools</RouterLink>
     </header>
 
     <div class="card controls">
@@ -68,6 +68,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import { Line } from 'vue-chartjs'
 import {

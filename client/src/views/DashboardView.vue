@@ -42,7 +42,7 @@
             <span v-else-if="step.locked" class="nd-setup-flag locked">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
             </span>
-            <span v-else class="nd-setup-arrow">→</span>
+            <span v-else class="nd-setup-arrow"><ArrowIcon direction="right" /></span>
           </div>
         </div>
       </div>
@@ -76,7 +76,7 @@
           <span class="nd-eyebrow">Gut vorbereitet</span>
           <h2>Tipps für aussagekräftige Proben</h2>
         </div>
-        <a class="nd-tips-all">Alle Tipps ansehen →</a>
+        <a class="nd-tips-all">Alle Tipps ansehen <ArrowIcon direction="right" /></a>
       </div>
 
       <div class="nd-bento">
@@ -85,7 +85,7 @@
             <span class="nd-feature-tag">Empfohlen</span>
             <h3>Wasserprobe richtig entnehmen</h3>
             <p>So vermeiden Sie Verfälschungen und erhalten präzise, reproduzierbare Laborwerte.</p>
-            <a class="nd-feature-link">Anleitung lesen →</a>
+            <a class="nd-feature-link">Anleitung lesen <ArrowIcon direction="right" /></a>
           </div>
         </article>
 
@@ -108,6 +108,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 // Dashboard: Vollkonto (kind === 'full') sieht das Bestandskunden-Dashboard,
 // alle anderen den Einrichtungs-/Neukunden-Zustand.
 import { computed } from 'vue'

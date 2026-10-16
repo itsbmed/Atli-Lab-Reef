@@ -159,7 +159,7 @@
         <div class="result-strip">
           <div v-for="item in deviationSummary" :key="item.label" :class="['result-pill', item.tone]">
             <span>{{ item.label }}</span>
-            <strong>{{ item.before }} → {{ item.after }}</strong>
+            <strong>{{ item.before }} <ArrowIcon direction="right" /> {{ item.after }}</strong>
             <em>{{ item.note }}</em>
           </div>
           <div v-if="!deviationSummary.length" class="result-pill good">
@@ -431,6 +431,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Bar, Line } from 'vue-chartjs'

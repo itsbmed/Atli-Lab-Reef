@@ -82,7 +82,7 @@
 
               <span class="tank-cta">
                 {{ tank.ctaLabel }}
-                <i aria-hidden="true">→</i>
+                <i aria-hidden="true"><ArrowIcon direction="right" /></i>
               </span>
             </div>
           </RouterLink>
@@ -90,7 +90,7 @@
 
         <RouterLink v-if="hiddenTankCount" to="/aquariums" class="tanks-more">
           <span>{{ hiddenTankCount }} weitere Becken mit geringerer Priorität</span>
-          <b>Alle Becken öffnen →</b>
+          <b>Alle Becken öffnen <ArrowIcon direction="right" /></b>
         </RouterLink>
       </section>
 
@@ -128,7 +128,7 @@
               <strong>{{ item.aquariumName }}</strong>
               <em>{{ item.statusLabel }} · eingereicht {{ relativeDays(item.createdAt) }}</em>
             </div>
-            <i aria-hidden="true">→</i>
+            <i aria-hidden="true"><ArrowIcon direction="right" /></i>
           </RouterLink>
         </section>
 
@@ -156,6 +156,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, onMounted } from 'vue'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'

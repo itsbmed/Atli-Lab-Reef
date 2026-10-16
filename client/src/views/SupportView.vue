@@ -19,13 +19,13 @@
 
     <section class="support-topics">
       <RouterLink to="/analyses" class="topic-card analyses">
-        <span>01</span><div><strong>Analyse &amp; Messwerte</strong><p>Berichte verstehen, Probe verfolgen und Empfehlungen einordnen.</p></div><i>→</i>
+        <span>01</span><div><strong>Analyse &amp; Messwerte</strong><p>Berichte verstehen, Probe verfolgen und Empfehlungen einordnen.</p></div><i><ArrowIcon direction="right" /></i>
       </RouterLink>
       <RouterLink to="/analyses/activate" class="topic-card activation">
-        <span>02</span><div><strong>Testkit &amp; Aktivierung</strong><p>Barcode registrieren, Probe zuordnen und Versand vorbereiten.</p></div><i>→</i>
+        <span>02</span><div><strong>Testkit &amp; Aktivierung</strong><p>Barcode registrieren, Probe zuordnen und Versand vorbereiten.</p></div><i><ArrowIcon direction="right" /></i>
       </RouterLink>
       <RouterLink to="/account" class="topic-card account">
-        <span>03</span><div><strong>Konto &amp; Sicherheit</strong><p>Profildaten, Passwort und Fachberater-Freigaben verwalten.</p></div><i>→</i>
+        <span>03</span><div><strong>Konto &amp; Sicherheit</strong><p>Profildaten, Passwort und Fachberater-Freigaben verwalten.</p></div><i><ArrowIcon direction="right" /></i>
       </RouterLink>
     </section>
 
@@ -50,7 +50,7 @@
         <div v-if="filteredFaqs.length" class="faq-list">
           <article v-for="item in filteredFaqs" :key="item.id" :class="{ open: openFaq === item.id }">
             <button type="button" :aria-expanded="openFaq === item.id" @click="toggleFaq(item.id)">
-              <span><small>{{ item.category }}</small><strong>{{ item.question }}</strong></span><i>⌄</i>
+              <span><small>{{ item.category }}</small><strong>{{ item.question }}</strong></span><i><ArrowIcon direction="down" /></i>
             </button>
             <Transition name="faq-slide"><p v-show="openFaq === item.id">{{ item.answer }}</p></Transition>
           </article>
@@ -75,6 +75,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, reactive, ref } from 'vue'
 import { loadSupportContent } from '@/services/supportContent'
 

@@ -16,7 +16,7 @@
         <span class="product-copy">
           <strong>{{ product.productName }}</strong>
           <b v-if="product.productNote" class="product-note">{{ product.productNote }}</b>
-          <small v-if="product.productUrl">{{ product.linkLabel || 'Im ATI Shop ansehen' }} ↗</small>
+          <small v-if="product.productUrl">{{ product.linkLabel || 'Im ATI Shop ansehen' }} <ArrowIcon direction="external" /></small>
         </span>
       </component>
     </div>
@@ -36,6 +36,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { reactive } from 'vue'
 defineProps({
   products: { type: Array, default: () => [] },

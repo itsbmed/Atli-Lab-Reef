@@ -1,6 +1,6 @@
 <template>
   <div class="report">
-    <RouterLink to="/analyses" class="back-link">← Zurück zu den Analysen</RouterLink>
+    <RouterLink to="/analyses" class="back-link"><ArrowIcon direction="left" /> Zurück zu den Analysen</RouterLink>
 
     <section v-if="!analysis" class="missing-card">
       <span>Analysebericht</span>
@@ -113,7 +113,7 @@
                     <span v-if="option.label">{{ option.label }}</span>
                     <p>{{ option.text }}</p>
                     <button v-if="option.actionLabel" type="button" class="option-cta" @click="runRecommendation(item)">
-                      {{ option.actionLabel }} <span aria-hidden="true">→</span>
+                      {{ option.actionLabel }} <span aria-hidden="true"><ArrowIcon direction="right" /></span>
                     </button>
                   </article>
                 </div>
@@ -127,7 +127,7 @@
                     </li>
                   </ul>
                   <button v-if="item.detailAction" type="button" class="detail-more" @click="runRecommendation(item, item.detailAction)">
-                    {{ item.detailAction.label }} <span aria-hidden="true">→</span>
+                    {{ item.detailAction.label }} <span aria-hidden="true"><ArrowIcon direction="right" /></span>
                   </button>
                 </div>
 
@@ -147,7 +147,7 @@
                 />
 
                 <div class="action-footer">
-                  <button v-if="item.action.label && !item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true">→</span></button>
+                  <button v-if="item.action.label && !item.options.some((option) => option.actionLabel)" type="button" class="btn btn-primary action-cta" @click="runRecommendation(item)">{{ item.action.label }} <span aria-hidden="true"><ArrowIcon direction="right" /></span></button>
                   <em>Kontrolle in {{ item.recheckDays }} Tagen</em>
                 </div>
               </article>
@@ -175,7 +175,7 @@
             </div>
 
             <details class="context-disclosure">
-              <summary><span>Berichtsdaten</span><small>{{ analysis.waterType }} · {{ analysis.packageLabel }}</small><i>⌄</i></summary>
+              <summary><span>Berichtsdaten</span><small>{{ analysis.waterType }} · {{ analysis.packageLabel }}</small><i><ArrowIcon direction="down" /></i></summary>
               <div class="context-rows">
                 <div><span>Status</span><strong>{{ analysis.statusLabel }}</strong></div>
                 <div><span>Abgeschlossen</span><strong>{{ analysis.completedAt ? formatDate(analysis.completedAt) : 'Offen' }}</strong></div>
@@ -187,7 +187,7 @@
             </details>
 
             <details v-if="analysis.aquariumProfile" class="context-disclosure">
-              <summary><span>Bewertungsgrundlage</span><small>{{ analysis.aquariumProfile.aquariumType }}</small><i>⌄</i></summary>
+              <summary><span>Bewertungsgrundlage</span><small>{{ analysis.aquariumProfile.aquariumType }}</small><i><ArrowIcon direction="down" /></i></summary>
               <div class="context-rows">
                 <div><span>Volumen</span><strong>{{ analysis.aquariumProfile.volumeLiters }} l</strong></div>
                 <div><span>Besatz</span><strong>{{ analysis.aquariumProfile.livestock }}</strong></div>
@@ -252,7 +252,7 @@
               <strong>{{ group.label }}</strong>
               <b>{{ group.items.length }}</b>
               <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
-              <i class="element-section-chevron" aria-hidden="true">⌄</i>
+              <i class="element-section-chevron" aria-hidden="true"><ArrowIcon direction="down" /></i>
             </button>
             <div v-show="!collapsedGroups[group.key]" class="element-list">
                     <article
@@ -278,7 +278,7 @@
                           <strong>{{ displayParameterValue(parameter) }}</strong>
                           <small>{{ readingUnit(parameter) }}</small>
                         </span>
-                        <span class="element-chevron" aria-hidden="true">⌄</span>
+                        <span class="element-chevron" aria-hidden="true"><ArrowIcon direction="down" /></span>
                       </button>
                       <button
                         type="button"
@@ -402,7 +402,7 @@
               <strong>{{ group.label }}</strong>
               <b>{{ group.items.length }}</b>
               <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
-              <i class="element-section-chevron" aria-hidden="true">⌄</i>
+              <i class="element-section-chevron" aria-hidden="true"><ArrowIcon direction="down" /></i>
             </button>
             <div v-show="!collapsedOsmosisGroups[group.key]" class="element-list">
               <article
@@ -467,7 +467,7 @@
                 <strong>{{ displayParameterValue(parameter) }}</strong>
                 <small>{{ readingUnit(parameter) }}</small>
               </span>
-              <span class="element-chevron" aria-hidden="true">⌄</span>
+              <span class="element-chevron" aria-hidden="true"><ArrowIcon direction="down" /></span>
             </button>
             <button
               type="button"
@@ -517,6 +517,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'

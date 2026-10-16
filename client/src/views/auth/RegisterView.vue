@@ -91,7 +91,7 @@
         <div class="auth-footer">
           <p class="dealer-hint">
             Sie sind Händler oder Servicebetrieb?
-            <a href="#">Partnerzugang anfragen →</a>
+            <a href="#">Partnerzugang anfragen <ArrowIcon direction="right" /></a>
           </p>
           <p class="auth-foot">
             Schon ein Konto?
@@ -104,6 +104,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
