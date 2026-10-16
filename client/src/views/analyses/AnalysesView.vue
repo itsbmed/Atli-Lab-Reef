@@ -69,7 +69,7 @@
           </span>
           <AnalysisTimeline class="row-timeline" :analysis="analysis" />
           <span :class="['row-status', analysis.status]">{{ analysis.statusLabel }}</span>
-          <span class="row-chevron" aria-hidden="true">›</span>
+          <span class="row-chevron" aria-hidden="true"><ArrowIcon direction="next" /></span>
         </RouterLink>
       </div>
     </template>
@@ -77,6 +77,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useAnalysesStore } from '@/stores/analyses'
 import AnalysisTimeline from '@/components/analyses/AnalysisTimeline.vue'

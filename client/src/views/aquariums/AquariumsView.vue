@@ -61,7 +61,7 @@
           </div>
           <div class="aq-card-foot">
             <span>📅 Erstellt: {{ formatDate(a.createdAt) }}</span>
-            <span class="aq-card-link">Details →</span>
+            <span class="aq-card-link">Details <ArrowIcon direction="right" /></span>
           </div>
         </div>
       </RouterLink>
@@ -75,6 +75,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { onMounted } from 'vue'
 import { useAquariumsStore } from '@/stores/aquariums'
 

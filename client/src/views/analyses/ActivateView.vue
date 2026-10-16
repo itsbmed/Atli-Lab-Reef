@@ -1,6 +1,6 @@
 <template>
   <div class="act">
-    <RouterLink to="/analyses" class="back-link">← Zurück zu den Analysen</RouterLink>
+    <RouterLink to="/analyses" class="back-link"><ArrowIcon direction="left" /> Zurück zu den Analysen</RouterLink>
 
     <section class="act-hero">
       <div>
@@ -226,6 +226,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'

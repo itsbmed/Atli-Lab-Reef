@@ -31,7 +31,7 @@
           <label><span>Element suchen · {{ filteredParameters.length }} Treffer</span><input v-model="search" type="search" placeholder="Name, Symbol, Gruppe…" /></label>
           <nav aria-label="Element zum Bearbeiten auswählen">
             <button v-for="parameter in filteredParameters" :key="parameter.key" type="button" :class="{ active: selectedKey === parameter.key }" @click="selectedKey = parameter.key">
-              <span>{{ parameter.symbol }}</span><div><strong>{{ parameter.label }}</strong><small>{{ parameter.group }}</small></div><i>›</i>
+              <span>{{ parameter.symbol }}</span><div><strong>{{ parameter.label }}</strong><small>{{ parameter.group }}</small></div><i><ArrowIcon direction="next" /></i>
             </button>
           </nav>
         </aside>
@@ -198,7 +198,7 @@
             <section class="dosing-form-section">
               <div class="section-label"><span>02</span><div><strong>Dosierformel · optional</strong><small>Produktwirkung bezogen auf 100 Liter Aquarienwasser</small></div></div>
               <label class="dosing-switch"><input v-model="selectedDosing.enabled" type="checkbox" /><span>Konkrete Dosierung konfigurieren</span></label>
-              <p v-if="selectedDosingSource.verificationSource === 'manufacturer'" class="formula-explanation">ATI-Herstellerangaben · geprüft am 18.09.2026 · Einheit {{ selectedDosingSource.unit }}. Diese Angaben gelten automatisch für alle passenden Analysen. <a :href="selectedDosingSource.sourceUrl" target="_blank" rel="noreferrer">Produktdaten ansehen ↗</a></p>
+              <p v-if="selectedDosingSource.verificationSource === 'manufacturer'" class="formula-explanation">ATI-Herstellerangaben · geprüft am 18.09.2026 · Einheit {{ selectedDosingSource.unit }}. Diese Angaben gelten automatisch für alle passenden Analysen. <a :href="selectedDosingSource.sourceUrl" target="_blank" rel="noreferrer">Produktdaten ansehen <ArrowIcon direction="external" /></a></p>
               <p v-if="!selectedDosing.productName" class="formula-explanation">Noch kein Produkt mit bestätigter Wirkung und Tageslimit hinterlegt. Eigene Produktdaten können hier ergänzt werden.</p>
               <fieldset v-show="selectedDosing.enabled" :disabled="!selectedDosing.enabled" class="formula-fields">
               <div class="formula-builder">
@@ -253,7 +253,7 @@
             <button v-for="rule in filteredRecommendationRules" :key="rule.id" type="button" :class="{ active: selectedRecommendationRuleId === rule.id }" @click="selectedRecommendationRuleId = rule.id">
               <i :class="{ off: !rule.active }"></i>
               <span><strong>{{ rule.name }}</strong><small>{{ scopeLabel(rule.groupKey) }} · ab {{ rule.minimumMatches }} Treffer</small></span>
-              <b>›</b>
+              <b><ArrowIcon direction="next" /></b>
             </button>
           </nav>
         </aside>
@@ -420,7 +420,7 @@
         <aside class="element-browser">
           <nav aria-label="Empfehlung auswählen">
             <button v-for="template in templates" :key="template.key" type="button" :class="{ active: selectedTemplateKey === template.key }" @click="selectedTemplateKey = template.key">
-              <span>{{ template.name.slice(0, 2).toUpperCase() }}</span><div><strong>{{ template.name }}</strong><small>{{ template.tips.length }} Tipp(s)</small></div><i>›</i>
+              <span>{{ template.name.slice(0, 2).toUpperCase() }}</span><div><strong>{{ template.name }}</strong><small>{{ template.tips.length }} Tipp(s)</small></div><i><ArrowIcon direction="next" /></i>
             </button>
           </nav>
         </aside>
@@ -557,6 +557,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { ANALYSIS_PARAMETERS, freshParameterContent, loadAnalysisContent, saveAnalysisContent } from '@/services/analysisContent'

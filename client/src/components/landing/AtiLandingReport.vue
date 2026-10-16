@@ -62,7 +62,7 @@
               <span class="reco-tag">{{ r.tag }}</span>
               <strong>{{ r.title }}</strong>
               <p>{{ r.text }}</p>
-              <span v-if="r.product" class="reco-prod-name">→ {{ r.product.name }}</span>
+              <span v-if="r.product" class="reco-prod-name"><ArrowIcon direction="right" /> {{ r.product.name }}</span>
             </div>
             <img v-if="r.product" class="reco-prod" :src="r.product.img" :alt="r.product.name" loading="lazy" />
           </div>
@@ -92,6 +92,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed } from 'vue'
 
 const reportParams = [

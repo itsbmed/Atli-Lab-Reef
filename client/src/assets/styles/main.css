@@ -66,6 +66,21 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 .btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+/* Keep navigation arrows centred and reserve space beside their labels. */
+.back-link { display: inline-flex; align-items: center; gap: 6px; }
+:where(.nd-setup-arrow, .element-chevron, .element-section-chevron, .row-chevron,
+  .topic-card > i, .faq-list button > i, .context-disclosure summary > i,
+  .tank-cta > i, .row > i, .action-cta > span,
+  .action-options button > span, .action-detail-block button > span,
+  .pp-trigger > i, .element-browser button > i,
+  .rule-browser button > b):has(> .arrow-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-primary {
   background: linear-gradient(180deg, #1683da, var(--teal-500));

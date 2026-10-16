@@ -34,14 +34,14 @@
               <span>
                 <b>{{ part.name }}</b>
                 <small>{{ part.note }}</small>
-                <em>{{ lineChoice.linkLabel }} ↗</em>
+                <em>{{ lineChoice.linkLabel }} <ArrowIcon direction="external" /></em>
               </span>
             </a>
           </span>
         </label>
       </div>
-      <p v-if="form.supply_mode === 'ati'" class="line-foot">Beide Komponenten gibt es auch als Set – <a :href="ATI_ESSENTIALS_URL" target="_blank" rel="noopener noreferrer">alle Essentials im ATI Shop ↗</a></p>
-      <p v-else class="line-foot">Dazu passend: die <a :href="NYOS_ION_ELEMENTS[0].url" target="_blank" rel="noopener noreferrer">ION ELEMENTS 1–3</a> für die Spurenelemente. NYOS verkauft über Händler – <a :href="NYOS_DEALER_URL" target="_blank" rel="noopener noreferrer">Händler finden ↗</a></p>
+      <p v-if="form.supply_mode === 'ati'" class="line-foot">Beide Komponenten gibt es auch als Set – <a :href="ATI_ESSENTIALS_URL" target="_blank" rel="noopener noreferrer">alle Essentials im ATI Shop <ArrowIcon direction="external" /></a></p>
+      <p v-else class="line-foot">Dazu passend: die <a :href="NYOS_ION_ELEMENTS[0].url" target="_blank" rel="noopener noreferrer">ION ELEMENTS 1–3</a> für die Spurenelemente. NYOS verkauft über Händler – <a :href="NYOS_DEALER_URL" target="_blank" rel="noopener noreferrer">Händler finden <ArrowIcon direction="external" /></a></p>
     </div>
 
     <div v-if="asksForBottles(form.supply_mode)" class="supply-follow">
@@ -65,6 +65,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed } from 'vue'
 import { SUPPLY_MODES, ATI_SUPPLY_LINES, SUPPLY_BOTTLES, asksForBottles, describeSupply } from '@/services/supplySystem'
 import { ATI_ESSENTIALS_LINES } from '@/services/atiProductCatalog'

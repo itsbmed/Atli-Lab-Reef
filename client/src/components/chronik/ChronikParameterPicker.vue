@@ -3,7 +3,7 @@
     <button type="button" class="pp-trigger" :aria-expanded="open" aria-haspopup="dialog" @click="toggle">
       <span class="pp-trigger-label">Parameter</span>
       <b>{{ modelValue.length }}</b>
-      <i aria-hidden="true">⌄</i>
+      <i aria-hidden="true"><ArrowIcon direction="down" /></i>
     </button>
 
     <div v-if="open" class="pp-backdrop" @click="close"></div>
@@ -45,6 +45,7 @@
 </template>
 
 <script setup>
+import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed, nextTick, ref } from 'vue'
 
 const props = defineProps({
