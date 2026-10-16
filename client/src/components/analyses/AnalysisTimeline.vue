@@ -28,7 +28,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { WORKFLOW_STEPS } from '@/services/analysisStore'
 
 const props = defineProps({
   analysis: { type: Object, required: true },
@@ -36,31 +35,36 @@ const props = defineProps({
   size: { type: String, default: 'compact' },
 })
 
-// Kurze, gleich lange Beschriftungen, damit alle vier Stationen gleich breit wirken.
-const SHORT_LABELS = { registered: 'Registriert', received: 'Eingang', in_analysis: 'Analyse', completed: 'Fertig' }
+// Drei Stationen: Registriert, Analyse, Fertig. Ein eigener „Eingang“ entfällt – sobald die
+// Probe im Labor ist, läuft die Analyse, und die Station trägt das Eingangsdatum.
+const STATIONS = [
+  { key: 'registered', label: 'Registriert', short: 'Registriert' },
+  { key: 'analysis', label: 'In Analyse', short: 'In Analyse' },
+  { key: 'completed', label: 'Fertig', short: 'Fertig' },
+]
+const STATUS_RANK = { registered: 1, received: 2, in_analysis: 2, completed: 3 }
 
-const currentRank = computed(() => WORKFLOW_STEPS.find((step) => step.key === props.analysis.status)?.rank || 0)
+const currentRank = computed(() => STATUS_RANK[props.analysis.status] || 0)
 const dates = computed(() => ({
   registered: props.analysis.createdAt,
   received: props.analysis.receivedAt || props.analysis.sample?.receivedAt,
   completed: props.analysis.completedAt,
 }))
+const stationDates = computed(() => ({ registered: dates.value.registered, analysis: dates.value.received, completed: dates.value.completed }))
 
-const steps = computed(() => WORKFLOW_STEPS.map((step) => ({
-  key: step.key,
-  label: step.label,
-  short: SHORT_LABELS[step.key],
-  done: step.rank <= currentRank.value,
-  current: step.rank === currentRank.value,
-  date: shortDate(dates.value[step.key]),
+const steps = computed(() => STATIONS.map((station, index) => ({
+  ...station,
+  done: index + 1 <= currentRank.value,
+  current: index + 1 === currentRank.value,
+  date: shortDate(stationDates.value[station.key]),
 })))
 
 // Wie weit die gefüllte Schiene läuft, als Anteil zwischen erster und letzter Station.
-const progress = computed(() => Math.max(0, Math.min(1, (currentRank.value - 1) / (WORKFLOW_STEPS.length - 1))))
+const progress = computed(() => Math.max(0, Math.min(1, (currentRank.value - 1) / (STATIONS.length - 1))))
 
 const headline = computed(() => ({
   registered: 'Wartet auf die Probe',
-  received: 'Probe ist im Labor',
+  received: 'Probe wird analysiert',
   in_analysis: 'Probe wird analysiert',
   completed: 'Bericht ist fertig',
 }[props.analysis.status] || 'Offen'))
@@ -71,7 +75,7 @@ const detail = computed(() => {
     const days = daysBetween(registered, completed)
     return days > 0 ? `seit ${longDate(completed)} · nach ${days} ${days === 1 ? 'Tag' : 'Tagen'}` : `seit ${longDate(completed)}`
   }
-  if (received) return `eingegangen am ${longDate(received)}`
+  if (received) return `im Labor seit ${longDate(received)}`
   if (registered) return `registriert am ${longDate(registered)}`
   return ''
 })
@@ -106,19 +110,19 @@ function daysBetween(from, to) {
   min-width: 0;
 }
 .atl-track {
-  position: relative; display: grid; grid-template-columns: repeat(4, 1fr); align-items: start;
+  position: relative; display: grid; grid-template-columns: repeat(3, 1fr); align-items: start;
   margin: 0; padding: var(--tl-top) 0 0; list-style: none;
 }
 /* Eine durchgehende Schiene von der ersten bis zur letzten Punktmitte,
-   waagerecht auf 12,5 % und 87,5 % (den Spaltenmitten). */
+   waagerecht auf den Spaltenmitten bei 1/6 und 5/6. */
 .atl-track::before,
 .atl-track::after {
-  content: ''; position: absolute; left: 12.5%;
+  content: ''; position: absolute; left: calc(100% / 6);
   top: calc(var(--tl-top) + (var(--tl-dot) - var(--tl-rail)) / 2);
   height: var(--tl-rail); border-radius: 999px;
 }
-.atl-track::before { right: 12.5%; background: #e4ecf3; }
-.atl-track::after { width: calc(75% * var(--tl-progress, 0)); background: var(--brand-blue); transition: width .3s ease; }
+.atl-track::before { right: calc(100% / 6); background: #e4ecf3; }
+.atl-track::after { width: calc(100% * 2 / 3 * var(--tl-progress, 0)); background: var(--brand-blue); transition: width .3s ease; }
 
 .atl-step { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; min-width: 0; text-align: center; }
 .atl-step i {
