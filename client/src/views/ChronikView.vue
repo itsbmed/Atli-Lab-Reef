@@ -32,7 +32,7 @@
       <section class="ch-hero">
         <div>
           <span class="ch-kicker">Chronik</span>
-          <h1>Wasserwerte im Verlauf</h1>
+          <h1>Wasserwerte im Vergleich</h1>
           <p>{{ heroLine }}</p>
         </div>
         <dl class="ch-hero-stats">
@@ -71,8 +71,14 @@
         </div>
       </section>
 
-      <!-- Steuerung: Parameter links, Zeitraum rechts – wirkt auf alles darunter -->
+      <!-- Steuerung: Ansicht und Parameter links, Zeitraum rechts – wirkt auf alles darunter -->
       <section class="ch-controls" aria-label="Darstellung">
+        <div class="ch-views" role="tablist" aria-label="Ansicht">
+          <button v-for="item in VIEWS" :key="item.key" type="button" role="tab" :aria-selected="view === item.key" :class="{ active: view === item.key }" @click="view = item.key">
+            <span aria-hidden="true">{{ item.icon }}</span>{{ item.label }}
+          </button>
+        </div>
+
         <ChronikParameterPicker v-model="keys" :groups="catalog" :sets="parameterSets" :flagged-keys="flagged" />
 
         <div v-if="selectedMeta.length" class="ch-chips" aria-label="Gewählte Parameter">
@@ -85,6 +91,7 @@
         <div class="ch-range" role="radiogroup" aria-label="Zeitraum">
           <button v-for="item in RANGES" :key="item.key" type="button" role="radio" :aria-checked="range === item.key" :class="{ active: range === item.key }" @click="range = item.key">{{ item.label }}</button>
         </div>
+
       </section>
 
       <!-- Zusammenfassung -->
@@ -93,6 +100,11 @@
           <strong>{{ summary.inTarget }} von {{ summary.measured }}</strong> Messwerten im Zielbereich
           <span v-if="summary.worst.length"> · am weitesten daneben: <template v-for="(item, index) in summary.worst" :key="item.id"><template v-if="index">, </template><b>{{ item.label }}</b> in {{ item.tank }}</template></span>
         </p>
+        <ul v-if="showTankLegend" class="ch-legend" aria-label="Legende">
+          <li v-for="tank in selectedTanks" :key="tank.id" :class="{ dim: emphasis && emphasis !== tank.id }" @pointerenter="emphasis = tank.id" @pointerleave="emphasis = ''">
+            <i :style="{ background: tank.color }"></i>{{ tank.name }}
+          </li>
+        </ul>
         <p v-if="overflowTanks" class="ch-note">Farben für bis zu sechs Aquarien – {{ overflowTanks }} weitere {{ overflowTanks === 1 ? 'erscheint' : 'erscheinen' }} grau.</p>
       </section>
 
@@ -109,7 +121,29 @@
         </div>
       </section>
 
-      <ChronikTrendPanel v-else :tanks="selectedTanks" :metas="selectedMeta" :domain="trendDomain" />
+      <!-- Vergleich: je Parameter eine Karte mit dem letzten Wert jedes Aquariums -->
+      <section v-else-if="view === 'compare'" class="ch-grid" aria-label="Vergleich der letzten Messwerte">
+        <ChronikCompareCard v-for="meta in selectedMeta" :key="meta.key" :meta="meta" :tanks="selectedTanks" :emphasis="emphasis" @emphasis="emphasis = $event" />
+      </section>
+
+      <!-- Verlauf: alles in einem Diagramm oder je Parameter ein eigenes -->
+      <section v-else class="ch-trend">
+        <div class="ch-layout-bar">
+          <span>Darstellung</span>
+          <div class="ch-layout" role="radiogroup" aria-label="Darstellung des Verlaufs">
+            <button v-for="item in LAYOUTS" :key="item.key" type="button" role="radio" :aria-checked="layout === item.key" :class="{ active: layout === item.key }" @click="layout = item.key">
+              <svg viewBox="0 0 20 16" aria-hidden="true"><template v-if="item.key === 'combined'"><rect x="1" y="1" width="18" height="14" rx="2.5" /><path d="M4 11l4-4 3 2 5-5" /><path d="M4 12.5l4-2 3 1 5-3" opacity=".5" /></template><template v-else><rect x="1" y="1" width="8" height="6" rx="1.5" /><rect x="11" y="1" width="8" height="6" rx="1.5" /><rect x="1" y="9" width="8" height="6" rx="1.5" /><rect x="11" y="9" width="8" height="6" rx="1.5" /></template></svg>
+              {{ item.label }}
+            </button>
+          </div>
+          <small>{{ layout === 'combined' ? 'Alle Aquarien und Parameter in einem Diagramm.' : 'Je Parameter ein eigenes Diagramm mit echter Skala.' }}</small>
+        </div>
+
+        <ChronikTrendPanel v-if="layout === 'combined'" :tanks="selectedTanks" :metas="selectedMeta" :domain="trendDomain" />
+        <div v-else class="ch-grid" aria-label="Verlauf je Parameter">
+          <ChronikTrendChart v-for="meta in selectedMeta" :key="meta.key" :meta="meta" :tanks="selectedTanks" :domain="trendDomain" :emphasis="emphasis" />
+        </div>
+      </section>
     </template>
   </div>
 </template>
@@ -128,9 +162,19 @@ import '@/assets/styles/report-base.css'
 import '@/assets/styles/chronik.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ChronikTrendPanel from '@/components/chronik/ChronikTrendPanel.vue'
+import ChronikCompareCard from '@/components/chronik/ChronikCompareCard.vue'
+import ChronikTrendChart from '@/components/chronik/ChronikTrendChart.vue'
 import ChronikParameterPicker from '@/components/chronik/ChronikParameterPicker.vue'
 
 const MAX_CHIPS = 10
+const VIEWS = [
+  { key: 'compare', label: 'Vergleich', icon: '⇆' },
+  { key: 'trend', label: 'Verlauf', icon: '⟋' },
+]
+const LAYOUTS = [
+  { key: 'combined', label: 'Ein Diagramm' },
+  { key: 'separate', label: 'Getrennt' },
+]
 
 const route = useRoute()
 const router = useRouter()
@@ -149,6 +193,12 @@ const tanks = computed(() => buildTanks(analyses.value, profiles.value))
 const selectedIds = ref([])
 const keys = ref([])
 const range = ref('all')
+// Ohne Angabe öffnet die Chronik wie bisher: Verlauf in einem Diagramm.
+const view = ref('trend')
+const layout = ref('combined')
+const emphasis = ref('')
+const showTankLegend = computed(() => view.value === 'compare' || layout.value === 'separate')
+
 const slots = ref({})
 
 watch(selectedIds, (ids) => { slots.value = assignColors(ids, slots.value) }, { immediate: true })
@@ -199,7 +249,7 @@ const reportCount = computed(() => tanks.value.reduce((sum, tank) => sum + tank.
 const valueCount = computed(() => tanks.value.reduce((sum, tank) => sum + tank.reports.reduce((inner, report) => inner + Object.keys(report.values).length, 0), 0))
 const heroLine = computed(() => {
   const latest = tanks.value[0]?.latest
-  return `Verfolgen Sie mehrere Aquarien und Parameter in einem Diagramm – auch mit verschiedenen Einheiten. Letzte Probe: ${latest ? formatDate(latest.date, 'long') : '—'}.`
+  return `Vergleichen Sie Ihre Aquarien und verfolgen Sie Ihre Werte – in einem gemeinsamen Diagramm oder je Parameter getrennt. Letzte Probe: ${latest ? formatDate(latest.date, 'long') : '—'}.`
 })
 
 const summary = computed(() => {
@@ -228,10 +278,10 @@ function scoreTone(score) {
 
 // Auswahl ↔ Adresszeile
 let ready = false
-watch([selectedIds, keys, range], () => {
+watch([selectedIds, keys, range, view, layout], () => {
   if (!ready) return
-  const query = { tanks: selectedIds.value.join(','), params: keys.value.join(','), range: range.value }
-  if (JSON.stringify(query) !== JSON.stringify({ tanks: route.query.tanks, params: route.query.params, range: route.query.range })) {
+  const query = { tanks: selectedIds.value.join(','), params: keys.value.join(','), range: range.value, view: view.value, layout: layout.value }
+  if (JSON.stringify(query) !== JSON.stringify({ tanks: route.query.tanks, params: route.query.params, range: route.query.range, view: route.query.view, layout: route.query.layout })) {
     router.replace({ query })
   }
 })
@@ -246,6 +296,9 @@ onMounted(async () => {
     const favorites = analysesStore.favoriteParameters.filter((key) => metaByKey[key])
     keys.value = sortKeys(state.keys.length ? state.keys : favorites.length ? favorites : DEFAULT_PARAMETERS)
     range.value = state.range
+    // Alte Links mit der Übersicht öffnen den Vergleich.
+    view.value = route.query.view === 'compare' || route.query.view === 'matrix' ? 'compare' : 'trend'
+    layout.value = route.query.layout === 'separate' ? 'separate' : 'combined'
   } finally {
     loading.value = false
     ready = true
@@ -291,10 +344,10 @@ onMounted(async () => {
 .ch-tank-score.critical { background: #fef2f2; color: #b42318; }
 
 .ch-controls { position: sticky; z-index: 20; top: 76px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,0.92); box-shadow: 0 10px 30px rgba(10,27,67,0.06); backdrop-filter: blur(10px); }
-.ch-range { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: #eef3f8; }
-.ch-range button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
-.ch-range button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 1px 3px rgba(10,27,67,0.12); }
-.ch-range button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.ch-views, .ch-range { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: #eef3f8; }
+.ch-views button, .ch-range button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.ch-views button.active, .ch-range button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 1px 3px rgba(10,27,67,0.12); }
+.ch-views button:focus-visible, .ch-range button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .ch-range { margin-left: auto; }
 /* Gewählte Parameter in derselben Zeile, einzeilig: passt es nicht, scrollt der Streifen seitlich. */
 .ch-chips { display: flex; flex: 1 1 200px; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); padding-right: 24px; }
@@ -309,6 +362,25 @@ onMounted(async () => {
 .ch-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 2px 4px; }
 .ch-verdict { color: var(--text-muted); font-size: 13px; }
 .ch-verdict strong, .ch-verdict b { color: var(--text); font-weight: 700; }
+.ch-views button span { font-size: 13px; opacity: 0.8; }
+.ch-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 0 auto; padding: 0; list-style: none; }
+.ch-legend li { display: inline-flex; align-items: center; gap: 7px; color: var(--text); font-size: 12px; font-weight: 600; cursor: default; transition: opacity .15s; }
+.ch-legend li.dim { opacity: 0.35; }
+.ch-legend i { width: 14px; height: 3px; border-radius: 2px; }
+.ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+.ch-grid > * { min-width: 0; }
+
+/* Verlauf: Umschalter zwischen einem gemeinsamen und getrennten Diagrammen */
+.ch-trend { display: grid; gap: 14px; min-width: 0; }
+.ch-trend > * { min-width: 0; }
+.ch-layout-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ch-layout-bar > span { color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ch-layout-bar small { color: var(--text-muted); font-size: 12px; }
+.ch-layout { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: #eef3f8; }
+.ch-layout button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.ch-layout button svg { width: 18px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.ch-layout button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 1px 3px rgba(10,27,67,0.12); }
+.ch-layout button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .ch-note { flex-basis: 100%; color: var(--text-muted); font-size: 11.5px; }
 
 
@@ -324,6 +396,7 @@ onMounted(async () => {
   .ch-hero { align-items: flex-start; flex-direction: column; }
   .ch-controls { top: 64px; }
   .ch-range { margin-left: 0; }
+  .ch-legend { margin-left: 0; }
 }
 @media (max-width: 600px) {
   .ch-hero-stats { width: 100%; }
@@ -331,7 +404,12 @@ onMounted(async () => {
   .ch-tank-list { display: flex; margin: 0 -16px; padding: 0 16px 4px; overflow-x: auto; scroll-snap-type: x mandatory; }
   .ch-tank { flex: 0 0 78%; scroll-snap-align: start; }
   .ch-controls { position: static; }
+  .ch-views { flex: 1 1 100%; }
+  .ch-views button { flex: 1; justify-content: center; padding: 0 8px; }
   .ch-range { flex: 1 1 100%; }
+  .ch-layout { flex: 1 1 100%; }
+  .ch-layout button { flex: 1; justify-content: center; }
+  .ch-layout-bar small { display: none; }
   .ch-range button { flex: 1; justify-content: center; padding: 0 6px; }
   .ch-chips { display: none; }
 }

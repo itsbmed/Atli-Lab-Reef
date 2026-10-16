@@ -187,7 +187,7 @@ const notes = computed(() => {
   const list = []
   if (split.value.hidden.length) {
     const why = props.tanks.length > 1 ? 'bei mehreren Aquarien trägt die Linienart den Parameter, vier sind unterscheidbar' : 'mehr als sechs Farben sind nicht unterscheidbar'
-    list.push(`Nicht im Diagramm: ${split.value.hidden.map((meta) => meta.label).join(', ')} – ${why}. Weniger Parameter wählen, um sie zu sehen.`)
+    list.push(`Nicht im Diagramm: ${split.value.hidden.map((meta) => meta.label).join(', ')} – ${why}. In der getrennten Darstellung sind alle zu sehen.`)
   }
   if (mode.value === 'target' && visibleSeries.value.some((line) => line.points.some((point) => point.clipped))) {
     list.push('▲ ▼ Werte weiter als vier Zielbreiten über bzw. zwei unter dem Ziel stehen am Rand; der echte Wert steht im Tooltip.')
