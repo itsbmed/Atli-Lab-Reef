@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
+  { path: '/backups/report', redirect: '/backups/report/ati-real-394463' },
+  { path: '/backups/report/:id', name: 'ReportBackup', component: () => import('@/views/analyses/ReportBackupView.vue'), meta: { public: true, shell: true } },
   { path: '/', name: 'Home', component: () => import('@/views/HomeView.vue'), meta: { public: true } },
   { path: '/login', name: 'Login', component: () => import('@/views/auth/LoginView.vue'), meta: { guest: true } },
   { path: '/register', name: 'Register', component: () => import('@/views/auth/RegisterView.vue'), meta: { guest: true } },
