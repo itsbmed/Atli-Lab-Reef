@@ -327,26 +327,20 @@
       <section v-if="analysis.status === 'completed' && balance.composition.length" v-show="activeTab === 'balance'" class="balance-stack">
         <CompositionChart :rows="balance.composition" :salinity="measuredSalinity" :unit="compositionUnit" />
 
-        <div class="balance-pair-grid">
-          <BalanceChart
-            variant="pair"
-            eyebrow="Verhältnisse"
-            title="Elementverhältnisse"
-            description="Zeigt, ob die Versorgung ausgewogen ist oder ob einzelne Elementpaare zueinander verschoben sind. Der Pfeil zeigt zur Seite mit dem relativ höheren Anteil."
-            :items="balance.ratios.rows"
-            :labels="{ left: 'hoch', center: 'ausgewogen', right: 'hoch' }"
-            :foot-label="balance.ratios.scale ? `Gleichgewicht verschoben um bis zu ±${balance.ratios.scale} %` : ''"
-          />
-          <BalanceChart
-            variant="pair"
-            eyebrow="Wachstum"
-            title="Wachstumsfaktoren"
-            description="Zeigt, ob die wichtigsten Wachstumsfaktoren im Gleichgewicht stehen. Der Pfeil zeigt zur Seite mit der relativ höheren Konzentration."
-            :items="balance.growth.rows"
-            :labels="{ left: 'hoch', center: 'ausgewogen', right: 'hoch' }"
-            :foot-label="balance.growth.scale ? `Gleichgewicht verschoben um bis zu ±${balance.growth.scale} %` : ''"
-          />
-        </div>
+        <PairGauges
+          eyebrow="Verhältnisse"
+          title="Elementverhältnisse"
+          :rows="balance.ratios.rows"
+          noun="Verhältnissen"
+          hint="Ein Paar ist ausgewogen, wenn beide Elemente im gleichen Verhältnis zu ihrem Sollwert stehen. Plus heißt: das erste Element ist relativ stärker vertreten."
+        />
+        <PairGauges
+          eyebrow="Wachstum"
+          title="Wachstumsfaktoren"
+          :rows="balance.growth.rows"
+          noun="Wachstumsfaktoren"
+          hint="Zeigt, ob die wichtigsten Wachstumsfaktoren im Gleichgewicht stehen. Plus heißt: das erste Element ist relativ stärker vertreten."
+        />
       </section>
 
       <section v-if="analysis.status === 'completed' && analysis.osmosisParameters?.length" v-show="activeTab === 'osmosis'" class="panel osmosis-results">
@@ -532,7 +526,7 @@ import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 import ParameterKnowledgePanel from '@/components/analyses/ParameterKnowledgePanel.vue'
 import TargetGauge from '@/components/analyses/TargetGauge.vue'
 import { formatReading } from '@/services/targetGauge'
-import BalanceChart from '@/components/analyses/BalanceChart.vue'
+import PairGauges from '@/components/analyses/PairGauges.vue'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 
 const PARAMETER_DETAIL_TABS = [
@@ -1094,7 +1088,6 @@ function markPdf() {
 }
 .balance-stack { display: grid; gap: 14px; min-width: 0; }
 .balance-stack > * { min-width: 0; }
-.balance-pair-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
 .element-explorer { display: grid; gap: 18px; }
 .explorer-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .explorer-head > div:first-child > span,
