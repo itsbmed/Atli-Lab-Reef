@@ -262,12 +262,9 @@
                     >
                       <button class="element-head" type="button" @click="toggleParameter(parameter.key)">
                         <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-                        <span class="element-name">
+                        <span class="element-name inline">
                           <strong>{{ parameter.label }}</strong>
-                          <span class="element-meta">
-                            <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
-                            <small class="element-group">{{ parameterGroup(parameter).label }}</small>
-                          </span>
+                          <em :class="['status-chip', parameter.tone]">{{ parameterStatusLabel(parameter.tone) }}</em>
                         </span>
                         <TargetGauge
                           class="target-gauge"
@@ -1137,7 +1134,7 @@ function markPdf() {
 .element-row.critical { border-left-color: #e85d4f; }
 /* Der Messwert steht in der Sprechblase der Skala – keine eigene Spalte mehr dafür.
    Die letzte Spalte hält den Platz für Stern und Pfeil frei. */
-.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(150px, 0.9fr) minmax(200px, 1.6fr) 96px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.element-head { width: 100%; min-height: 80px; display: grid; grid-template-columns: 54px minmax(150px, 0.9fr) minmax(200px, 1.6fr) 96px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-50); color: var(--brand-blue); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .element-name strong,
@@ -1145,6 +1142,9 @@ function markPdf() {
 .element-reading strong,
 .element-reading small { display: block; }
 .element-name strong { color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+/* Unter „Alle Werte“: Name und Bewertung in einer Zeile – die Gruppe steht schon im Kopf darüber. */
+.element-name.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.element-name.inline strong { display: inline; }
 .element-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .element-name .status-chip { display: inline-flex; }
 .element-group { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 500; }
