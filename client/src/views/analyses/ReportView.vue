@@ -274,10 +274,6 @@
                           v-bind="gaugeProps(parameter)"
                           :title="`Ziel ${parameterTargetLabel(parameter)} ${parameter.unit}`"
                         />
-                        <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
-                          <strong>{{ displayParameterValue(parameter) }}</strong>
-                          <small>{{ readingUnit(parameter) }}</small>
-                        </span>
                         <span class="element-chevron" aria-hidden="true"><ArrowIcon direction="down" /></span>
                       </button>
                       <button
@@ -450,10 +446,6 @@
                 v-bind="gaugeProps(parameter)"
                 :title="`Ziel ${parameterTargetLabel(parameter)} ${parameter.unit}`"
               />
-              <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
-                <strong>{{ displayParameterValue(parameter) }}</strong>
-                <small>{{ readingUnit(parameter) }}</small>
-              </span>
               <span class="element-chevron" aria-hidden="true"><ArrowIcon direction="down" /></span>
             </button>
             <button
@@ -1136,18 +1128,16 @@ function markPdf() {
 .element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
 @media (max-width: 600px) {
   .element-sections { gap: 20px; }
-  /* Schmal steht der Messwert schon in der Sprechblase der Skala – die große Zahl
-     daneben würde nur den Namen verdrängen. */
+  /* Schmal: auch in der Osmoseprobe nur Name und Messgerät, ohne große Zahl daneben. */
   .element-head > .element-reading { display: none; }
-  .element-name { padding-right: 44px; }
 }
 .element-list { display: grid; gap: 11px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 5px solid #10b981; border-radius: 16px; background: #fff; }
 .element-row.watch { border-left-color: #f59e0b; }
 .element-row.critical { border-left-color: #e85d4f; }
-/* Die Messwertspalte wächst mit dem Wert; feste Mindestbreiten haben das Raster
-   bei mittleren Breiten über den Rand geschoben und die Zahl unter dem Stern versteckt. */
-.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(130px, 0.9fr) minmax(180px, 1.3fr) minmax(96px, max-content) 72px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+/* Der Messwert steht in der Sprechblase der Skala – keine eigene Spalte mehr dafür.
+   Die letzte Spalte hält den Platz für Stern und Pfeil frei. */
+.element-head { width: 100%; min-height: 96px; display: grid; grid-template-columns: 54px minmax(150px, 0.9fr) minmax(200px, 1.6fr) 96px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-50); color: var(--brand-blue); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .element-name strong,
@@ -1164,7 +1154,7 @@ function markPdf() {
 .element-reading small { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
 .element-reading.undetected strong { color: #94a3b8; font-size: 21px; letter-spacing: 0.01em; }
 .element-reading.undetected small { color: #a9b6c6; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
-.element-chevron { color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
+.element-chevron { justify-self: end; color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
 .favorite-button { position: absolute; z-index: 2; top: 22px; right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
 .favorite-button:hover { border-color: #f59e0b; color: #f59e0b; }
@@ -1226,6 +1216,7 @@ function markPdf() {
   .care-card-grid { grid-template-columns: 1fr; padding-left: 18px; }
   .explorer-controls input { width: 100%; }
   .element-head { grid-template-columns: 50px minmax(0, 1fr) auto; }
+  .element-row:not(.static) .element-name { padding-right: 44px; }
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
   .element-reading { grid-column: 3; grid-row: 1; }
   .element-reading { margin-right: 36px; }
