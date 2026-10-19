@@ -245,7 +245,7 @@
           </button>
         </div>
 
-        <div v-if="visibleParameters.length" class="element-sections">
+        <div v-if="visibleParameters.length" ref="elementSections" class="element-sections" :style="{ '--sticky-top': `${stickyTop}px` }">
           <section v-for="group in visibleGroupSections" :key="group.key" :class="['element-section', `group-${group.key}`, { collapsed: collapsedGroups[group.key] }]">
             <button type="button" class="element-section-head" :aria-expanded="!collapsedGroups[group.key]" @click="toggleGroupSection(group.key)">
               <i class="element-section-dot" aria-hidden="true"></i>
@@ -494,7 +494,7 @@
 
 <script setup>
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { useAuthStore } from '@/stores/auth'
@@ -544,6 +544,21 @@ const parameterDetailPanels = reactive({})
 const completedActions = reactive({})
 const showAllIssues = ref(false)
 onMounted(() => analyses.load())
+
+// Gruppenköpfe unter „Alle Werte“ bleiben beim Scrollen direkt unter der Kopfleiste stehen.
+// Deren Höhe wechselt mit der Breite (am Telefon zweizeilig), deshalb wird sie gemessen.
+const elementSections = ref(null)
+const stickyTop = ref(68)
+function measureStickyTop() {
+  const bar = document.querySelector('.topbar')
+  const sticks = bar && ['sticky', 'fixed'].includes(getComputedStyle(bar).position)
+  stickyTop.value = sticks ? Math.round(bar.getBoundingClientRect().height) : 0
+}
+onMounted(() => {
+  measureStickyTop()
+  window.addEventListener('resize', measureStickyTop)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', measureStickyTop))
 
 const analysis = computed(() => analyses.items.find((item) => item.id === route.params.id) || null)
 watch(analysis, (current) => {
@@ -1110,7 +1125,7 @@ function markPdf() {
 .parameter-groups button > small { color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .element-sections { display: grid; gap: 26px; }
 .element-section { display: grid; gap: 10px; min-width: 0; }
-.element-section-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0 2px 9px; border: 0; border-bottom: 1px solid var(--border); background: none; color: inherit; text-align: left; cursor: pointer; }
+.element-section-head { position: sticky; z-index: 6; top: var(--sticky-top, 68px); display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 2px 9px; border: 0; border-bottom: 1px solid var(--border); background: #fff; color: inherit; text-align: left; cursor: pointer; }
 .element-section-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--group-accent, var(--brand-blue)); }
 .element-section.group-basis { --group-accent: #1686d9; }
 .element-section.group-quantity { --group-accent: #6b9f36; }
@@ -1119,7 +1134,7 @@ function markPdf() {
 .element-section.group-pollutants { --group-accent: #d45f72; }
 .element-section-head strong { color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .element-section-head > b { padding: 3px 10px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 12px; font-weight: 600; }
-.element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 600; }
+.element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .element-section-chevron { margin-left: auto; color: var(--text-muted); font-size: 15px; font-style: normal; line-height: 1; transition: transform .2s; }
 .element-section-head:hover .element-section-chevron { color: var(--brand-blue); }
 .element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
