@@ -34,6 +34,7 @@
           >
             <span class="cc-tank" :title="row.tank.name"><i :style="{ background: row.tank.color }"></i><span>{{ row.tank.name }}</span></span>
             <span class="cc-track">
+              <i class="cc-bar" :style="{ background: row.item.undetectable ? null : gradient }"></i>
               <span class="cc-zone"></span>
               <b class="cc-dot" :style="{ left: `${row.at}%` }"></b>
             </span>
@@ -47,7 +48,7 @@
           </RouterLink>
           <div v-else class="cc-link">
             <span class="cc-tank" :title="row.tank.name"><i :style="{ background: row.tank.color }"></i><span>{{ row.tank.name }}</span></span>
-            <span class="cc-track"><span class="cc-zone"></span></span>
+            <span class="cc-track"><i class="cc-bar"></i><span class="cc-zone"></span></span>
             <span class="cc-value"><small class="cc-delta flat">nicht gemessen</small></span>
           </div>
         </li>
@@ -59,7 +60,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { delta, formatDate, formatValue, position, sharedScale } from '@/services/chronik'
-import { gaugePercent, layoutLabels, tickFormatter } from '@/services/targetGauge'
+import { gaugeGradient, gaugePercent, layoutLabels, tickFormatter } from '@/services/targetGauge'
 import { useElementWidth } from '@/composables/useElementWidth'
 
 const props = defineProps({
@@ -81,6 +82,8 @@ const scale = computed(() => sharedScale(props.meta.min, props.meta.max, latestI
 const low = computed(() => gaugePercent(props.meta.min, scale.value))
 const high = computed(() => gaugePercent(props.meta.max, scale.value))
 const tick = computed(() => tickFormatter(props.meta.min, props.meta.max))
+// Derselbe Farbverlauf wie in den Messwertzeilen des Berichts, auf der gemeinsamen Skala.
+const gradient = computed(() => gaugeGradient(low.value, high.value))
 const format = (value) => formatValue(value)
 
 const rows = computed(() => latestItems.value.map(({ tank, report, item }) => {
@@ -163,17 +166,18 @@ a.cc-link:focus-visible { box-shadow: var(--shadow-focus); }
 .cc-tank i { flex: none; width: 12px; height: 3px; border-radius: 2px; }
 
 .cc-track { position: relative; height: 24px; }
-.cc-track::before { position: absolute; top: 50%; right: 0; left: 0; height: 2px; border-radius: 2px; background: #e5ebf1; content: ''; transform: translateY(-50%); }
+/* Kleine Fassung der Skala aus „Alle Werte“: Farbverlauf, Zielgrenzen gestrichelt, Marker */
+.cc-bar { position: absolute; top: 50%; right: 0; left: 0; height: 8px; border-radius: 999px; background: #e5ebf1; box-shadow: inset 0 1px 2px rgba(10,27,67,0.08); transform: translateY(-50%); }
 /* Die Zielspalte läuft ohne Unterbrechung durch alle Zeilen. */
-.cc-zone { position: absolute; top: -10px; bottom: -10px; left: var(--lo); width: calc(var(--hi) - var(--lo)); background: rgba(16,185,129,0.11); box-shadow: inset 1px 0 0 rgba(16,185,129,0.4), inset -1px 0 0 rgba(16,185,129,0.4); }
-.cc-row:first-child .cc-zone { top: -4px; border-radius: 6px 6px 0 0; }
-.cc-row:last-child .cc-zone { bottom: -4px; border-radius: 0 0 6px 6px; }
+.cc-zone { position: absolute; top: -10px; bottom: -10px; left: var(--lo); width: calc(var(--hi) - var(--lo)); border-right: 1px dashed rgba(10,27,67,0.3); border-left: 1px dashed rgba(10,27,67,0.3); pointer-events: none; }
+.cc-row:first-child .cc-zone { top: -4px; }
+.cc-row:last-child .cc-zone { bottom: -4px; }
 .cc-dot { position: absolute; z-index: 1; left: 0; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); transition: left .35s ease; }
-.pos-in .cc-dot { border: 2px solid #fff; background: var(--brand-dark); box-shadow: 0 1px 4px rgba(10,27,67,0.3); }
-.pos-near-low .cc-dot, .pos-near-high .cc-dot { border: 3px solid #e98a1c; background: #fff; }
-.pos-far-low .cc-dot, .pos-far-high .cc-dot { border: 3px solid #e0503f; background: #fff; }
+.pos-in .cc-dot { border: 2.5px solid #fff; background: var(--brand-dark); box-shadow: 0 1px 4px rgba(10,27,67,0.35); }
+.pos-near-low .cc-dot, .pos-near-high .cc-dot { border: 3px solid #e98a1c; background: #fff; box-shadow: 0 1px 4px rgba(10,27,67,0.2); }
+.pos-far-low .cc-dot, .pos-far-high .cc-dot { border: 3px solid #e0503f; background: #fff; box-shadow: 0 1px 4px rgba(10,27,67,0.2); }
 .pos-none .cc-dot { border: 2px dashed #94a3b8; background: #fff; }
-.cc-row.missing .cc-track::before { background: repeating-linear-gradient(90deg, #e5ebf1 0 4px, transparent 4px 8px); }
+.cc-row.missing .cc-bar { background: repeating-linear-gradient(90deg, #e5ebf1 0 4px, transparent 4px 8px); box-shadow: none; }
 
 .cc-value { display: grid; justify-items: end; gap: 1px; text-align: right; }
 .cc-value strong { color: var(--text); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -191,7 +195,7 @@ a.cc-link:focus-visible { box-shadow: var(--shadow-focus); }
   .cc-value { grid-area: value; display: flex; align-items: baseline; gap: 8px; }
   .cc-track { grid-area: track; }
   .cc-zone { top: 0; bottom: 0; }
-  .cc-row:first-child .cc-zone, .cc-row:last-child .cc-zone { top: 0; bottom: 0; border-radius: 6px; }
+  .cc-row:first-child .cc-zone, .cc-row:last-child .cc-zone { top: 0; bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .cc-dot { transition: none; } }
 </style>
