@@ -16,7 +16,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { gaugePercent, gaugeScale, layoutLabels, overflow, tickFormatter } from '@/services/targetGauge'
+import { gaugeGradient, gaugePercent, gaugeScale, layoutLabels, overflow, tickFormatter } from '@/services/targetGauge'
 
 const props = defineProps({
   value: { type: Number, default: null },
@@ -24,13 +24,21 @@ const props = defineProps({
   max: { type: Number, required: true },
   label: { type: String, required: true },
   undetectable: { type: Boolean, default: false },
+  // Für andere Größen als Messwerte (z. B. Verhältnisse in %): Einheit an der Skala,
+  // Name des grünen Bereichs und ab welcher Entfernung der Marker rot wird.
+  tickSuffix: { type: String, default: '' },
+  zoneLabel: { type: String, default: 'Zielbereich' },
+  farBeyond: { type: Number, default: null },
 })
 
 const measuredValue = computed(() => (props.undetectable ? null : props.value))
 const scale = computed(() => gaugeScale(props.min, props.max, measuredValue.value))
 const low = computed(() => gaugePercent(props.min, scale.value))
 const high = computed(() => gaugePercent(props.max, scale.value))
-const format = computed(() => tickFormatter(props.min, props.max))
+const format = computed(() => {
+  const base = tickFormatter(props.min, props.max)
+  return props.tickSuffix ? (value) => `${base(value).replace('-', '−')}${props.tickSuffix}` : base
+})
 const overflowSide = computed(() => overflow(measuredValue.value, scale.value))
 
 // Nicht nachweisbar heißt: irgendwo unterhalb der Nachweisgrenze – der Marker steht
@@ -52,7 +60,7 @@ const state = computed(() => {
   if (props.undetectable) return 'none'
   const span = props.max - props.min || Math.abs(props.max) || 1
   const off = props.value < props.min ? props.min - props.value : props.value > props.max ? props.value - props.max : 0
-  return off === 0 ? 'in' : off > span ? 'critical' : 'watch'
+  return off === 0 ? 'in' : off > (props.farBeyond ?? span) ? 'critical' : 'watch'
 })
 
 // Die Beschriftung richtet sich nach der echten Breite der Spur: was nicht passt, fällt weg.
@@ -86,23 +94,12 @@ const scaleLabels = computed(() => {
   const end = `${overflowSide.value === 'over' ? '> ' : ''}${format.value(scale.value.end)}`
   add('start', start, 0, overflowSide.value === 'under' ? -1 : 2, 'start')
   add('end', end, 100, overflowSide.value === 'over' ? -1 : 3, 'end')
-  add('zone', 'Zielbereich', (low.value + high.value) / 2, 4, 'center', 600)
+  add('zone', props.zoneLabel, (low.value + high.value) / 2, 4, 'center', 600)
   return layoutLabels(candidates, trackWidth.value)
 })
 
 // Rot an den Rändern, über Orange und Gelb zum grünen Zielbereich.
-const trackBackground = computed(() => {
-  if (props.undetectable) return null
-  const lo = low.value
-  const hi = high.value
-  const after = (share) => hi + (100 - hi) * share
-  const stops = lo > 0
-    ? [`#e8665a 0%`, `#f0a04b ${lo * 0.45}%`, `#f2cf5b ${lo * 0.8}%`, `#5fca88 ${lo}%`]
-    : [`#5fca88 0%`]
-  stops.push(`#5fca88 ${hi}%`)
-  if (hi < 100) stops.push(`#f2cf5b ${after(0.2)}%`, `#f0a04b ${after(0.55)}%`, `#e8665a 100%`)
-  return `linear-gradient(90deg, ${stops.join(', ')})`
-})
+const trackBackground = computed(() => (props.undetectable ? null : gaugeGradient(low.value, high.value)))
 </script>
 
 <style scoped>

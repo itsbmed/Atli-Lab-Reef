@@ -71,3 +71,15 @@ export function layoutLabels(candidates, trackWidth, gap = 8) {
   }
   return placed.sort((a, b) => a.left - b.left)
 }
+
+// Farbverlauf der Skala: Rot an den Rändern, über Orange und Gelb zum grünen Zielbereich
+// zwischen `lo` und `hi` (Prozent der Spurbreite). Gemeinsam für Messwertzeilen und Chronik.
+export function gaugeGradient(lo, hi) {
+  const after = (share) => hi + (100 - hi) * share
+  const stops = lo > 0
+    ? ['#e8665a 0%', `#f0a04b ${lo * 0.45}%`, `#f2cf5b ${lo * 0.8}%`, `#5fca88 ${lo}%`]
+    : ['#5fca88 0%']
+  stops.push(`#5fca88 ${hi}%`)
+  if (hi < 100) stops.push(`#f2cf5b ${after(0.2)}%`, `#f0a04b ${after(0.55)}%`, '#e8665a 100%')
+  return `linear-gradient(90deg, ${stops.join(', ')})`
+}
