@@ -35,6 +35,30 @@
         </div>
       </div>
 
+      <!-- Schmal: je Element eine Karte mit den Kurstagen zum Abhaken (gleicher Haken-Status wie die Tabelle) -->
+      <ol class="dose-cards" aria-label="Dosierungsplan je Element">
+        <li v-for="row in schedule.rows" :key="`card-${row.key}`" class="dose-card">
+          <header>
+            <div>
+              <strong>{{ row.label }}</strong>
+              <span>{{ row.productName }}</span>
+            </div>
+            <b>{{ number(row.totalMl) }} ml<small>gesamt</small></b>
+          </header>
+          <div class="dose-card-days">
+            <label v-for="(amount, index) in row.amounts.filter(Boolean)" :key="`card-${row.key}-${index}`" :class="['dose-day', { done: ticked[`${row.key}-${index}`] }]">
+              <input v-model="ticked[`${row.key}-${index}`]" type="checkbox" :aria-label="`${row.label}, Tag ${index + 1}, ${number(amount)} ml`" />
+              <i aria-hidden="true"></i>
+              <span><small>Tag {{ index + 1 }}</small><b>{{ number(amount) }} ml</b></span>
+            </label>
+          </div>
+          <footer>
+            <span>{{ row.courseDays }} {{ row.courseDays === 1 ? 'Tag' : 'Tage' }} · Tageslimit {{ number(row.maxDailyMl) }} ml</span>
+            <span class="dose-card-progress">{{ doneCount(row) }} von {{ row.courseDays }} erledigt</span>
+          </footer>
+        </li>
+      </ol>
+
       <p class="plan-footer">Tag 1 ist der Tag, an dem Sie beginnen. Die Tagesdosis bleibt immer innerhalb des freigegebenen Tageslimits. Nach Abschluss des Kurses erneut messen und den Kurs nicht automatisch wiederholen.</p>
 
       <footer class="print-brand">
@@ -75,11 +99,12 @@ const props = defineProps({
 })
 const schedule = computed(() => doseSchedule(props.items))
 const products = computed(() => recommendedDosingProducts(props.items, props.parameters))
-const gridStyle = computed(() => ({ gridTemplateColumns: `minmax(150px, 1.5fr) repeat(${schedule.value.days}, minmax(58px, 1fr)) minmax(104px, 0.95fr)` }))
+const gridStyle = computed(() => ({ gridTemplateColumns: `minmax(140px, 1.6fr) repeat(${schedule.value.days}, minmax(52px, 1fr)) minmax(84px, 0.9fr)` }))
 const ticked = reactive({})
 const printContent = ref(null)
 const error = ref('')
 const number = formatMl
+const doneCount = row => row.amounts.filter((amount, index) => amount && ticked[`${row.key}-${index}`]).length
 // Das Druckfenster hat keine eigene Basis-URL, der Pfad muss absolut sein.
 // Beim Rendern ohne Browser bleibt der relative Pfad stehen.
 const logoUrl = computed(() => (typeof window === 'undefined'
@@ -103,12 +128,12 @@ function printPlan() {
   }
   popup.setTimeout(() => popup.print(), 250)
 }
-const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dosing-grid{display:grid;border:1px solid #cbd9e7;border-radius:8px;overflow:hidden;margin:14px 0}.dosing-head,.dosing-element,.dose-cell{min-height:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid #cbd9e7;border-bottom:1px solid #cbd9e7;padding:5px}.dosing-head{background:#eef7ff;color:#0072ce;font-size:8px;text-transform:uppercase}.dosing-element{flex-direction:column;align-items:flex-start;padding:7px 9px;font-weight:bold}.dosing-element span{font-size:9px;color:#526780;font-weight:normal}.dosing-element small{color:#0072ce;font-size:8px}.dose-cell.summary{background:#f6fafc;font-weight:bold}.dose-check{display:flex;align-items:center;justify-content:center;gap:4px}.dose-check input{display:none}.dose-check span{width:9px;height:9px;border:1px solid #526780;flex:none}.dose-check b{font-size:9px}.dose-empty{color:#98a8ba}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}.print-brand{display:flex;align-items:center;gap:26px;margin-top:18px;padding-top:11px;border-top:2px solid #0072ce}.print-brand-logo{height:30px;width:auto;flex:none}.print-brand b{display:block;font-size:10px;font-weight:bold;line-height:1.35}.print-brand small{display:block;color:#7a8da3;font-size:9px;line-height:1.35}.print-brand-site b{color:#0072ce;font-size:12px}.print-brand-col b{color:#526780;font-weight:normal}.print-brand-meta{margin-left:auto;color:#7a8da3;font-size:9px;white-space:nowrap}`
+const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{background:#fff;font:10px Arial,sans-serif;color:#0a1b43;margin:0}h1{font-size:28px;margin:8px 0}p{line-height:1.5}.print-heading{padding:0 0 12px;border-bottom:3px solid #0072ce}.print-heading b{color:#0072ce;letter-spacing:2px}.dosing-grid{display:grid;border:1px solid #cbd9e7;border-radius:8px;overflow:hidden;margin:14px 0}.dosing-head,.dosing-element,.dose-cell{min-height:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid #cbd9e7;border-bottom:1px solid #cbd9e7;padding:5px}.dosing-head{background:#eef7ff;color:#0072ce;font-size:8px;text-transform:uppercase}.dosing-element{flex-direction:column;align-items:flex-start;padding:7px 9px;font-weight:bold}.dosing-element span{font-size:9px;color:#526780;font-weight:normal}.dosing-element small{color:#0072ce;font-size:8px}.dose-cell.summary{background:#f6fafc;font-weight:bold}.dose-check{display:flex;align-items:center;justify-content:center;gap:4px}.dose-check input{display:none}.dose-check span{width:9px;height:9px;border:1px solid #526780;flex:none}.dose-check b{font-size:9px}.dose-empty{color:#98a8ba}.plan-footer{padding-top:10px;border-top:1px solid #cbd9e7;color:#526780;font-size:9px}.print-brand{display:flex;align-items:center;gap:26px;margin-top:18px;padding-top:11px;border-top:2px solid #0072ce}.print-brand-logo{height:30px;width:auto;flex:none}.print-brand b{display:block;font-size:10px;font-weight:bold;line-height:1.35}.print-brand small{display:block;color:#7a8da3;font-size:9px;line-height:1.35}.print-brand-site b{color:#0072ce;font-size:12px}.print-brand-col b{color:#526780;font-weight:normal}.print-brand-meta{margin-left:auto;color:#7a8da3;font-size:9px;white-space:nowrap}.dose-cards{display:none}`
 </script>
 
 <style scoped>
-.dose-plan{display:grid;gap:16px;min-width:0}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.print-brand{display:none}.dose-scroll{overflow-x:auto;padding-bottom:2px}
-.dosing-grid{display:grid;min-width:620px;border:1px solid var(--border);border-radius:18px;overflow:hidden}
+.dose-plan{display:grid;gap:16px;min-width:0;container-type:inline-size}.dose-plan>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-blue);font-weight:700}.dose-plan h3{font-size:24px;color:var(--brand-navy);margin:5px 0}.plan-note{padding:14px;border-radius:12px;background:#eef7ff;color:var(--text-muted);font-size:13px;line-height:1.5}.plan-error{color:#b53a2e}.plan-document{display:grid;gap:14px;min-width:0}.print-heading{display:none}.print-brand{display:none}.dose-scroll{overflow-x:auto;padding-bottom:2px}
+.dosing-grid{display:grid;min-width:560px;border:1px solid var(--border);border-radius:18px;overflow:hidden}
 .dosing-head,.dosing-element,.dose-cell{min-height:62px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,255,255,.84)}
 .dosing-head{background:rgba(234,249,252,.9);color:var(--text-muted);font-size:11px;font-weight:var(--fw-label,800);letter-spacing:.04em;text-transform:uppercase}
 .dosing-head.summary{background:#e3f1f9;color:var(--brand-blue)}
@@ -128,4 +153,28 @@ const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box
 .dose-empty{color:#b9c7d1;font-size:16px}
 .plan-footer{color:var(--text-muted);font-size:12px;line-height:1.5}.dose-products{margin-top:2px}
 @media(max-width:1000px){.dose-plan>header{align-items:stretch;flex-direction:column}}
+.dosing-head.summary{padding:0 6px;text-align:center;line-height:1.25}
+/* Karten statt Tabelle, sobald die Tabelle nicht mehr ohne Seitwärtsscrollen passt */
+.dose-cards{display:none;gap:12px;margin:0;padding:0;list-style:none}
+.dose-card{display:grid;gap:12px;padding:14px;border:1px solid var(--border);border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(10,27,67,.04)}
+.dose-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.dose-card>header div{display:grid;gap:2px;min-width:0}
+.dose-card>header strong{color:var(--text);font-size:16px;font-weight:800}
+.dose-card>header span{color:var(--text-muted);font-size:12px}
+.dose-card>header>b{flex:none;color:var(--brand-blue);font-size:16px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.dose-card>header>b small{display:block;color:var(--text-muted);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.dose-card-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.dose-day{position:relative;display:flex;align-items:center;gap:9px;min-height:52px;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:#f8fbfe;cursor:pointer;transition:border-color .15s,background .15s}
+.dose-day input{position:absolute;opacity:0}
+.dose-day>i{flex:none;width:20px;height:20px;border:2px solid var(--border-strong,#b8c9dd);border-radius:6px;background:#fff;transition:border-color .15s,background .15s}
+.dose-day input:checked+i{border-color:var(--teal-500,#0f9f8f);background:var(--teal-500,#0f9f8f);box-shadow:inset 0 0 0 4px #fff}
+.dose-day input:focus-visible+i{outline:3px solid rgba(0,114,206,.2);outline-offset:2px}
+.dose-day>span{display:grid;min-width:0}
+.dose-day small{color:var(--text-muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.dose-day b{color:var(--text);font-size:13.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dose-day.done{border-color:color-mix(in srgb,var(--teal-500,#0f9f8f) 45%,transparent);background:#effaf7}
+.dose-day.done b{color:var(--teal-700)}
+.dose-card>footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;color:var(--teal-700);font-size:11.5px;font-weight:700}
+.dose-card-progress{color:var(--text-muted)}
+@container (max-width:620px){.dose-scroll{display:none}.dose-cards{display:grid}}
 </style>
