@@ -392,19 +392,18 @@
               >
                 <div class="element-head">
                   <span class="element-symbol">{{ parameterSymbol(parameter) }}</span>
-                  <span class="element-name">
+                  <!-- Name und Zustand in einer Zeile; die Laborbewertung nur, wenn etwas nachweisbar ist -->
+                  <span class="element-name inline">
                     <strong>{{ parameter.label }}</strong>
-                    <span class="element-meta">
-                      <em :class="['status-chip', parameter.tone]">{{ osmosisStatusLabel(parameter) }}</em>
-                      <small class="element-group">{{ labStatusLabel(parameter) }}</small>
-                    </span>
+                    <em :class="['status-chip', parameter.tone]">{{ osmosisStatusLabel(parameter) }}</em>
+                    <small v-if="!isUndetectable(parameter)" class="element-group lab">{{ labStatusLabel(parameter) }}</small>
                   </span>
                   <span :class="['purity-meter', parameter.tone]">
                     <i><b></b></i>
                     <small>{{ isUndetectable(parameter) ? 'Frei von diesem Element' : `Nachweisbar – Soll ist 0 ${parameter.unit}` }}</small>
                   </span>
                   <span :class="['element-reading', { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
-                    <strong>{{ displayParameterValue(parameter) }}</strong>
+                    <strong>{{ isUndetectable(parameter) ? 'n. n.' : formatReading(displayParameterValue(parameter)) }}</strong>
                     <small>{{ readingUnit(parameter) }}</small>
                   </span>
                 </div>
@@ -1140,8 +1139,20 @@ function markPdf() {
 .element-section.collapsed .element-section-chevron { transform: rotate(-90deg); }
 @media (max-width: 600px) {
   .element-sections { gap: 20px; }
-  /* Schmal: auch in der Osmoseprobe nur Name und Messgerät, ohne große Zahl daneben. */
-  .element-head > .element-reading { display: none; }
+  .element-row.static .element-reading strong { font-size: 20px; }
+  .element-row.static .element-reading.undetected strong { font-size: 16px; }
+  /* Osmoseprobe kompakt: kleineres Kürzel, der Hinweis unter dem Balken nur bei einem Fund */
+  .element-row.static .element-head { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 0; padding: 12px 14px; }
+  .element-row.static .element-symbol { width: 40px; min-height: 40px; height: 40px; border-radius: 11px; font-size: 13px; }
+  .element-row.static .purity-meter.good small { display: none; }
+  .element-row.static .element-reading.undetected small { display: none; }
+  /* Gruppenkarten: kleineres Rund, Namen dürfen umbrechen statt abgeschnitten zu werden */
+  .parameter-groups { gap: 8px; }
+  .parameter-groups button { min-height: 72px; grid-template-columns: 36px minmax(0, 1fr); gap: 9px; padding: 10px; }
+  .parameter-groups .group-dial { width: 36px; height: 36px; }
+  .parameter-groups .group-dial b { font-size: 10px; }
+  .parameter-groups .group-dial em { display: none; }
+  .parameter-groups .group-filter-label { font-size: 12px; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; hyphens: auto; }
 }
 .element-list { display: grid; gap: 11px; }
 .element-row { position: relative; overflow: hidden; border: 1px solid var(--border); border-left: 5px solid #10b981; border-radius: 16px; background: #fff; }
@@ -1240,6 +1251,11 @@ function markPdf() {
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
   .element-reading { grid-column: 3; grid-row: 1; }
   .element-reading { margin-right: 36px; }
+  /* Osmoseprobe: Messwert rechts oben (kein Stern), der Reinheitsbalken darunter über die volle Breite */
+  .element-row.static .element-head { grid-template-columns: 50px minmax(0, 1fr) auto; gap: 10px 14px; }
+  .element-row.static .element-reading { margin-right: 0; }
+  .element-row.static .purity-meter { grid-column: 1 / -1; grid-row: 2; }
+  .parameter-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .element-chevron { display: none; }
   .favorite-button { position: absolute; top: 22px; right: 12px; margin: 0; }
   .element-head > .target-gauge { padding-bottom: 0; }
