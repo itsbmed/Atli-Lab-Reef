@@ -1149,7 +1149,7 @@ function markPdf() {
 .element-row.critical { border-left-color: #e85d4f; }
 /* Der Messwert steht in der Sprechblase der Skala – keine eigene Spalte mehr dafür.
    Die letzte Spalte hält den Platz für Stern und Pfeil frei. */
-.element-head { width: 100%; min-height: 80px; display: grid; grid-template-columns: 54px minmax(150px, 0.9fr) minmax(200px, 1.6fr) 96px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.element-head { width: 100%; min-height: 80px; display: grid; grid-template-columns: 54px minmax(196px, 0.9fr) minmax(200px, 1.6fr) 96px; align-items: center; gap: 18px; padding: 16px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .element-head:hover { background: #f8fbfe; }
 .element-symbol { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-50); color: var(--brand-blue); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .element-name strong,
@@ -1169,9 +1169,14 @@ function markPdf() {
 .element-reading small { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
 .element-reading.undetected strong { color: #94a3b8; font-size: 21px; letter-spacing: 0.01em; }
 .element-reading.undetected small { color: #a9b6c6; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
+/* Über dem Balken steht die Wertblase (34px), darunter nur die Skala (24px) – unten auffüllen, damit der Balken auf der Mittellinie liegt */
+.element-head > .target-gauge { padding-bottom: 10px; }
 .element-chevron { justify-self: end; color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
-.favorite-button { position: absolute; z-index: 2; top: 22px; right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
+/* Stern liegt in derselben Rasterzelle wie die Kopfzeile und sitzt so immer auf ihrer Mittellinie */
+.element-row:has(> .favorite-button) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.element-row > .element-head { grid-area: 1 / 1; }
+.favorite-button { position: relative; z-index: 2; grid-area: 1 / 1; align-self: center; justify-self: end; margin-right: 46px; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #94a3b8; font-size: 20px; line-height: 1; cursor: pointer; }
 .favorite-button:hover { border-color: #f59e0b; color: #f59e0b; }
 .favorite-button.active { border-color: #fcd34d; background: #fffbeb; color: #f59e0b; }
 .element-detail { display: grid; gap: 14px; padding: 14px 20px 18px 76px; border-top: 1px solid var(--border); background: #f8fbfe; }
@@ -1236,7 +1241,8 @@ function markPdf() {
   .element-reading { grid-column: 3; grid-row: 1; }
   .element-reading { margin-right: 36px; }
   .element-chevron { display: none; }
-  .favorite-button { top: 22px; right: 12px; }
+  .favorite-button { position: absolute; top: 22px; right: 12px; margin: 0; }
+  .element-head > .target-gauge { padding-bottom: 0; }
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
 @media (max-width: 600px) {
