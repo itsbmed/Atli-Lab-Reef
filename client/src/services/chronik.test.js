@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_PARAMETERS, clearStartView, loadStartView, resolveStart, sameView, saveStartView, assignColors, buildTanks, delta, flaggedParameters, niceTicks, position, rangeStart, readQuery, reportsInRange, series, sharedScale, toCsv, valueAt } from './chronik.js'
+import { DEFAULT_PARAMETERS, applyFavorite, loadFavorites, makeFavorite, matchesFavorite, saveFavorites, suggestFavoriteName, clearStartView, loadStartView, resolveStart, sameView, saveStartView, assignColors, buildTanks, delta, flaggedParameters, niceTicks, position, rangeStart, readQuery, reportsInRange, series, sharedScale, toCsv, valueAt } from './chronik.js'
 
 const parameter = (key, value, extra = {}) => ({ key, value, unit: 'mg/l', tone: 'good', resultStatus: 'valid', ...extra })
 const analysis = (id, aquariumId, createdAt, parameters, extra = {}) => ({ id, aquariumId, createdAt, status: 'completed', parameters, ...extra })
@@ -133,4 +133,61 @@ test('the current selection is recognised as the saved one regardless of order',
   assert.ok(sameView(base, { ...base, tankIds: ['b', 'a'] }))
   assert.ok(!sameView(base, { ...base, range: '3m' }))
   assert.ok(!sameView(base, null))
+})
+
+test('favourites remember tanks, parameters or both – only full ones carry view and range', () => {
+  const state = { tankIds: ['a', 'b'], keys: ['kh', 'calcium'], view: 'compare', layout: 'separate', range: '6m' }
+  const full = makeFavorite({ name: '  Beide Becken  ', state })
+  assert.equal(full.name, 'Beide Becken')
+  assert.deepEqual([full.tankIds, full.keys, full.view, full.range], [['a', 'b'], ['kh', 'calcium'], 'compare', '6m'])
+  const paramsOnly = makeFavorite({ name: 'Spuren', state: { ...state, keys: ['iodine'] }, tanks: false })
+  assert.equal(paramsOnly.tankIds, null)
+  assert.equal(paramsOnly.view, undefined)
+  assert.equal(makeFavorite({ name: '', state }).name, 'Meine Auswahl')
+})
+
+test('applying a favourite replaces only what it remembers and skips what is gone', () => {
+  const current = { tankIds: ['a'], keys: ['kh'], view: 'trend', layout: 'combined', range: 'all' }
+  const paramsOnly = { id: 'p', name: 'Spuren', tankIds: null, keys: ['iodine', 'unobtainium'] }
+  assert.deepEqual(applyFavorite(paramsOnly, current, { tanks: threeTanks, knownKeys: known }), { ...current, keys: ['iodine'] })
+  const full = { id: 'f', name: 'Alles', tankIds: ['c', 'gone'], keys: ['nitrate'], view: 'compare', layout: 'separate', range: '3m' }
+  assert.deepEqual(applyFavorite(full, current, { tanks: threeTanks, knownKeys: known }), { tankIds: ['c'], keys: ['nitrate'], view: 'compare', layout: 'separate', range: '3m' })
+  const allGone = { id: 'g', name: 'Weg', tankIds: ['gone'], keys: null }
+  assert.deepEqual(applyFavorite(allGone, current, { tanks: threeTanks, knownKeys: known }).tankIds, ['a'], 'an empty result keeps the current tanks')
+})
+
+test('a favourite counts as active while the selection still matches what it remembers', () => {
+  const state = { tankIds: ['a', 'b'], keys: ['kh'], view: 'trend', layout: 'combined', range: 'all' }
+  assert.ok(matchesFavorite({ tankIds: ['b', 'a'], keys: null }, state))
+  assert.ok(matchesFavorite({ tankIds: null, keys: ['kh'] }, { ...state, tankIds: ['c'] }))
+  assert.ok(!matchesFavorite({ tankIds: ['a', 'b'], keys: ['kh'], view: 'trend', layout: 'combined', range: '3m' }, state))
+})
+
+test('favourites are stored per account, and the old start view moves into them once', () => {
+  const storage = memoryStorage()
+  saveStartView(storage, 'u1', { tankIds: ['a'], keys: ['kh'], view: 'compare', layout: 'combined', range: 'all' })
+  const first = loadFavorites(storage, 'u1')
+  assert.equal(first.lists.length, 1)
+  assert.equal(first.lists[0].name, 'Meine Startansicht')
+  assert.equal(first.startId, first.lists[0].id)
+  assert.equal(loadStartView(storage, 'u1'), null, 'the old key is cleared after the move')
+  assert.deepEqual(loadFavorites(storage, 'u1'), first)
+  assert.deepEqual(loadFavorites(storage, 'u2'), { lists: [], startId: '' })
+  saveFavorites(storage, 'u1', { lists: first.lists, startId: 'deleted-id' })
+  assert.equal(loadFavorites(storage, 'u1').startId, '', 'a start that no longer exists falls back to the default')
+  const start = resolveStart({ tanks: threeTanks, saved: { tankIds: null, keys: ['iodine'] }, knownKeys: known })
+  assert.deepEqual([start.tankIds, start.keys, start.view], [['a', 'b'], ['iodine'], 'trend'], 'a parameter list starts with the default tanks')
+})
+
+test('a favourite name is suggested from the selection', () => {
+  const tanks = [{ id: 'a', name: 'Riff' }, { id: 'b', name: 'Nano' }, { id: 'c', name: 'Frag' }]
+  const labels = { kh: 'KH', calcium: 'Calcium', magnesium: 'Magnesium', iodine: 'Iod' }
+  assert.equal(suggestFavoriteName({ tankIds: ['a', 'b'], keys: ['kh', 'calcium'] }, { tanks, labels }), 'Riff + Nano · KH, Calcium')
+  assert.equal(suggestFavoriteName({ tankIds: ['a', 'b', 'c'], keys: ['kh', 'calcium', 'magnesium', 'iodine'] }, { tanks, labels }), '3 Aquarien · KH, Calcium +2')
+  assert.equal(suggestFavoriteName({ tankIds: ['a'], keys: ['kh'] }, { tanks, labels, includeTanks: false }), 'KH')
+  const long = [{ id: 'a', name: 'NanoRiff' }, { id: 'b', name: 'Nyos Opus G2 440 LPS' }]
+  assert.equal(suggestFavoriteName({ tankIds: ['a', 'b'], keys: ['kh', 'calcium', 'magnesium'] }, { tanks: long, labels }), '2 Aquarien · KH, Calcium, Magnesium', 'long tank names are counted instead')
+  const huge = [{ id: 'a', name: 'Ein sehr langer Aquariumname mit vielen Wörtern' }]
+  const cut = suggestFavoriteName({ tankIds: ['a'], keys: ['kh'] }, { tanks: huge, labels })
+  assert.ok(cut.length <= 40 && cut.endsWith('…') && !cut.includes('Wörte…'), cut)
 })

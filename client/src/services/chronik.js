@@ -276,6 +276,95 @@ export function sameView(a, b) {
   return same(a.tankIds, b.tankIds) && same(a.keys, b.keys) && a.view === b.view && a.layout === b.layout && a.range === b.range
 }
 
+// Favoriten: benannte Auswahlen, je Konto im Browser. Eine Liste merkt sich Aquarien,
+// Parameter oder beides; nur wer beides merkt, nimmt auch Ansicht und Zeitraum mit.
+// Eine davon kann die Startansicht sein.
+const FAVORITES_PREFIX = 'reef-pilot:chronik-favorites:'
+export const MAX_FAVORITES = 12
+
+function favoritesKey(ownerId) {
+  return `${FAVORITES_PREFIX}${ownerId || 'guest'}`
+}
+
+export function makeFavorite({ name, state, tanks = true, params = true, id = '' }) {
+  const full = tanks && params
+  return {
+    id: id || `fav-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    name: String(name || '').trim().slice(0, 40) || 'Meine Auswahl',
+    tankIds: tanks ? [...state.tankIds] : null,
+    keys: params ? [...state.keys] : null,
+    ...(full ? { view: state.view, layout: state.layout, range: state.range } : {}),
+  }
+}
+
+// Die alte einzelne Startansicht wird beim ersten Laden zum Favoriten „Meine Startansicht“.
+export function loadFavorites(storage, ownerId) {
+  let data = null
+  try { data = JSON.parse(storage.getItem(favoritesKey(ownerId)) || 'null') } catch { data = null }
+  if (data && Array.isArray(data.lists)) {
+    const lists = data.lists.filter((item) => item && item.id && (item.tankIds || item.keys))
+    return { lists, startId: lists.some((item) => item.id === data.startId) ? data.startId : '' }
+  }
+  const legacy = loadStartView(storage, ownerId)
+  if (!legacy) return { lists: [], startId: '' }
+  const migrated = makeFavorite({ name: 'Meine Startansicht', state: legacy, id: 'fav-start' })
+  const result = { lists: [migrated], startId: migrated.id }
+  if (saveFavorites(storage, ownerId, result)) clearStartView(storage, ownerId)
+  return result
+}
+
+export function saveFavorites(storage, ownerId, data) {
+  try {
+    storage.setItem(favoritesKey(ownerId), JSON.stringify({ lists: data.lists.slice(0, MAX_FAVORITES), startId: data.startId || '' }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Ein Favorit ersetzt nur, was er gemerkt hat – der Rest der Auswahl bleibt.
+export function applyFavorite(favorite, state, { tanks = [], knownKeys = [] } = {}) {
+  const known = new Set(tanks.map((tank) => tank.id))
+  const allowed = new Set(knownKeys)
+  const next = { ...state }
+  if (favorite.tankIds) {
+    const ids = favorite.tankIds.filter((id) => known.has(id))
+    if (ids.length) next.tankIds = ids
+  }
+  if (favorite.keys) {
+    const keys = favorite.keys.filter((key) => allowed.has(key))
+    if (keys.length) next.keys = keys
+  }
+  if (VIEW_KEYS.includes(favorite.view)) next.view = favorite.view
+  if (LAYOUT_KEYS.includes(favorite.layout)) next.layout = favorite.layout
+  if (RANGES.some((item) => item.key === favorite.range)) next.range = favorite.range
+  return next
+}
+
+// Aktiv ist ein Favorit, solange alles, was er gemerkt hat, der aktuellen Auswahl entspricht.
+export function matchesFavorite(favorite, state) {
+  if (!favorite || !state) return false
+  const same = (x, y) => x.length === y.length && x.every((item) => y.includes(item))
+  if (favorite.tankIds && !same(favorite.tankIds, state.tankIds)) return false
+  if (favorite.keys && !same(favorite.keys, state.keys)) return false
+  return ['view', 'layout', 'range'].every((key) => !favorite[key] || favorite[key] === state[key])
+}
+
+// Namensvorschlag aus der Auswahl, z. B. „Riff + Nano · KH, Calcium, Magnesium“.
+export function suggestFavoriteName(state, { tanks = [], labels = {}, includeTanks = true, includeKeys = true } = {}) {
+  const LIMIT = 40
+  const names = state.tankIds.map((id) => tanks.find((tank) => tank.id === id)?.name).filter(Boolean)
+  const keyLabels = state.keys.map((key) => labels[key] || key)
+  const keyPart = keyLabels.length > 3 ? `${keyLabels.slice(0, 2).join(', ')} +${keyLabels.length - 2}` : keyLabels.join(', ')
+  const join = (tankPart) => [includeTanks && tankPart, includeKeys && keyPart].filter(Boolean).join(' · ')
+  // Zu lang: erst die Aquarien zählen statt nennen, dann am Wortende kürzen.
+  let name = join(names.length > 2 ? `${names.length} Aquarien` : names.join(' + '))
+  if (name.length > LIMIT && names.length > 1) name = join(`${names.length} Aquarien`)
+  if (name.length <= LIMIT) return name
+  const cut = name.slice(0, LIMIT - 1)
+  return `${cut.slice(0, cut.lastIndexOf(' ') > 20 ? cut.lastIndexOf(' ') : cut.length).replace(/[\s·,+]+$/, '')}…`
+}
+
 // Was die Chronik beim Öffnen zeigt: ein geteilter Link gewinnt, dann die gespeicherte
 // Startansicht, sonst die schlanke Voreinstellung. Gelöschte Aquarien fallen heraus.
 export function resolveStart({ query = {}, tanks = [], saved = null, knownKeys = [] }) {
