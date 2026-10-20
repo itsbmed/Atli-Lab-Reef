@@ -343,7 +343,6 @@
             <h2>Ergebnisse der Osmoseprobe</h2>
             <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe. Osmosewasser soll frei von Elementen sein – ein Wert ist deshalb entweder nicht nachweisbar oder zu hoch, ein „zu niedrig“ gibt es hier nicht.</p>
           </div>
-          <b class="osmosis-sample-label">ATI Laborbericht {{ analysis.reportNumber }}</b>
         </div>
 
         <div class="parameter-groups" aria-label="Gruppen der Osmoseprobe">
@@ -1208,7 +1207,6 @@ function markPdf() {
 .trend-heading p { margin-top: 4px; }
 .trend-heading strong { color: var(--text); font-size: 14px; white-space: nowrap; }
 .osmosis-results { display: grid; gap: 18px; }
-.osmosis-sample-label { align-self: center; padding: 8px 11px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 11px; }
 /* Einseitige Skala: links sauber, rechts belastet – ein Unterschreiten gibt es nicht. */
 .purity-meter { min-width: 0; }
 .purity-meter > i { position: relative; display: block; height: 9px; border-radius: 999px; background: linear-gradient(90deg, #d8f3e9, #fde2de); }
