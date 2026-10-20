@@ -10,6 +10,7 @@
     </section>
 
     <template v-else>
+      <ReportPdfDialog v-if="analysis.status === 'completed'" :open="pdfOpen" :context="pdfContext" :owner-id="String(auth.user?.id || 'guest')" @close="pdfOpen = false" @create="onPdfCreate" />
       <p v-if="analysis.demo" class="simulation-notice">Beispielbericht · Für die Demo aus dem ATI-Bericht {{ analysis.reportNumber.split('-')[1] }} abgeleitet, damit Verläufe sichtbar sind – keine Labormessung.</p>
       <p v-if="analysis.simulation" class="simulation-notice">Simulation · Messwerte sind Testdaten. Produkte und Dosierangaben stammen vom Hersteller. Aquarium und Nettovolumen kommen aus dem verknüpften Profil.</p>
       <section :class="['report-hero', analysis.severity]">
@@ -19,7 +20,7 @@
           <p>{{ analysis.reasonLabel }} · {{ formatDate(analysis.createdAt) }} · {{ analysis.barcode }}</p>
           <div class="hero-actions">
             <button class="btn btn-primary" type="button" @click="copyReportLink">Bericht teilen</button>
-            <button class="btn btn-ghost" type="button" @click="markPdf">PDF vormerken</button>
+            <button class="btn btn-ghost" type="button" :disabled="analysis.status !== 'completed'" @click="pdfOpen = true">PDF erstellen</button>
           </div>
           <p v-if="actionMsg" class="action-msg">{{ actionMsg }}</p>
         </div>
@@ -501,7 +502,7 @@ import { DEFAULT_PARAMETER_GUIDE, loadAnalysisContent } from '@/services/analysi
 import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import { buildDosingPlan } from '@/services/dosingPlan'
 import { loadRecommendationProgress, saveRecommendationProgress } from '@/services/recommendationProgress'
-import { recommendedProductsForKeys } from '@/services/dosingConfig'
+import { recommendedDosingProducts, recommendedProductsForKeys } from '@/services/dosingConfig'
 import { essentialsRecommendation } from '@/services/atiProductCatalog'
 import { NYOS_LINK_LABEL, nyosRecommendation } from '@/services/nyosProductCatalog'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
@@ -515,6 +516,7 @@ import TargetGauge from '@/components/analyses/TargetGauge.vue'
 import { formatReading } from '@/services/targetGauge'
 import PairGauges from '@/components/analyses/PairGauges.vue'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
+import ReportPdfDialog from '@/components/analyses/ReportPdfDialog.vue'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info u. Analytik', icon: 'i' },
@@ -927,9 +929,24 @@ async function copyReportLink() {
   }
   setTimeout(() => { actionMsg.value = '' }, 2200)
 }
-function markPdf() {
-  actionMsg.value = 'PDF-Export wird später mit dem Backend verbunden.'
-  setTimeout(() => { actionMsg.value = '' }, 2600)
+// PDF-Export: der Dialog sammelt die Einstellungen, erzeugt wird später im Backend.
+const pdfOpen = ref(false)
+const pdfContext = computed(() => ({
+  reportNumber: analysis.value?.reportNumber,
+  aquariumName: analysis.value?.aquariumName,
+  score: analysis.value?.score ?? null,
+  groups: parameterGroups.value.map((group) => ({ key: group.key, label: group.label, total: group.total, issueCount: group.issueCount })),
+  osmosisCount: analysis.value?.osmosisParameters?.length || 0,
+  osmosisFound: (analysis.value?.osmosisParameters || []).filter((parameter) => !isUndetectable(parameter)).length,
+  charts: { composition: balance.value.composition.length > 0, ratios: balance.value.ratios.rows.length > 0, growth: balance.value.growth.rows.length > 0 },
+  recommendationCount: directRecommendations.value.length,
+  openRecommendationCount: openActionCount.value,
+  dosingCount: dosingItemCount.value,
+  productCount: recommendedDosingProducts(approvedDosingItems.value, analysis.value?.parameters || []).length,
+}))
+function onPdfCreate({ pages }) {
+  actionMsg.value = `PDF mit ${pages} Seiten vorbereitet – die Erstellung wird mit dem Backend verbunden.`
+  setTimeout(() => { actionMsg.value = '' }, 3200)
 }
 </script>
 
