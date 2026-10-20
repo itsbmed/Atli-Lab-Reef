@@ -13,7 +13,6 @@
           <template v-else> {{ verdict.allGood }}</template>
         </p>
       </div>
-      <span v-if="context" class="cmp-context" :title="context.hint">{{ context.prefix }} <b>{{ context.value }}</b></span>
     </header>
 
     <div class="cmp-toolbar">
@@ -66,13 +65,6 @@
         </div>
       </div>
       <div class="cmp-xaxis" aria-hidden="true"><span v-for="item in points" :key="item.key" :class="{ derived: item.derived }">{{ item.axis }}</span></div>
-      <div v-if="showStats && stats" class="cmp-stats">
-        <span><small>Ø</small><b>{{ formatIndex(stats.avg) }}</b></span>
-        <span><small>Min</small><b>{{ formatIndex(stats.min) }}</b></span>
-        <span><small>Max</small><b>{{ formatIndex(stats.max) }}</b></span>
-        <p v-if="dotsNote">{{ dotsNote }}</p>
-      </div>
-      <p v-else-if="dotsNote" class="cmp-note">{{ dotsNote }}</p>
     </div>
 
     <!-- Säulen: Abweichung in % um die Null -->
@@ -104,14 +96,92 @@
       </div>
       <div class="cmp-xaxis" aria-hidden="true"><span v-for="item in columns.items" :key="item.key" :class="{ derived: item.derived }">{{ item.axis }}</span></div>
       <p v-if="columns.items.some((item) => item.clamped)" class="cmp-note">Säulen über ±{{ columns.scale }} % sind gekappt und schraffiert – die echte Abweichung steht daran.</p>
-      <p v-if="columnsNote" class="cmp-note">{{ columnsNote }}</p>
     </div>
 
-    <!-- Details zum gewählten Eintrag – per Maus, Tastatur oder Antippen -->
-    <p v-if="items.length" class="cmp-readout" aria-live="polite">
-      <template v-if="activeItem">{{ activeItem.detail }}</template>
-      <template v-else>{{ readoutHint }}</template>
-    </p>
+    <!-- Lesehilfe; beim Zeigen auf einen Eintrag stehen an ihrer Stelle dessen Details.
+         Beide liegen übereinander, damit die Karte beim Wechsel nicht springt. -->
+    <div v-if="items.length && guide.steps.length" class="cmp-readout">
+      <div :class="['cmp-guide', { hidden: activeItem }]">
+        <div class="cmp-guide-head">
+          <strong>So lesen Sie das Diagramm</strong>
+          <span v-if="guide.hint" class="cmp-guide-hint">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 9.5V4.2a1.4 1.4 0 0 1 2.8 0v4.6l3.6.7c.9.2 1.5 1 1.4 1.9l-.5 4.1a2 2 0 0 1-2 1.8H9.6a2 2 0 0 1-1.6-.8L5 12.6a1.3 1.3 0 0 1 2-1.7z" /></svg>
+            {{ guide.hint }}
+          </span>
+        </div>
+        <ol class="cmp-steps">
+          <li v-for="(step, index) in guide.steps" :key="step.art" class="cmp-step">
+            <svg class="cmp-art" viewBox="0 0 210 60" aria-hidden="true">
+              <!-- Punkte -->
+              <template v-if="step.art === 'dots-base'">
+                <path class="grid" d="M28 14h176M28 46h176" />
+                <path class="base" d="M28 30h176" />
+                <text x="4" y="33">100</text>
+                <path v-for="x in [70, 116, 162]" :key="x" class="mark good" :d="diamond(x, 30)" />
+              </template>
+              <template v-else-if="step.art === 'dots-offset'">
+                <path class="base" d="M28 30h176" />
+                <text x="4" y="33">100</text>
+                <path class="guide" d="M80 28V19M140 32v9" />
+                <path class="mark watch" :d="diamond(80, 12)" />
+                <path class="mark watch" :d="diamond(140, 48)" />
+                <text class="tag" x="93" y="15">zu viel</text>
+                <text class="tag" x="153" y="51">zu wenig</text>
+              </template>
+              <template v-else-if="step.art === 'dots-band'">
+                <rect class="band" x="28" y="19" width="176" height="22" />
+                <path class="base" d="M28 30h176" />
+                <text x="4" y="33">100</text>
+                <path v-for="[x, y] in [[58, 27], [94, 33], [130, 25]]" :key="x" class="mark good" :d="diamond(x, y)" />
+                <path class="mark watch" :d="diamond(172, 51)" />
+              </template>
+              <!-- Säulen -->
+              <template v-else-if="step.art === 'cols-base'">
+                <path class="grid" d="M28 14h176M28 46h176" />
+                <rect v-for="[x, h] in [[62, 3], [102, -2], [142, 2], [182, -3]]" :key="x" class="col good" :x="x - 9" :y="h > 0 ? 30 - h : 30" width="18" :height="Math.abs(h)" rx="1" />
+                <path class="base" d="M28 30h176" />
+                <text x="14" y="33">0</text>
+              </template>
+              <template v-else-if="step.art === 'cols-offset'">
+                <rect class="col watch" x="70" y="8" width="20" height="22" rx="2" />
+                <rect class="col watch" x="130" y="30" width="20" height="24" rx="2" />
+                <path class="base" d="M28 30h176" />
+                <text x="14" y="33">0</text>
+                <text class="tag" x="96" y="15">zu viel</text>
+                <text class="tag" x="156" y="50">zu wenig</text>
+              </template>
+              <template v-else-if="step.art === 'cols-band'">
+                <rect class="band" x="28" y="20" width="176" height="20" />
+                <rect v-for="[x, h] in [[60, 6], [96, -5], [132, 4]]" :key="x" class="col good" :x="x - 9" :y="h > 0 ? 30 - h : 30" width="18" :height="Math.abs(h)" rx="1" />
+                <rect class="col watch" x="160" y="30" width="18" height="26" rx="1" />
+                <path class="base" d="M28 30h176" />
+                <text x="14" y="33">0</text>
+              </template>
+            </svg>
+            <span class="cmp-step-copy">
+              <strong><i>{{ index + 1 }}</i>{{ step.title }}</strong>
+              <small>{{ step.text }}</small>
+            </span>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Details des gewählten Elements -->
+      <div :class="['cmp-detail', activeItem?.tone, { hidden: !activeItem }]" aria-live="polite">
+        <template v-if="activeItem">
+          <div class="cmp-detail-head">
+            <span class="cmp-detail-symbol">{{ activeItem.axis }}</span>
+            <strong>{{ activeItem.name || activeItem.axis }}</strong>
+            <em v-if="activeItem.toneLabel" class="cmp-detail-chip">{{ activeItem.toneLabel }}</em>
+          </div>
+          <dl v-if="activeItem.facts" class="cmp-facts">
+            <div v-for="fact in activeItem.facts" :key="fact.label" :class="{ lead: fact.lead }"><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>
+          </dl>
+          <p v-else class="cmp-detail-text">{{ activeItem.detail }}</p>
+          <small v-if="activeItem.note" class="cmp-detail-note">{{ activeItem.note }}</small>
+        </template>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -124,19 +194,17 @@ const props = defineProps({
   eyebrow: { type: String, default: '' },
   title: { type: String, required: true },
   verdict: { type: Object, default: null }, // { headline, flaggedLabel, flagged: [{ key, label, value }], allGood }
-  context: { type: Object, default: null }, // { prefix, value, hint }
   items: { type: Array, required: true }, // [{ key, axis, index, tone, derived?, detail }]
   band: { type: Number, default: 15 },
   bandLabel: { type: String, default: 'ausgewogen' },
   legend: { type: Array, default: () => [] }, // [{ tone, label }]
   legendTitle: { type: String, default: 'Bewertung' },
   orderLabel: { type: String, default: 'Laborreihenfolge' },
-  showStats: { type: Boolean, default: false },
-  dotsNote: { type: String, default: '' },
-  columnsNote: { type: String, default: '' },
   dotsHint: { type: String, default: 'Index – 100 ist ausgewogen' },
   columnsHint: { type: String, default: 'Abweichung in % als Säulen' },
-  readoutHint: { type: String, default: 'Eintrag antippen oder darauf zeigen, um Details zu sehen.' },
+  // Lesehilfe je Darstellung: { hint, steps: [{ art, title, text }] }; art ist eine der kleinen Skizzen unten.
+  dotsGuide: { type: Object, default: () => ({ hint: '', steps: [] }) },
+  columnsGuide: { type: Object, default: () => ({ hint: '', steps: [] }) },
   emptyLabel: { type: String, default: 'Für dieses Diagramm liegen keine auswertbaren Werte vor.' },
 })
 
@@ -156,12 +224,6 @@ const points = computed(() => props.items.map((item) => ({
   inBand: Math.abs(item.index - 100) <= props.band,
 })))
 
-const stats = computed(() => {
-  const values = props.items.map((item) => item.index)
-  if (!values.length) return null
-  return { avg: values.reduce((sum, value) => sum + value, 0) / values.length, min: Math.min(...values), max: Math.max(...values) }
-})
-
 const columns = computed(() => {
   const withPercent = props.items.map((item) => ({ ...item, percent: item.index - 100 }))
   const largest = Math.max(0, ...withPercent.map((item) => Math.abs(item.percent)))
@@ -172,6 +234,12 @@ const columns = computed(() => {
 })
 
 const activeItem = computed(() => props.items.find((item) => item.key === active.value) || null)
+const guide = computed(() => (mode.value === 'dots' ? props.dotsGuide : props.columnsGuide))
+
+// Raute wie die Punkte im Diagramm, für die Skizzen der Lesehilfe.
+function diamond(x, y, r = 7) {
+  return `M${x} ${y - r}L${x + r} ${y}L${x} ${y + r}L${x - r} ${y}Z`
+}
 
 function formatIndex(value) {
   return value.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -200,8 +268,6 @@ function formatPercent(value) {
 .cmp-verdict strong.ok { color: #047857; }
 .cmp-verdict strong.warn { color: var(--text); }
 .cmp-verdict b { color: var(--text); font-weight: 700; }
-.cmp-context { flex: none; padding: 6px 12px; border-radius: 999px; background: #eef6fd; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
-.cmp-context b { color: var(--brand-blue); }
 
 .cmp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .cmp-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; gap: 3px; padding: 3px; border-radius: 11px; background: #eef3f8; }
@@ -215,6 +281,46 @@ function formatPercent(value) {
 .cmp-legend i.good { background: var(--good); } .cmp-legend i.watch { background: var(--watch); } .cmp-legend i.critical { background: var(--critical); }
 
 .cmp-empty { padding: 16px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 12px; }
+/* Lesehilfe und Details teilen sich eine Fläche – beim Zeigen springt nichts */
+.cmp-readout { display: grid; padding: 14px; border: 1px solid #e3edf7; border-radius: 16px; background: linear-gradient(135deg, #f6fafe 0%, #eef6fd 100%); }
+.cmp-readout > div { grid-area: 1 / 1; min-width: 0; transition: opacity .18s ease, transform .18s ease; }
+.cmp-readout > div.hidden { visibility: hidden; opacity: 0; transform: translateY(3px); }
+.cmp-guide { display: grid; gap: 12px; }
+.cmp-guide-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.cmp-guide-head > strong { color: var(--text); font-size: 13px; font-weight: 800; }
+.cmp-guide-hint { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(10,27,67,0.08); color: var(--brand-blue); font-size: 11.5px; font-weight: 700; }
+.cmp-guide-hint svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.cmp-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.cmp-step { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 10px 10px 12px; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(10,27,67,0.06), 0 6px 16px rgba(10,27,67,0.04); }
+.cmp-art { display: block; width: 100%; height: auto; border-radius: 8px; background: #f7fafd; }
+.cmp-art .grid { stroke: #e3eaf1; stroke-width: 1; }
+.cmp-art .base { stroke: #0a1b43; stroke-width: 1.2; opacity: .55; }
+.cmp-art .guide { stroke: var(--watch); stroke-width: 1.2; stroke-dasharray: 2 2; }
+.cmp-art .band { fill: rgba(27,175,122,0.14); stroke: rgba(27,175,122,0.4); stroke-width: .8; }
+.cmp-art .mark { stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgba(10,27,67,0.22)); }
+.cmp-art .mark.good, .cmp-art .col.good { fill: var(--good); }
+.cmp-art .mark.watch, .cmp-art .col.watch { fill: var(--watch); }
+.cmp-art text { fill: #7d8b99; font-size: 9px; font-weight: 700; }
+.cmp-art text.tag { fill: #9a4d0a; font-size: 9px; }
+.cmp-step-copy { display: grid; gap: 4px; padding: 0 2px; }
+.cmp-step-copy strong { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; font-weight: 800; }
+.cmp-step-copy strong i { display: grid; flex: none; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-size: 10.5px; font-style: normal; font-weight: 800; }
+.cmp-step-copy small { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+
+.cmp-detail { --tone: var(--good); display: grid; align-self: center; gap: 12px; padding: 4px 4px 4px 14px; border-left: 4px solid var(--tone); }
+.cmp-detail.watch { --tone: var(--watch); }
+.cmp-detail.critical { --tone: var(--critical); }
+.cmp-detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cmp-detail-symbol { display: grid; place-items: center; min-width: 40px; height: 40px; padding: 0 6px; border-radius: 11px; background: color-mix(in srgb, var(--tone) 14%, #fff); color: color-mix(in srgb, var(--tone) 75%, #0a1b43); font-size: 14px; font-weight: 800; }
+.cmp-detail-head strong { color: var(--text); font-size: 17px; font-weight: 800; }
+.cmp-detail-chip { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 14%, #fff); color: color-mix(in srgb, var(--tone) 70%, #0a1b43); font-size: 11px; font-style: normal; font-weight: 700; }
+.cmp-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 0; }
+.cmp-facts div { padding: 9px 12px; border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(10,27,67,0.06); }
+.cmp-facts dt { color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.cmp-facts dd { margin: 3px 0 0; color: var(--text); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cmp-facts .lead dd { color: color-mix(in srgb, var(--tone) 75%, #0a1b43); }
+.cmp-detail-text { color: var(--text); font-size: 13px; font-weight: 600; }
+.cmp-detail-note { color: var(--text-muted); font-size: 11.5px; }
 .cmp-note { margin-top: 6px; color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
 
 /* Kundenansichten: Spalten je Element über einer gemeinsamen y-Achse */
@@ -255,21 +361,18 @@ function formatPercent(value) {
 .cmp-xaxis { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; margin-left: 62px; }
 .cmp-xaxis span { color: var(--text); font-size: 12px; font-weight: 700; text-align: center; }
 .cmp-xaxis span.derived { color: var(--text-muted); font-style: italic; }
-.cmp-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 8px; }
-.cmp-stats span { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 10px; background: #f4f8fc; }
-.cmp-stats small { color: var(--text-muted); font-size: 11px; font-weight: 700; }
-.cmp-stats b { color: var(--text); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.cmp-stats p { flex: 1 1 260px; color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
-.cmp-readout { min-height: 34px; padding: 8px 12px; border-radius: 10px; background: #f4f8fc; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
-.cmp-readout b { color: var(--text); }
 
 /* Schmal: Name und Prozent oben, die Achse darunter über die volle Breite */
 @container (max-width: 560px) {
+  .cmp-readout { padding: 12px; }
+  .cmp-steps { grid-template-columns: 1fr; gap: 8px; }
+  .cmp-step { gap: 8px; padding: 8px 8px 10px; }
+  .cmp-readout > .cmp-detail { align-self: start; }
+  .cmp-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cmp { padding: 18px 14px; }
   .cmp-seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .cmp-seg button { justify-content: center; padding: 0 8px; white-space: normal; text-align: center; line-height: 1.2; }
-  .cmp-context { white-space: normal; }
-  .cmp-legend { margin-left: 0; }
+    .cmp-legend { margin-left: 0; }
   .cmp-stage { grid-template-columns: 34px minmax(0, 1fr); gap: 6px; height: 240px; }
   .cmp-xaxis { margin-left: 40px; }
   .cmp-xaxis span { font-size: 10.5px; }
@@ -279,5 +382,5 @@ function formatPercent(value) {
   /* Wenig Platz: Beschriftung nur außerhalb des ausgewogenen Bereichs oder beim gewählten Element */
   .cmp-column-label.quiet { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .cmp-column, .cmp-point, .cmp-dot { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .cmp-column, .cmp-point, .cmp-dot, .cmp-readout > div { transition: none; } }
 </style>
