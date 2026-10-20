@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { splitDose, doseSchedule } from './dosingCalendar.js'
+import { splitDose, doseSchedule, formatMl } from './dosingCalendar.js'
 
 test('split doses conserve total and never exceed the daily limit, including rounding boundaries', () => {
   for (const deficit of [1, 1.001, 2.999, 10.01]) {
@@ -41,4 +41,16 @@ test('a course shorter than a week still lays out seven day columns', () => {
   assert.equal(schedule.rows[0].courseDays, 2)
   assert.equal(schedule.rows[0].amounts.filter(Boolean).length, 2)
   assert.equal(schedule.rows[0].amounts.length, 7)
+})
+
+test('dose amounts are shown with pipette precision and never rounded up past the limit', () => {
+  assert.equal(formatMl(5.44375), '5,44')
+  assert.equal(formatMl(0.496875), '0,49')
+  assert.equal(formatMl(16.331249), '16,33')
+  assert.equal(formatMl(33.75), '33,75')
+  assert.equal(formatMl(270), '270')
+  assert.equal(formatMl(112.56), '112,5')
+  assert.equal(formatMl(3.75), '3,75')
+  assert.equal(formatMl(0.9), '0,9', 'no floating point artefacts at the boundary')
+  assert.equal(formatMl(null), '–')
 })

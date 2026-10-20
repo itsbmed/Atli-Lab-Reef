@@ -15,6 +15,17 @@ export function splitDose({ deficit, raisesBy, mlPer100Liters, maxDailyIncrease,
 
 const WEEK = 7
 
+// Mengen für Menschen: zwei Nachkommastellen reichen für jede Pipette, ab 100 ml eine.
+// Abgerundet wie splitDose, damit die Anzeige nie über dem freigegebenen Tageslimit liegt.
+export function formatMl(value) {
+  const number = value === null || value === '' ? NaN : Number(value)
+  if (!Number.isFinite(number)) return '–'
+  const digits = Math.abs(number) >= 100 ? 1 : 2
+  const factor = 10 ** digits
+  const floored = Math.floor(Math.round(number * factor * 1e6) / 1e6) / factor
+  return floored.toLocaleString('de-DE', { maximumFractionDigits: digits })
+}
+
 // Relative course days instead of calendar dates: the plan stays valid whenever the customer starts.
 export function doseSchedule(items = []) {
   const rows = items.filter(item => item.dose?.dailyAmounts?.length)

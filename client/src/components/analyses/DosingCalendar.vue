@@ -61,7 +61,7 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { doseSchedule } from '@/services/dosingCalendar'
+import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { recommendedDosingProducts } from '@/services/dosingConfig'
 import ProductSuggestions from '@/components/analyses/ProductSuggestions.vue'
 
@@ -79,7 +79,7 @@ const gridStyle = computed(() => ({ gridTemplateColumns: `minmax(150px, 1.5fr) r
 const ticked = reactive({})
 const printContent = ref(null)
 const error = ref('')
-const number = value => Number(value).toLocaleString('de-DE', { maximumFractionDigits: 6 })
+const number = formatMl
 // Das Druckfenster hat keine eigene Basis-URL, der Pfad muss absolut sein.
 // Beim Rendern ohne Browser bleibt der relative Pfad stehen.
 const logoUrl = computed(() => (typeof window === 'undefined'

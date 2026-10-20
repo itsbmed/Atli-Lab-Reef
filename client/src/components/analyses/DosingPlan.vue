@@ -17,7 +17,7 @@
       <header><span>Direkte Empfehlung aus dem Laborbericht</span><strong>Fortlaufende Dosierung</strong></header>
       <article v-for="item in managedDoses" :key="item.key">
         <div><small>{{ item.label }}</small><h3>{{ item.managedDose.productName }}</h3><p>{{ item.managedDose.instructions }}</p></div>
-        <div class="managed-dose-amount"><strong>{{ formatNumber(item.managedDose.dailyMl) }} ml</strong><span>pro Tag</span></div>
+        <div class="managed-dose-amount"><strong>{{ formatMl(item.managedDose.dailyMl) }} ml</strong><span>pro Tag</span></div>
       </article>
     </section>
 
@@ -49,6 +49,7 @@
 import { computed } from 'vue'
 import { buildDosingPlan } from '@/services/dosingPlan'
 import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
+import { formatMl } from '@/services/dosingCalendar'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
 const volume = computed(() => Number(props.analysis.aquariumProfile?.volumeLiters || props.analysis.aquariumProfile?.net_volume || 0))
