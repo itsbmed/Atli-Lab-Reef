@@ -294,7 +294,6 @@
                           :parameter="parameter"
                           :guide="parameterGuide(parameter)"
                           :symbol="parameterSymbol(parameter)"
-                          :lab-status="labStatusLabel(parameter)"
                           :status-label="parameterStatusLabel(parameter.tone)"
                           :insight="parameterInsight(parameter)"
                           :current-action="parameterAction(parameter)"
@@ -464,7 +463,6 @@
                 :parameter="parameter"
                 :guide="parameterGuide(parameter)"
                 :symbol="parameterSymbol(parameter)"
-                :lab-status="labStatusLabel(parameter)"
                 :status-label="parameterStatusLabel(parameter.tone)"
                 :insight="parameterInsight(parameter)"
                 :current-action="parameterAction(parameter)"
@@ -1196,8 +1194,8 @@ function onPdfCreate({ pages }) {
 .element-reading small { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
 .element-reading.undetected strong { color: #94a3b8; font-size: 21px; letter-spacing: 0.01em; }
 .element-reading.undetected small { color: #a9b6c6; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
-/* Über dem Balken steht die Wertblase (34px), darunter nur die Skala (24px) – unten auffüllen, damit der Balken auf der Mittellinie liegt */
-.element-head > .target-gauge { padding-bottom: 10px; }
+/* Über dem Balken steht die Wertblase (40px), darunter nur die Skala (24px) – unten auffüllen, damit der Balken auf der Mittellinie liegt */
+.element-head > .target-gauge { padding-bottom: 16px; }
 .element-chevron { justify-self: end; color: var(--text-muted); font-size: 20px; transition: transform 0.2s ease; }
 .element-row.expanded .element-chevron { transform: rotate(180deg); }
 /* Stern liegt in derselben Rasterzelle wie die Kopfzeile und sitzt so immer auf ihrer Mittellinie */

@@ -103,7 +103,7 @@ const trackBackground = computed(() => (props.undetectable ? null : gaugeGradien
 </script>
 
 <style scoped>
-.tg { position: relative; display: block; min-width: 0; padding: 34px 0 0; }
+.tg { position: relative; display: block; min-width: 0; padding: 40px 0 0; }
 
 .tg-track { position: relative; display: block; height: 10px; border-radius: 999px; background: #e6ecf2; box-shadow: inset 0 1px 2px rgba(10,27,67,0.08); }
 .tg-zone { position: absolute; inset: 0 calc(100% - var(--tg-hi)) 0 var(--tg-lo); border-radius: 999px; background: rgba(95,202,136,0.42); }
@@ -121,7 +121,7 @@ const trackBackground = computed(() => (props.undetectable ? null : gaugeGradien
 
 /* Die Sprechblase bleibt in der Spur: sie verschiebt sich um so viel ihrer eigenen
    Breite, wie der Marker auf der Skala steht – der Pfeil zeigt trotzdem auf ihn. */
-.tg-bubble { position: absolute; top: 0; left: var(--tg-at); padding: 5px 10px; border-radius: 9px; background: #fff; box-shadow: 0 3px 12px rgba(10,27,67,0.14), 0 0 0 1px rgba(10,27,67,0.05); color: var(--text, #0a1b43); font-size: 11.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(calc(-1 * var(--tg-at))); transition: left .3s ease, transform .3s ease; }
+.tg-bubble { position: absolute; top: 0; left: var(--tg-at); padding: 6px 11px; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgba(10,27,67,0.14), 0 0 0 1px rgba(10,27,67,0.05); color: var(--text, #0a1b43); font-size: 14px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(calc(-1 * var(--tg-at))); transition: left .3s ease, transform .3s ease; }
 .tg-bubble i { position: absolute; top: 100%; left: clamp(10px, var(--tg-at), calc(100% - 10px)); width: 8px; height: 8px; margin: -4px 0 0 -4px; background: #fff; box-shadow: 2px 2px 3px rgba(10,27,67,0.06); transform: rotate(45deg); }
 .tg-none .tg-bubble { color: #6b7a89; }
 

@@ -11,6 +11,12 @@
       </section>
 
       <section class="reference-strip" aria-label="Orientierungswerte">
+        <!-- Der gemessene Wert zuerst, groß und in der Farbe seiner Bewertung -->
+        <article :class="['reading', parameter.tone]">
+          <span>Messwert</span>
+          <strong>{{ readingText }}<small v-if="!isUndetectable">{{ parameter.unit }}</small></strong>
+          <em>{{ readingNote }}</em>
+        </article>
         <article class="ideal">
           <span>Idealbereich</span>
           <strong>{{ targetRange }} {{ parameter.unit }}</strong>
@@ -30,11 +36,6 @@
           <span>Referenzbedingungen</span>
           <strong>{{ guide.referenceConditions }}</strong>
           <small>Grundlage der Einordnung</small>
-        </article>
-        <article class="status">
-          <span>Laborstatus</span>
-          <strong>{{ labStatus }}</strong>
-          <small>{{ displayValue }}<template v-if="!isUndetectable"> {{ parameter.unit }}</template></small>
         </article>
       </section>
 
@@ -65,10 +66,10 @@
     <template v-else>
       <div class="parameter-info-lead"><span>Allgemeine Information</span><p>{{ guide.general }}</p></div>
       <div class="parameter-spec-grid">
+        <div :class="['reading', parameter.tone]"><span>Messwert</span><strong>{{ readingText }}<small v-if="!isUndetectable">{{ parameter.unit }}</small></strong></div>
         <div><span>Symbol</span><strong>{{ symbol }}</strong></div>
         <div><span>Einheit</span><strong>{{ parameter.unit }}</strong></div>
         <div><span>Zielbereich</span><strong>{{ parameter.target }} {{ parameter.unit }}</strong></div>
-        <div><span>Laborstatus</span><strong>{{ labStatus }}</strong></div>
       </div>
       <div :class="['parameter-current-status', parameter.tone]"><span>Aktuelle Einordnung</span><strong>{{ statusLabel }}</strong><p>{{ insight }}</p></div>
     </template>
@@ -109,13 +110,13 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { formatReading } from '@/services/targetGauge'
 
 const props = defineProps({
   panel: { type: String, required: true },
   parameter: { type: Object, required: true },
   guide: { type: Object, required: true },
   symbol: { type: String, required: true },
-  labStatus: { type: String, required: true },
   statusLabel: { type: String, required: true },
   insight: { type: String, required: true },
   currentAction: { type: String, required: true },
@@ -146,6 +147,14 @@ const adviceSections = computed(() => [
 const advicePathLabel = computed(() => adviceSections.value.map((section) => ({ causes: 'Ursache', effects: 'Effekt', corrections: 'Korrektur' }[section.key])).join(' → '))
 const isUndetectable = computed(() => props.parameter.resultStatus === 'below_detection')
 const displayValue = computed(() => props.parameter.reportedValue ?? props.parameter.value ?? '—')
+const readingText = computed(() => (isUndetectable.value ? 'n. n.' : formatReading(displayValue.value)))
+// Kurz einordnen, wo der Wert liegt – statt des Laborstatus.
+const readingNote = computed(() => {
+  if (isUndetectable.value) return 'Unter der Nachweisgrenze'
+  if (currentDirection.value === 'low') return 'Unter dem Idealbereich'
+  if (currentDirection.value === 'high') return 'Über dem Idealbereich'
+  return 'Im Idealbereich'
+})
 const targetRange = computed(() => `${formatNumber(props.guide.targetMin)}–${formatNumber(props.guide.targetMax)}`)
 
 function formatNumber(value) {
@@ -168,7 +177,14 @@ function formatNumber(value) {
 .reference-strip article.attention { border-top: 3px solid #f59e0b; }
 .reference-strip article.method { border-top: 3px solid #0f9f8f; }
 .reference-strip article.conditions { border-top: 3px solid var(--brand-blue); }
-.reference-strip article.status { border-top: 3px solid #7c3aed; }
+.reference-strip article.reading { --tone: #10b981; --tone-ink: #047857; border-top: 3px solid var(--tone); background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 8%, #fff), #fff 70%); }
+.reference-strip article.reading.watch { --tone: #f59e0b; --tone-ink: #9a4d0a; }
+.reference-strip article.reading.critical { --tone: #e85d4f; --tone-ink: #b53a2e; }
+.reference-strip article.reading strong { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 5px; margin-top: 4px; color: var(--text); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.reference-strip article.reading strong small { display: inline; margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 700; letter-spacing: 0; }
+.reference-strip article.reading em { display: inline-block; margin-top: 7px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 14%, #fff); color: var(--tone-ink); font-size: 10.5px; font-style: normal; font-weight: 700; }
+.parameter-spec-grid > div.reading strong { font-size: 20px; font-weight: 800; }
+.parameter-spec-grid > div.reading strong small { margin-left: 4px; color: var(--text-muted); font-size: 12px; }
 .reference-strip strong,.reference-strip small { display: block; }
 .reference-strip strong { margin-top: 6px; color: var(--text); font-size: 13px; line-height: 1.35; }
 .reference-strip small { margin-top: 4px; color: var(--text-muted); font-size: 9px; line-height: 1.4; }
