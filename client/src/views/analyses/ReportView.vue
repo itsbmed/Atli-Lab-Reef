@@ -364,7 +364,7 @@
             <span class="group-dial" :style="groupDialStyle(group.cleanShare, group.tone)" aria-hidden="true"><b>{{ group.cleanShare }}</b><em>%</em></span>
             <span class="group-filter-copy">
               <span class="group-filter-label">{{ group.label }}</span>
-              <b :class="['status-chip', group.tone]">{{ group.dirty ? 'Belastet' : 'Sauber' }}</b>
+              <b :class="['status-chip', group.tone]">{{ group.dirty ? 'Belastet' : 'Optimal' }}</b>
               <small>{{ group.dirty ? `${group.dirty} nachweisbar` : 'Nichts nachweisbar' }}</small>
             </span>
           </button>
@@ -767,7 +767,7 @@ function groupDialStyle(score, tone) {
 }
 // Osmosewasser kennt kein „zu niedrig": sauber oder belastet.
 function osmosisStatusLabel(parameter) {
-  return isUndetectable(parameter) ? 'Sauber' : 'Belastet'
+  return isUndetectable(parameter) ? 'Optimal' : 'Belastet'
 }
 function parameterStatusLabel(tone) {
   return { critical: 'Kritisch', watch: 'Beobachten', good: 'Optimal' }[tone] || 'Offen'
