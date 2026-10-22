@@ -6,7 +6,7 @@
     :items="items"
     :band="BALANCE_BAND"
     :legend="LEGEND"
-    legend-title="Bewertung des Labors"
+    legend-title="Abweichung vom Soll"
     dots-hint="Konzentration je PSU als Index – 100 passt zur Salinität"
     columns-hint="Abweichung vom Soll in % als Säulen"
     :dots-guide="dotsGuide"
@@ -17,7 +17,7 @@
 <script setup>
 import { computed } from 'vue'
 import DeviationCard from './DeviationCard.vue'
-import { BALANCE_BAND, compositionSummary, withSulfate } from '@/services/waterBalance'
+import { BALANCE_BAND, compositionSummary, compositionTone, withSulfate } from '@/services/waterBalance'
 
 const props = defineProps({
   rows: { type: Array, required: true }, // compositionRows()
@@ -25,7 +25,13 @@ const props = defineProps({
   unit: { type: String, default: 'mg/l' },
 })
 
-const LEGEND = [{ tone: 'good', label: 'im Soll' }, { tone: 'watch', label: 'auffällig' }, { tone: 'critical', label: 'kritisch' }]
+// Farbe nach Lage zum grünen Band – dieselbe Regel wie das Fazit darüber.
+const LEGEND = [
+  { tone: 'good', label: `ausgewogen (±${BALANCE_BAND} %)` },
+  { tone: 'watch', label: `auffällig (bis ±${BALANCE_BAND * 2} %)` },
+  { tone: 'critical', label: `kritisch (über ±${BALANCE_BAND * 2} %)` },
+]
+const BAND_LABEL = { good: 'Ausgewogen', watch: 'Auffällig', critical: 'Kritisch' }
 const LAB = { good: 'im Soll', watch: 'auffällig', critical: 'kritisch' }
 
 function formatPercent(value) {
@@ -42,19 +48,21 @@ function formatValue(value) {
 // Wie in der Arbeitsmappe des Kunden mit Sulfat, aus Schwefel abgeleitet.
 const items = computed(() => withSulfate(props.rows).map((row) => {
   const index = (row.measured / row.ideal) * 100
+  const tone = compositionTone(index)
   return {
     key: row.key,
     axis: row.symbol,
     index,
-    tone: row.tone,
+    tone,
     derived: row.derived,
     name: row.label,
-    toneLabel: LAB[row.tone] ? `Labor: ${LAB[row.tone]}` : '',
+    toneLabel: BAND_LABEL[tone],
     facts: [
       { label: 'Messwert', value: `${formatValue(row.measured)} ${row.unit || props.unit}` },
       { label: 'Soll', value: `${formatValue(row.ideal)} ${row.unit || props.unit}` },
       { label: 'Abweichung', value: formatPercent(index - 100), lead: true },
       { label: 'Index', value: index.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+      { label: 'Labor', value: LAB[row.tone] || 'ohne Bewertung' },
     ],
     note: row.derived ? 'Sulfat ist aus dem gemessenen Schwefel abgeleitet.' : '',
     detail: `${row.label}${row.derived ? ' (aus Schwefel)' : ''} · ${formatValue(row.measured)} / ${formatValue(row.ideal)} ${row.unit || props.unit} · Index ${index.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} · ${formatPercent(index - 100)} · Labor: ${LAB[row.tone] || 'ohne Bewertung'}`,
@@ -79,16 +87,16 @@ const dotsGuide = computed(() => ({
   hint: 'Punkt antippen für Messwert und Soll',
   steps: [
     { art: 'dots-base', title: 'Die Linie bei 100', text: `So viel sollte von jedem Element bei ${salinityText.value} im Wasser sein.` },
+    { art: 'dots-band', title: 'Das grüne Band', text: `Zwischen ${100 - BALANCE_BAND} und ${100 + BALANCE_BAND} ist alles ausgewogen – der Punkt ist grün. Bis ±${BALANCE_BAND * 2} % wird er gelb, darüber rot.` },
     { art: 'dots-offset', title: 'Darüber oder darunter', text: 'Über 100 ist mehr vorhanden, als zur Salinität passt, darunter weniger – 110 heißt 10 % zu viel.' },
-    { art: 'dots-band', title: 'Das grüne Band', text: `Zwischen ${100 - BALANCE_BAND} und ${100 + BALANCE_BAND} ist alles ausgewogen. Die Farbe zeigt die Bewertung des Labors.` },
   ],
 }))
 const columnsGuide = computed(() => ({
   hint: 'Säule antippen für Messwert und Soll',
   steps: [
     { art: 'cols-base', title: 'Die Nulllinie', text: `Hier liegt der Sollwert – die Menge, die bei ${salinityText.value} zu erwarten ist.` },
+    { art: 'cols-band', title: 'Das grüne Band', text: `Innerhalb von ±${BALANCE_BAND} % ist alles ausgewogen – die Säule ist grün. Bis ±${BALANCE_BAND * 2} % wird sie gelb, darüber rot.` },
     { art: 'cols-offset', title: 'Nach oben oder unten', text: 'Nach oben heißt zu viel, nach unten zu wenig. Je länger die Säule, desto größer die Abweichung.' },
-    { art: 'cols-band', title: 'Das grüne Band', text: `Innerhalb von ±${BALANCE_BAND} % ist alles ausgewogen. Die Farbe zeigt die Bewertung des Labors.` },
   ],
 }))
 </script>

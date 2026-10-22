@@ -10,7 +10,7 @@
             · {{ verdict.flaggedLabel }}:
             <template v-for="(item, index) in verdict.flagged" :key="item.key"><template v-if="index">, </template><b>{{ item.label }}</b> {{ item.value }}</template>
           </template>
-          <template v-else> {{ verdict.allGood }}</template>
+          <template v-else>{{ ' ' + verdict.allGood }}</template>
         </p>
       </div>
     </header>
@@ -40,13 +40,11 @@
     <div v-else-if="mode === 'dots'" class="cmp-plot">
       <div class="cmp-stage">
         <div class="cmp-yaxis" aria-hidden="true">
-          <em v-for="tick in INDEX_TICKS" :key="tick" :style="{ bottom: `${(tick / INDEX_TOP) * 100}%` }">{{ tick }}</em>
+          <em v-for="tick in indexAxis.ticks" :key="tick" :style="{ bottom: `${indexPos(tick)}%` }">{{ tick }}</em>
         </div>
         <div class="cmp-area">
-          <i v-for="tick in INDEX_TICKS" :key="tick" :class="['cmp-hline', { base: tick === 100 }]" :style="{ bottom: `${(tick / INDEX_TOP) * 100}%` }" aria-hidden="true"></i>
-          <span class="cmp-band" :style="{ bottom: `${((100 - band) / INDEX_TOP) * 100}%`, height: `${((2 * band) / INDEX_TOP) * 100}%` }" aria-hidden="true">
-            <small>{{ bandLabel }} {{ 100 - band }}–{{ 100 + band }}</small>
-          </span>
+          <i v-for="tick in indexAxis.ticks" :key="tick" :class="['cmp-hline', { base: tick === 100 }]" :style="{ bottom: `${indexPos(tick)}%` }" aria-hidden="true"></i>
+          <span class="cmp-band" :style="{ bottom: `${indexPos(100 - band)}%`, height: `${indexPos(100 + band) - indexPos(100 - band)}%` }" aria-hidden="true"></span>
           <div class="cmp-cols">
             <button
               v-for="item in points"
@@ -56,15 +54,16 @@
               :aria-label="item.detail"
               @pointerenter="active = item.key" @pointerleave="active = ''" @focus="active = item.key" @blur="active = ''"
             >
-              <span :class="['cmp-point', { clamped: item.clamped }]" :style="{ bottom: `${(item.y / INDEX_TOP) * 100}%` }">
+              <span :class="['cmp-point', item.clamped && `clamped ${item.clamped}`]" :style="{ bottom: `${indexPos(item.y)}%` }">
                 <i class="cmp-dot" aria-hidden="true"></i>
-                <em v-if="!item.inBand || active === item.key" class="cmp-dot-label">{{ formatIndex(item.index) }}{{ item.clamped ? ' ▲' : '' }}</em>
+                <em v-if="!item.inBand || active === item.key" class="cmp-dot-label">{{ formatIndex(item.index) }}{{ item.clamped === 'up' ? ' ▲' : item.clamped === 'down' ? ' ▼' : '' }}</em>
               </span>
             </button>
           </div>
         </div>
       </div>
       <div class="cmp-xaxis" aria-hidden="true"><span v-for="item in points" :key="item.key" :class="{ derived: item.derived }">{{ item.axis }}</span></div>
+      <p v-if="points.some((item) => item.clamped)" class="cmp-note">Werte außerhalb des Ausschnitts {{ indexAxis.lo }}–{{ indexAxis.hi }} stehen am Rand (▲ / ▼) – die Zahl daran ist der echte Wert.</p>
     </div>
 
     <!-- Säulen: Abweichung in % um die Null -->
@@ -75,9 +74,7 @@
         </div>
         <div class="cmp-area">
           <i v-for="tick in columns.ticks" :key="tick" :class="['cmp-hline', { base: tick === 0 }]" :style="{ bottom: `${50 + (tick / columns.scale) * 50}%` }" aria-hidden="true"></i>
-          <span class="cmp-band" :style="{ bottom: `${50 - Math.min(1, band / columns.scale) * 50}%`, height: `${Math.min(1, band / columns.scale) * 100}%` }" aria-hidden="true">
-            <small>{{ bandLabel }} ±{{ band }} %</small>
-          </span>
+          <span class="cmp-band" :style="{ bottom: `${50 - Math.min(1, band / columns.scale) * 50}%`, height: `${Math.min(1, band / columns.scale) * 100}%` }" aria-hidden="true"></span>
           <div class="cmp-cols">
             <button
               v-for="item in columns.items"
@@ -187,6 +184,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { indexScale } from '@/services/waterBalance'
 
 // Gemeinsame Karte der Diagramme im Reiter „Diagramme“: Punkte (Index, 100 = ausgewogen)
 // oder Säulen (Abweichung in %). Jeder Eintrag bringt seinen Index und seinen Detailtext mit.
@@ -196,7 +194,6 @@ const props = defineProps({
   verdict: { type: Object, default: null }, // { headline, flaggedLabel, flagged: [{ key, label, value }], allGood }
   items: { type: Array, required: true }, // [{ key, axis, index, tone, derived?, detail }]
   band: { type: Number, default: 15 },
-  bandLabel: { type: String, default: 'ausgewogen' },
   legend: { type: Array, default: () => [] }, // [{ tone, label }]
   legendTitle: { type: String, default: 'Bewertung' },
   orderLabel: { type: String, default: 'Laborreihenfolge' },
@@ -209,20 +206,24 @@ const props = defineProps({
 })
 
 const MODES = [{ key: 'dots', label: 'Punkte' }, { key: 'columns', label: 'Säulen' }]
-const INDEX_TOP = 200
-const INDEX_TICKS = [0, 50, 100, 150, 200]
 const PERCENT_SCALES = [5, 10, 20, 30, 50]
 
 const mode = ref('dots')
 const sort = ref('given')
 const active = ref('')
 
-const points = computed(() => props.items.map((item) => ({
-  ...item,
-  y: Math.min(item.index, INDEX_TOP),
-  clamped: item.index > INDEX_TOP,
-  inBand: Math.abs(item.index - 100) <= props.band,
-})))
+// Die Index-Achse zoomt auf den kleinsten Ausschnitt, der alle Werte fasst.
+const indexAxis = computed(() => indexScale(props.items.map((item) => item.index)))
+const indexPos = (value) => ((value - indexAxis.value.lo) / (indexAxis.value.hi - indexAxis.value.lo)) * 100
+const points = computed(() => props.items.map((item) => {
+  const { lo, hi } = indexAxis.value
+  return {
+    ...item,
+    y: Math.min(Math.max(item.index, lo), hi),
+    clamped: item.index > hi ? 'up' : item.index < lo ? 'down' : '',
+    inBand: Math.abs(item.index - 100) <= props.band,
+  }
+}))
 
 const columns = computed(() => {
   const withPercent = props.items.map((item) => ({ ...item, percent: item.index - 100 }))
@@ -332,7 +333,6 @@ function formatPercent(value) {
 .cmp-hline { position: absolute; right: 0; left: 0; height: 0; border-top: 1px solid #edf1f5; }
 .cmp-hline.base { border-top: 1.5px solid #9fb0c2; }
 .cmp-band { position: absolute; right: 0; left: 0; background: rgba(27,175,122,0.10); box-shadow: inset 0 1px 0 rgba(27,175,122,0.35), inset 0 -1px 0 rgba(27,175,122,0.35); }
-.cmp-band small { position: absolute; top: 3px; left: 6px; color: #2f855a; font-size: 10px; font-weight: 700; }
 .cmp-cols { position: absolute; inset: 0; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
 .cmp-col { position: relative; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .cmp-col::before { position: absolute; inset: 0 3px; border-radius: 6px; background: transparent; content: ''; transition: background .15s; }
@@ -347,7 +347,7 @@ function formatPercent(value) {
 .cmp-col.derived.watch .cmp-dot { border-color: var(--watch); }
 .cmp-col.derived.critical .cmp-dot { border-color: var(--critical); }
 .cmp-dot-label { position: absolute; bottom: 12px; left: 0; color: var(--text); font-size: 10.5px; font-style: normal; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
-.cmp-point.clamped .cmp-dot-label { bottom: auto; top: 12px; }
+.cmp-point.clamped.up .cmp-dot-label { bottom: auto; top: 12px; }
 .cmp-column { position: absolute; left: 22%; right: 22%; background: var(--good); transition: height .4s cubic-bezier(.22,.8,.3,1); }
 .cmp-column.pos { bottom: 50%; border-radius: 4px 4px 0 0; }
 .cmp-column.neg { top: 50%; border-radius: 0 0 4px 4px; }
@@ -378,7 +378,6 @@ function formatPercent(value) {
   .cmp-xaxis span { font-size: 10.5px; }
   .cmp-dot { top: -5.5px; left: -5.5px; width: 11px; height: 11px; border-width: 2px; }
   .cmp-column-label, .cmp-dot-label { font-size: 9px; }
-  .cmp-band small { display: none; }
   /* Wenig Platz: Beschriftung nur außerhalb des ausgewogenen Bereichs oder beim gewählten Element */
   .cmp-column-label.quiet { display: none; }
 }
