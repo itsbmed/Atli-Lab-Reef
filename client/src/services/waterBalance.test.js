@@ -115,6 +115,30 @@ test('composition in percent puts every element on one comparable axis', async (
   assert.deepEqual(summary.flagged.map((item) => item.label), ['Fluorid', 'Bor'])
 })
 
+test('the colour follows the green band, so a dot never contradicts its position', async () => {
+  const { compositionTone, compositionSummary } = await import('./waterBalance.js')
+  assert.equal(compositionTone(100), 'good')
+  assert.equal(compositionTone(115), 'good')
+  assert.equal(compositionTone(84.9), 'watch')
+  assert.equal(compositionTone(130), 'watch')
+  assert.equal(compositionTone(69), 'critical')
+  // Das Labor nennt Strontium „im Soll“, es liegt aber bei −18 % außerhalb des Bands: es zählt als auffällig.
+  const rows = [
+    { key: 'strontium', label: 'Strontium', measured: 82.4, ideal: 100, delta: -17.6, tone: 'good' },
+    { key: 'calcium', label: 'Calcium', measured: 97, ideal: 100, delta: -3, tone: 'watch' },
+  ]
+  const summary = compositionSummary(rows)
+  assert.deepEqual([summary.fitting, summary.flagged[0].label, summary.flagged[0].tone], [1, 'Strontium', 'watch'])
+})
+
+test('the index axis zooms to the smallest window that holds every value', async () => {
+  const { indexScale } = await import('./waterBalance.js')
+  assert.deepEqual(indexScale([97, 103, 110]), { lo: 80, hi: 120, ticks: [80, 90, 100, 110, 120] })
+  assert.deepEqual(indexScale([73.7, 102]), { lo: 70, hi: 130, ticks: [70, 80, 90, 100, 110, 120, 130] })
+  assert.deepEqual(indexScale([60, 140]), { lo: 50, hi: 150, ticks: [50, 75, 100, 125, 150] })
+  assert.deepEqual(indexScale([20, 450]).ticks, [0, 50, 100, 150, 200], 'outliers fall back to the full axis')
+})
+
 test('the client view: index 100 per element, sulfate from sulfur, average min and max', async () => {
   const { compositionIndex, withSulfate, BALANCE_BAND } = await import('./waterBalance.js')
   const rows = withSulfate([

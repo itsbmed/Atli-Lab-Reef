@@ -212,14 +212,16 @@ export function compositionPercent(rows = [], { sort = 'lab' } = {}) {
   return { scale, ticks: [-scale, -half, 0, half, scale], rows: items }
 }
 
-// Kurzfazit über dem Diagramm, nach der Bewertung des Labors.
+// Kurzfazit über dem Diagramm – nach derselben Regel wie die Farben der Punkte,
+// damit Text und Bild nie widersprechen.
 export function compositionSummary(rows = []) {
-  const flagged = rows.filter((row) => row.tone && row.tone !== 'good')
+  const withTone = rows.map((row) => ({ ...row, band: compositionTone((row.measured / row.ideal) * 100) }))
+  const flagged = withTone.filter((row) => row.band !== 'good')
   return {
     total: rows.length,
     fitting: rows.length - flagged.length,
     flagged: flagged
-      .map((row) => ({ key: row.key, label: row.label, percent: (row.delta / row.ideal) * 100, tone: row.tone }))
+      .map((row) => ({ key: row.key, label: row.label, percent: (row.delta / row.ideal) * 100, tone: row.band }))
       .sort((a, b) => Math.abs(b.percent) - Math.abs(a.percent)),
   }
 }
@@ -229,6 +231,31 @@ export function compositionSummary(rows = []) {
 // Konzentration im Verhältnis zum salinitätsbezogenen Sollwert: 100 = passt zur Salinität.
 // Der grüne Bereich der Kunden-Arbeitsmappe liegt bei etwa ±15 %.
 export const BALANCE_BAND = 15
+
+// Farbe nach Lage zum grünen Band: darin ausgewogen, bis zum doppelten Abstand auffällig, darüber kritisch.
+export function compositionTone(index, band = BALANCE_BAND) {
+  if (!Number.isFinite(index)) return 'good'
+  const off = Math.abs(index - 100)
+  return off <= band ? 'good' : off <= band * 2 ? 'watch' : 'critical'
+}
+
+// Ausschnitt der Index-Achse: der kleinste, der alle Werte mit etwas Luft fasst – so wird
+// das grüne Band groß, wenn alles nah beieinander liegt. Ausreißer stehen am Rand.
+const INDEX_WINDOWS = [
+  { half: 20, step: 10 },
+  { half: 30, step: 10 },
+  { half: 50, step: 25 },
+  { half: 100, step: 50 },
+]
+export function indexScale(values = []) {
+  const largest = Math.max(0, ...values.filter(Number.isFinite).map((value) => Math.abs(value - 100)))
+  const window = INDEX_WINDOWS.find((item) => largest <= item.half * 0.9) || INDEX_WINDOWS.at(-1)
+  const lo = 100 - window.half
+  const hi = 100 + window.half
+  const ticks = []
+  for (let tick = lo; tick <= hi; tick += window.step) ticks.push(tick)
+  return { lo, hi, ticks }
+}
 
 // Sulfat wird wie in der Arbeitsmappe des Kunden aus Schwefel abgeleitet (SO₄ = S × 2,996);
 // das Verhältnis zum Soll ist dasselbe, nur die Konzentration nicht.
