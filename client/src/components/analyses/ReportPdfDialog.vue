@@ -105,13 +105,6 @@
                           <button type="button" :class="{ on: settings.values.scope === 'issues' }" @click="settings.values.scope = 'issues'">Nur auffällige <small>{{ countValues('issues') }}</small></button>
                         </div>
                       </div>
-                      <div class="pdf-option">
-                        <span>Darstellung</span>
-                        <div class="pdf-seg">
-                          <button type="button" :class="{ on: settings.values.style === 'scale' }" @click="settings.values.style = 'scale'">Mit Skala</button>
-                          <button type="button" :class="{ on: settings.values.style === 'table' }" @click="settings.values.style = 'table'">Kompakte Tabelle</button>
-                        </div>
-                      </div>
                       <div class="pdf-option wide">
                         <span>Gruppen</span>
                         <div class="pdf-chips">
@@ -217,7 +210,7 @@
                 <span>{{ pages.length }} {{ pages.length === 1 ? 'Seite' : 'Seiten' }} · A4 {{ settings.format.orientation === 'portrait' ? 'hoch' : 'quer' }}</span>
               </div>
               <TransitionGroup tag="ol" name="pp" :class="['pdf-pages', settings.format.orientation, { eco: settings.format.color === 'eco' }]">
-                <li v-for="(page, index) in pages" :key="page.id" :class="['pp', page.section, page.chart, page.style]">
+                <li v-for="(page, index) in pages" :key="page.id" :class="['pp', page.section, page.chart]">
                   <div class="pp-sheet" aria-hidden="true">
                     <!-- Deckblatt -->
                     <template v-if="page.section === 'cover'">
@@ -230,15 +223,15 @@
                       </span>
                       <span v-if="page.note" class="pp-sticky">{{ settings.note }}</span>
                     </template>
-                    <!-- Messwerte -->
-                    <template v-else-if="page.section === 'values'">
+                    <!-- Messwerte und Osmose: kompakte Tabelle in zwei Spalten wie unter „Alle Werte“ -->
+                    <template v-else-if="page.section === 'values' || page.section === 'osmosis'">
                       <span class="pp-h"></span>
-                      <span v-for="n in page.style === 'table' ? 9 : 6" :key="n" :class="['pp-row', ROW_TONES[n % ROW_TONES.length]]"><i></i><b></b></span>
-                    </template>
-                    <!-- Osmose -->
-                    <template v-else-if="page.section === 'osmosis'">
-                      <span class="pp-h"></span>
-                      <span v-for="n in 7" :key="n" :class="['pp-drop', { found: n === 3 }]"><i></i><b></b></span>
+                      <span class="pp-tables">
+                        <span v-for="block in 2" :key="block" class="pp-block">
+                          <i class="pp-block-head"></i>
+                          <span v-for="n in 7" :key="n" :class="['pp-trow', page.section === 'osmosis' ? (block === 1 && n === 3 ? 'critical' : 'clean') : ROW_TONES[(n + block * 2) % ROW_TONES.length]]"><i></i><b></b></span>
+                        </span>
+                      </span>
                     </template>
                     <!-- Diagramme -->
                     <template v-else-if="page.chart === 'composition'">
@@ -366,8 +359,8 @@ const includedContents = computed(() => {
   if (on.values) {
     const groups = values.groups.length
     items.push(values.scope === 'issues'
-      ? { key: 'values', label: 'Auffällige Messwerte', detail: `${countValues('issues')} Werte außerhalb des Zielbereichs, mit Skala` }
-      : { key: 'values', label: 'Alle Messwerte', detail: `${countValues('all')} Werte in ${groups} ${groups === 1 ? 'Gruppe' : 'Gruppen'}, mit Skala` })
+      ? { key: 'values', label: 'Auffällige Messwerte', detail: `${countValues('issues')} Werte außerhalb des Zielbereichs, als Tabelle` }
+      : { key: 'values', label: 'Alle Messwerte', detail: `${countValues('all')} Werte in ${groups} ${groups === 1 ? 'Gruppe' : 'Gruppen'}, als Tabelle` })
   }
   if (on.osmosis) {
     items.push({ key: 'osmosis', label: 'Osmosewasser', detail: osmosis.scope === 'found' ? `${context.osmosisFound} nachweisbare ${context.osmosisFound === 1 ? 'Element' : 'Elemente'}` : `Alle ${context.osmosisCount} Werte der Osmoseprobe` })
@@ -631,23 +624,19 @@ function onKeydown(event) {
 .pp-meta i.code { flex: .7; background: repeating-linear-gradient(90deg, #1d2b45 0 1px, transparent 1px 3px, #1d2b45 3px 5px, transparent 5px 6px); opacity: .7; }
 .pp-sticky { position: absolute; right: 7%; bottom: 7%; width: 52%; max-height: 30%; padding: 5px 6px; overflow: hidden; border-radius: 2px; background: #fff3b8; box-shadow: 0 2px 4px rgba(120, 90, 0, 0.18); color: #6b5300; font-size: 6.5px; line-height: 1.3; transform: rotate(-3deg); animation: pdf-pop .3s ease-out; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 
-/* Messwerte */
-.pp-row { display: grid; grid-template-columns: 28% 1fr; align-items: center; gap: 8%; }
-.pp-row i { height: 3px; border-radius: 2px; background: #c8d3df; }
-.pp-row b { position: relative; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #e0503f, #f5b301 22%, #1baf7a 38% 62%, #f5b301 78%, #e0503f); }
-.pp-row b::after { content: ''; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border: 1px solid #fff; border-radius: 50%; background: #0a1b43; transform: translate(-50%, -50%); }
-.pp-row.watch b::after { left: 76%; background: #f5b301; }
-.pp-row.critical b::after { left: 12%; background: #e0503f; }
-.pp.table .pp-sheet { gap: 3%; }
-.pp.table .pp-row b { height: 3px; background: #edf1f5; }
-.pp.table .pp-row b::after { display: none; }
-
-/* Osmose */
-.pp-drop { display: grid; grid-template-columns: 8% 30% 1fr; align-items: center; gap: 6%; }
-.pp-drop::before { content: ''; width: 100%; aspect-ratio: 1; border-radius: 50%; background: #c6ece0; }
-.pp-drop i { height: 3px; border-radius: 2px; background: #c8d3df; }
-.pp-drop b { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #d8f3e9, #fde2de); }
-.pp-drop.found::before { background: #f3b1a8; }
+/* Messwerte und Osmose: kompakte Tabelle */
+.pp-tables { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 6%; }
+.pp-block { display: grid; gap: 4px; padding: 4px; border: 1px solid #e3e9f0; border-radius: 3px; }
+.pp-block-head { width: 55%; height: 3px; border-radius: 2px; background: #9fb0c2; }
+.pp-trow { display: grid; grid-template-columns: 4px 1fr 34%; align-items: center; gap: 4px; }
+.pp-trow::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #1baf7a; }
+.pp-trow i { height: 2.5px; border-radius: 2px; background: #c8d3df; }
+.pp-trow b { height: 5px; border-radius: 2px; background: #d5f2e5; }
+.pp-trow.watch::before { background: #f5b301; }
+.pp-trow.watch b { background: #ffe2a8; }
+.pp-trow.critical::before { background: #e0503f; }
+.pp-trow.critical b { background: #fbc9c1; }
+.pp-trow.clean b { background: #e6ebf1; }
 
 /* Diagramme */
 .pp-chart { position: relative; flex: 1 1 auto; max-height: 52%; border-bottom: 1px solid #d5dee8; border-left: 1px solid #d5dee8; }
@@ -682,7 +671,7 @@ function onKeydown(event) {
 .landscape .pp-meta { width: 56%; align-self: flex-start; }
 .landscape .pp-meta i { height: 6px; }
 .landscape .pp-products { grid-template-columns: repeat(4, 1fr); gap: 5%; }
-.landscape .pp-row, .landscape .pp-drop { gap: 4%; }
+.landscape .pp-tables { gap: 4%; }
 
 /* Vorerst nur Kurzbericht: kleinerer Dialog, Inhalt nur als Liste */
 .pdf.lite { width: min(940px, 100%); height: min(760px, 100%); }

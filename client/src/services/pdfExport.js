@@ -3,8 +3,8 @@
 
 export const PDF_SECTIONS = Object.freeze([
   { key: 'cover', label: 'Deckblatt & Gesamtbewertung', hint: 'Aquarium, Bewertung und die wichtigsten Hinweise auf einen Blick', locked: true },
-  { key: 'values', label: 'Messwerte', hint: 'Jeder Wert mit Skala und Zielbereich' },
-  { key: 'osmosis', label: 'Osmosewasser', hint: 'Ergebnisse der mitgeschickten Osmoseprobe' },
+  { key: 'values', label: 'Messwerte', hint: 'Kompakte Tabelle mit Messwert und Zielbereich' },
+  { key: 'osmosis', label: 'Osmosewasser', hint: 'Ergebnisse der Osmoseprobe als Tabelle' },
   { key: 'charts', label: 'Diagramme', hint: 'Zusammensetzung, Verhältnisse und Wachstumsfaktoren' },
   { key: 'recommendations', label: 'Empfehlungen', hint: 'Maßnahmen mit Begründung und Produkten' },
   { key: 'dosing', label: 'Dosierungsplan', hint: 'Tag für Tag mit Mengen und Tageslimits' },
@@ -49,7 +49,7 @@ export function availableSections(context) {
 function baseSettings(context) {
   return {
     sections: { cover: true, values: true, osmosis: true, charts: true, recommendations: true, dosing: true, products: true },
-    values: { scope: 'all', groups: (context.groups || []).map((group) => group.key), style: 'scale' },
+    values: { scope: 'all', groups: (context.groups || []).map((group) => group.key) },
     osmosis: { scope: 'all' },
     charts: { composition: true, ratios: true, growth: true },
     recommendations: { hideDone: false },
@@ -93,6 +93,7 @@ export function clampToContext(settings, context) {
   for (const key of Object.keys(next.sections)) next.sections[key] = Boolean(next.sections[key] && available[key])
   next.sections.cover = true
   if (!next.sections.recommendations) next.sections.products = false
+  delete next.values.style // frühere Wahl „Mit Skala“ / „Kompakte Tabelle“ – gedruckt wird immer die Tabelle
   const groups = (next.values.groups || []).filter((key) => known.includes(key))
   next.values.groups = groups.length ? groups : [...known]
   if (context.charts) for (const key of ['composition', 'ratios', 'growth']) next.charts[key] = Boolean(next.charts[key] && context.charts[key])
@@ -111,7 +112,9 @@ export function matchPreset(settings, context) {
   return PDF_PRESETS.find((preset) => strip(presetSettings(preset.key, context, settings)) === strip(settings))?.key || 'custom'
 }
 
-const ROWS_PER_PAGE = { scale: 12, table: 26 }
+// Messwerte und Osmose stehen als kompakte Tabelle in zwei Spalten wie unter „Alle Werte“.
+const VALUE_ROWS_PER_PAGE = 48
+const OSMOSIS_ROWS_PER_PAGE = 60
 
 // Seiten in der Reihenfolge des PDFs, jede mit Bereich und Titel – Grundlage der Vorschau.
 export function estimatePages(settings, context) {
@@ -123,11 +126,11 @@ export function estimatePages(settings, context) {
   add('cover', 'Deckblatt', 1, { note: Boolean(settings.note.trim()) })
   if (on.values) {
     const rows = valueRowCount(settings, context)
-    if (rows) add('values', 'Messwerte', Math.ceil(rows / ROWS_PER_PAGE[settings.values.style]), { style: settings.values.style })
+    if (rows) add('values', 'Messwerte', Math.ceil(rows / VALUE_ROWS_PER_PAGE))
   }
   if (on.osmosis) {
     const rows = settings.osmosis.scope === 'found' ? Number(context.osmosisFound || 0) : Number(context.osmosisCount || 0)
-    add('osmosis', 'Osmosewasser', Math.max(1, Math.ceil(rows / 30)))
+    add('osmosis', 'Osmosewasser', Math.max(1, Math.ceil(rows / OSMOSIS_ROWS_PER_PAGE)))
   }
   if (on.charts) {
     if (settings.charts.composition) add('charts', 'Zusammensetzung', 1, { chart: 'composition' })

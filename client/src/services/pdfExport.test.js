@@ -65,10 +65,9 @@ test('any change away from a preset counts as an own selection', () => {
 
 test('the page estimate follows the selection', () => {
   const full = estimatePages(defaultSettings(context), context)
-  assert.deepEqual(full.map((page) => page.section), ['cover', 'values', 'values', 'values', 'osmosis', 'charts', 'charts', 'recommendations', 'recommendations', 'dosing', 'products'])
-  const table = defaultSettings(context)
-  table.values.style = 'table'
-  assert.equal(estimatePages(table, context).filter((page) => page.section === 'values').length, 2, 'a table fits more rows per page')
+  assert.deepEqual(full.map((page) => page.section), ['cover', 'values', 'osmosis', 'charts', 'charts', 'recommendations', 'recommendations', 'dosing', 'products'])
+  const many = { ...context, groups: [{ key: 'all', label: 'Alle', total: 60, issueCount: 0 }] }
+  assert.equal(estimatePages(defaultSettings(many), many).filter((page) => page.section === 'values').length, 2, 'the two-column table holds 48 values per page')
   const short = estimatePages(presetSettings('short', context), context)
   assert.equal(short.length, 5)
   assert.equal(short[1].title, 'Messwerte')
@@ -97,3 +96,10 @@ test('products come from the recommendations and need them', () => {
   assert.equal(loadPdfSettings({ getItem: () => JSON.stringify(settings) }, 'u1', context).sections.products, false, 'a saved selection is fitted too')
 })
 
+test('values and osmosis always print as the table; an old style choice is dropped', () => {
+  const storage = memoryStorage()
+  savePdfSettings(storage, 'u1', { ...defaultSettings(context), values: { scope: 'all', groups: ['base', 'major', 'trace'], style: 'scale' } })
+  const restored = loadPdfSettings(storage, 'u1', context)
+  assert.equal('style' in restored.values, false)
+  assert.equal(matchPreset(restored, context), 'full')
+})
