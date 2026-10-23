@@ -15,13 +15,13 @@ export const PDF_SECTIONS = Object.freeze([
 // wird schrittweise. Alles auf true ergibt den vollständigen Dialog.
 export const PDF_EXPORT_FEATURES = Object.freeze({
   presets: true, // alle drei Vorlagen zeigen (sonst nur der Kurzbericht)
-  enabledPresets: ['short'], // davon anklickbar – die übrigen sind sichtbar, aber gesperrt
-  format: false, // Papier und Farbe
-  details: false, // Aquariumdaten und Barcode ein/aus
-  sections: false, // Bereiche einzeln schalten, mit Feineinstellungen (sonst Liste „Enthalten“)
-  note: false, // persönliche Notiz auf dem Deckblatt
-  remember: false, // Auswahl für das nächste Mal merken
-  startPreset: 'short',
+  enabledPresets: null, // davon anklickbar (null = alle) – die übrigen sind sichtbar, aber gesperrt
+  format: true, // Papier und Farbe
+  details: true, // Aquariumdaten und Barcode ein/aus
+  sections: true, // Bereiche einzeln schalten, mit Feineinstellungen (sonst Liste „Enthalten“)
+  note: true, // persönliche Notiz auf dem Deckblatt
+  remember: true, // Auswahl für das nächste Mal merken
+  startPreset: 'full',
 })
 
 export const PDF_PRESETS = Object.freeze([
