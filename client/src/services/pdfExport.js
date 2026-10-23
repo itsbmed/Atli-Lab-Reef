@@ -8,7 +8,7 @@ export const PDF_SECTIONS = Object.freeze([
   { key: 'charts', label: 'Diagramme', hint: 'Zusammensetzung, Verhältnisse und Wachstumsfaktoren' },
   { key: 'recommendations', label: 'Empfehlungen', hint: 'Maßnahmen mit Begründung und Produkten' },
   { key: 'dosing', label: 'Dosierungsplan', hint: 'Tag für Tag mit Mengen und Tageslimits' },
-  { key: 'products', label: 'Produkte mit QR-Code', hint: 'Passende Produkte – scannen und direkt im Shop öffnen' },
+  { key: 'products', label: 'Produkte mit QR-Code', hint: 'Die Produkte aus den Empfehlungen – scannen und direkt im Shop öffnen' },
 ])
 
 // Was der PDF-Dialog auf der Website gerade zeigt. Fertig gebaut ist alles; freigegeben
@@ -78,13 +78,21 @@ export function presetSettings(key, context, current = null) {
   return clampToContext(settings, context)
 }
 
+// Die Produkte stammen aus den Empfehlungen – ohne Empfehlungen gibt es sie nicht.
+export function sectionSelectable(key, settings, context) {
+  if (!availableSections(context)[key]) return false
+  return key !== 'products' || Boolean(settings.sections.recommendations)
+}
+
 // Nicht verfügbare Bereiche sind aus, unbekannte Gruppen fallen weg, mindestens eine Gruppe bleibt.
+// Produkte gibt es nur zusammen mit den Empfehlungen.
 export function clampToContext(settings, context) {
   const available = availableSections(context)
   const known = (context.groups || []).map((group) => group.key)
   const next = JSON.parse(JSON.stringify(settings))
   for (const key of Object.keys(next.sections)) next.sections[key] = Boolean(next.sections[key] && available[key])
   next.sections.cover = true
+  if (!next.sections.recommendations) next.sections.products = false
   const groups = (next.values.groups || []).filter((key) => known.includes(key))
   next.values.groups = groups.length ? groups : [...known]
   if (context.charts) for (const key of ['composition', 'ratios', 'growth']) next.charts[key] = Boolean(next.charts[key] && context.charts[key])

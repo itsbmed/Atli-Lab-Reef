@@ -75,13 +75,13 @@
                   <li
                     v-for="section in sections"
                     :key="section.key"
-                    :class="['pdf-section', section.key, { on: settings.sections[section.key], off: !available[section.key] }]"
+                    :class="['pdf-section', section.key, { on: settings.sections[section.key], off: !selectable[section.key] }]"
                   >
                     <div class="pdf-section-row">
                       <span class="pdf-section-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path :d="ICONS[section.key]" /></svg></span>
                       <span class="pdf-section-copy">
                         <strong>{{ section.label }} <small v-if="section.count">{{ section.count }}</small></strong>
-                        <span>{{ available[section.key] ? section.hint : section.missing }}</span>
+                        <span>{{ selectable[section.key] ? section.hint : available[section.key] ? section.blocked : section.missing }}</span>
                       </span>
                       <span v-if="section.locked" class="pdf-locked">Immer dabei</span>
                       <button
@@ -91,7 +91,7 @@
                         :class="['pdf-switch', { on: settings.sections[section.key] }]"
                         :aria-checked="settings.sections[section.key]"
                         :aria-label="section.label"
-                        :disabled="!available[section.key]"
+                        :disabled="!selectable[section.key]"
                         @click="toggleSection(section.key)"
                       ><i></i></button>
                     </div>
@@ -304,7 +304,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   PDF_EXPORT_FEATURES, PDF_NOTE_LIMIT, PDF_PRESETS, PDF_SECTIONS, availableSections, clearPdfSettings, defaultSettings,
-  estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, valueRowCount,
+  estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, sectionSelectable, valueRowCount,
 } from '@/services/pdfExport'
 
 const props = defineProps({
@@ -334,6 +334,8 @@ const ICONS = {
 }
 
 const available = computed(() => availableSections(props.context))
+// Was sich gerade schalten lässt: vorhanden und – bei den Produkten – mit Empfehlungen.
+const selectable = computed(() => Object.fromEntries(PDF_SECTIONS.map((section) => [section.key, sectionSelectable(section.key, settings.value, props.context)])))
 const sections = computed(() => PDF_SECTIONS.map((section) => ({
   ...section,
   count: {
@@ -350,6 +352,7 @@ const sections = computed(() => PDF_SECTIONS.map((section) => ({
     dosing: 'Keine Dosierung erforderlich',
     products: 'Keine Produktempfehlung',
   }[section.key] || '',
+  blocked: section.key === 'products' ? 'Nur zusammen mit den Empfehlungen – die Produkte stammen daraus' : '',
 })))
 
 const settings = ref(defaultSettings(props.context))
@@ -379,7 +382,7 @@ const includedContents = computed(() => {
       : { key: 'recommendations', label: 'Empfehlungen', detail: `${context.recommendationCount} Maßnahmen mit Begründung und Produkten` })
   }
   if (on.dosing) items.push({ key: 'dosing', label: 'Dosierungsplan', detail: dosing.checkboxes ? 'Tag für Tag mit Mengen und Kästchen zum Abhaken' : 'Tag für Tag mit Mengen und Tageslimits' })
-  if (on.products) items.push({ key: 'products', label: 'Produkte mit QR-Code', detail: `${context.productCount} Produkte – scannen und direkt im Shop öffnen` })
+  if (on.products) items.push({ key: 'products', label: 'Produkte mit QR-Code', detail: `${context.productCount} Produkte aus den Empfehlungen – scannen und direkt im Shop öffnen` })
   return items
 })
 const status = ref('idle')
@@ -403,8 +406,10 @@ function applyPreset(key) {
   settings.value = presetSettings(key, props.context, settings.value)
 }
 function toggleSection(key) {
-  if (!available.value[key]) return
+  if (!selectable.value[key]) return
   settings.value.sections[key] = !settings.value.sections[key]
+  // Ohne Empfehlungen keine Produkte – sie stammen daraus.
+  if (key === 'recommendations' && !settings.value.sections.recommendations) settings.value.sections.products = false
 }
 // Mindestens eine Gruppe bzw. ein Diagramm bleibt gewählt – sonst wäre der Bereich leer.
 function toggleGroup(key) {

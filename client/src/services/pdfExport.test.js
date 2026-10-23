@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PDF_NOTE_LIMIT, availableSections, defaultSettings, estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, valueRowCount } from './pdfExport.js'
+import { PDF_NOTE_LIMIT, availableSections, defaultSettings, estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, sectionSelectable, valueRowCount } from './pdfExport.js'
 
 const context = {
   groups: [
@@ -51,7 +51,7 @@ test('the dosing preset prints landscape and keeps the customer’s note and for
   assert.equal(settings.format.orientation, 'landscape')
   assert.equal(settings.format.color, 'eco')
   assert.equal(settings.note, 'Für Freitag')
-  assert.deepEqual(Object.keys(settings.sections).filter((key) => settings.sections[key]), ['cover', 'dosing', 'products'])
+  assert.deepEqual(Object.keys(settings.sections).filter((key) => settings.sections[key]), ['cover', 'dosing'], 'no products without the recommendations')
 })
 
 test('any change away from a preset counts as an own selection', () => {
@@ -88,3 +88,12 @@ test('saved settings come back per account and are fitted to the next report', (
   assert.equal(restored.note.length, PDF_NOTE_LIMIT)
   assert.equal(loadPdfSettings(storage, 'u2', context), null)
 })
+
+test('products come from the recommendations and need them', () => {
+  const settings = defaultSettings(context)
+  assert.equal(sectionSelectable('products', settings, context), true)
+  settings.sections.recommendations = false
+  assert.equal(sectionSelectable('products', settings, context), false)
+  assert.equal(loadPdfSettings({ getItem: () => JSON.stringify(settings) }, 'u1', context).sections.products, false, 'a saved selection is fitted too')
+})
+

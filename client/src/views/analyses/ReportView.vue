@@ -929,6 +929,11 @@ async function copyReportLink() {
 }
 // PDF-Export: der Dialog sammelt die Einstellungen, erzeugt wird später im Backend.
 const pdfOpen = ref(false)
+// Die Produkte im PDF sind die aus den Empfehlungen, jedes einmal.
+const pdfProductCount = computed(() => new Set(directRecommendations.value
+  .flatMap((item) => recommendationProducts(item))
+  .map((product) => String(product.productName || '').toLocaleLowerCase('de-DE'))
+  .filter(Boolean)).size)
 const pdfContext = computed(() => ({
   reportNumber: analysis.value?.reportNumber,
   aquariumName: analysis.value?.aquariumName,
@@ -940,7 +945,7 @@ const pdfContext = computed(() => ({
   recommendationCount: directRecommendations.value.length,
   openRecommendationCount: openActionCount.value,
   dosingCount: dosingItemCount.value,
-  productCount: recommendedDosingProducts(approvedDosingItems.value, analysis.value?.parameters || []).length,
+  productCount: pdfProductCount.value,
 }))
 function onPdfCreate({ pages }) {
   actionMsg.value = `PDF mit ${pages} Seiten vorbereitet – die Erstellung wird mit dem Backend verbunden.`
