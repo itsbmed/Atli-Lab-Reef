@@ -389,6 +389,9 @@
             <h2>Ergebnisse der Osmoseprobe</h2>
             <p>Die {{ analysis.osmosisParameters.length }} Messwerte der zusammen mit diesem Aquarium geprüften Osmoseprobe. Osmosewasser soll frei von Elementen sein – ein Wert ist deshalb entweder nicht nachweisbar oder zu hoch, ein „zu niedrig“ gibt es hier nicht.</p>
           </div>
+          <div class="explorer-controls">
+            <ViewSwitch :model-value="valuesView" label="Darstellung der Osmosewerte" @update:model-value="setValuesView" />
+          </div>
         </div>
 
         <div class="parameter-groups" aria-label="Gruppen der Osmoseprobe">
@@ -416,7 +419,7 @@
           </button>
         </div>
 
-        <div class="element-sections">
+        <div v-if="valuesView === 'cards'" class="element-sections">
           <section
             v-for="group in visibleOsmosisSections"
             :key="group.key"
@@ -455,6 +458,40 @@
               </article>
             </div>
           </section>
+        </div>
+        <!-- Kompakt wie unter „Alle Werte“; statt eines Zielbereichs zählt nur sauber oder belastet -->
+        <div v-else class="compact-values">
+          <div v-for="(column, columnIndex) in balanceColumns(visibleOsmosisSections)" :key="columnIndex" class="compact-column">
+          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
+            <header class="compact-group-head">
+              <i class="element-section-dot" aria-hidden="true"></i>
+              <strong>{{ group.label }}</strong>
+              <b>{{ group.items.length }}</b>
+              <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
+            </header>
+            <table class="compact-table osmosis">
+              <thead>
+                <tr><th scope="col">Element</th><th scope="col" class="num">Messwert</th><th scope="col" class="num compact-target">Status</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="parameter in group.items" :key="parameter.key" :class="[parameter.tone, { undetected: isUndetectable(parameter) }]" :title="readingTitle(parameter)">
+                  <th scope="row">
+                    <span class="compact-element">
+                      <i class="compact-dot" aria-hidden="true"></i>
+                      <span class="compact-name">{{ parameter.label }}</span>
+                      <small class="compact-symbol">{{ parameterSymbol(parameter) }}</small>
+                    </span>
+                  </th>
+                  <td class="num compact-value">
+                    <span class="compact-pill"><b>{{ isUndetectable(parameter) ? 'n. n.' : formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
+                    <small class="compact-target-inline">{{ osmosisStatusLabel(parameter) }}</small>
+                  </td>
+                  <td class="num compact-target compact-status">{{ osmosisStatusLabel(parameter) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          </div>
         </div>
       </section>
 
