@@ -461,7 +461,7 @@
         </div>
         <!-- Kompakt wie unter „Alle Werte“; statt eines Zielbereichs zählt nur sauber oder belastet -->
         <div v-else class="compact-values">
-          <div v-for="(column, columnIndex) in balanceColumns(visibleOsmosisSections)" :key="columnIndex" class="compact-column">
+          <div v-for="(column, columnIndex) in balanceColumns(visibleOsmosisSections, OSMOSIS_LEFT_GROUPS)" :key="columnIndex" class="compact-column">
           <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
             <header class="compact-group-head">
               <i class="element-section-dot" aria-hidden="true"></i>
@@ -723,6 +723,7 @@ const visibleGroupSections = computed(() => parameterGroups.value
 // sonst kommt jede in die kürzere Spalte, so enden beide etwa gleich.
 // Die ursprüngliche Reihenfolge bleibt als `order` erhalten, für die einspaltige Ansicht am Telefon.
 const VALUES_LEFT_GROUPS = ['basis', 'quantity', 'nutrients']
+const OSMOSIS_LEFT_GROUPS = ['trace']
 function balanceColumns(sections, leftKeys = null) {
   const columns = [[], []]
   const heights = [0, 0]
