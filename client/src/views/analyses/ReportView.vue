@@ -314,7 +314,7 @@
         </div>
         <!-- Kompakt: alle Werte als Tabelle je Gruppe, auf breiten Bildschirmen zweispaltig -->
         <div v-else-if="visibleParameters.length" class="compact-values">
-          <div v-for="(column, columnIndex) in balanceColumns(visibleGroupSections)" :key="columnIndex" class="compact-column">
+          <div v-for="(column, columnIndex) in balanceColumns(visibleGroupSections, VALUES_LEFT_GROUPS)" :key="columnIndex" class="compact-column">
           <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
             <header class="compact-group-head">
               <i class="element-section-dot" aria-hidden="true"></i>
@@ -719,13 +719,15 @@ const visibleGroupSections = computed(() => parameterGroups.value
     return { ...group, items, issueCount: items.filter((item) => item.tone !== 'good').length }
   })
   .filter((group) => group.items.length))
-// Tabelle: Gruppen auf zwei Spalten verteilen, jeweils in die kürzere – so enden beide etwa gleich.
+// Tabelle: Gruppen auf zwei Spalten verteilen. Mit `leftKeys` stehen diese Gruppen fest links, der Rest rechts;
+// sonst kommt jede in die kürzere Spalte, so enden beide etwa gleich.
 // Die ursprüngliche Reihenfolge bleibt als `order` erhalten, für die einspaltige Ansicht am Telefon.
-function balanceColumns(sections) {
+const VALUES_LEFT_GROUPS = ['basis', 'quantity', 'nutrients']
+function balanceColumns(sections, leftKeys = null) {
   const columns = [[], []]
   const heights = [0, 0]
   sections.forEach((group, order) => {
-    const target = heights[0] <= heights[1] ? 0 : 1
+    const target = leftKeys ? (leftKeys.includes(group.key) ? 0 : 1) : heights[0] <= heights[1] ? 0 : 1
     columns[target].push({ ...group, order })
     heights[target] += group.items.length + 2 // Kopf und Spaltenzeile zählen mit
   })
