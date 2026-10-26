@@ -211,6 +211,7 @@
             <p>{{ explorerSummary }}</p>
           </div>
           <div class="explorer-controls">
+            <ViewSwitch :model-value="valuesView" label="Darstellung der Messwerte" @update:model-value="setValuesView" />
             <input v-model="parameterSearch" type="search" placeholder="Parameter suchen..." aria-label="Parameter suchen" />
             <select v-model="parameterStatus" aria-label="Messwerte nach Status filtern">
               <option value="all">Alle Status</option>
@@ -246,7 +247,7 @@
           </button>
         </div>
 
-        <div v-if="visibleParameters.length" ref="elementSections" class="element-sections" :style="{ '--sticky-top': `${stickyTop}px` }">
+        <div v-if="visibleParameters.length && valuesView === 'cards'" ref="elementSections" class="element-sections" :style="{ '--sticky-top': `${stickyTop}px` }">
           <section v-for="group in visibleGroupSections" :key="group.key" :class="['element-section', `group-${group.key}`, { collapsed: collapsedGroups[group.key] }]">
             <button type="button" class="element-section-head" :aria-expanded="!collapsedGroups[group.key]" @click="toggleGroupSection(group.key)">
               <i class="element-section-dot" aria-hidden="true"></i>
@@ -258,6 +259,7 @@
             <div v-show="!collapsedGroups[group.key]" class="element-list">
                     <article
                       v-for="parameter in group.items"
+                      :id="`value-${parameter.key}`"
                       :key="parameter.key"
                       :class="['element-row', parameter.tone, `group-${parameterGroup(parameter).key}`, { expanded: expandedParameters[parameter.key] }]"
                     >
@@ -309,6 +311,50 @@
                     </article>
             </div>
           </section>
+        </div>
+        <!-- Kompakt: alle Werte als Tabelle je Gruppe, auf breiten Bildschirmen zweispaltig -->
+        <div v-else-if="visibleParameters.length" class="compact-values">
+          <div v-for="(column, columnIndex) in balanceColumns(visibleGroupSections)" :key="columnIndex" class="compact-column">
+          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
+            <header class="compact-group-head">
+              <i class="element-section-dot" aria-hidden="true"></i>
+              <strong>{{ group.label }}</strong>
+              <b>{{ group.items.length }}</b>
+              <em v-if="group.issueCount">{{ group.issueCount }} prüfen</em>
+            </header>
+            <table class="compact-table">
+              <thead>
+                <tr><th scope="col">Element</th><th scope="col" class="num">Messwert</th><th scope="col" class="num compact-target">Ziel</th></tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="parameter in group.items"
+                  :key="parameter.key"
+                  :class="[parameter.tone, { undetected: isUndetectable(parameter) }]"
+                  tabindex="0"
+                  :title="`${parameter.label} · ${parameterStatusLabel(parameter.tone)} – antippen für Details`"
+                  @click="openParameterCard(parameter)"
+                  @keydown.enter.prevent="openParameterCard(parameter)"
+                  @keydown.space.prevent="openParameterCard(parameter)"
+                >
+                  <th scope="row">
+                    <span class="compact-element">
+                      <i class="compact-dot" aria-hidden="true"></i>
+                      <span class="compact-name">{{ parameter.label }}</span>
+                      <small class="compact-symbol">{{ parameterSymbol(parameter) }}</small>
+                      <span class="visually-hidden">{{ parameterStatusLabel(parameter.tone) }}</span>
+                    </span>
+                  </th>
+                  <td class="num compact-value">
+                    <span class="compact-pill"><b>{{ formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
+                    <small class="compact-target-inline">Ziel {{ parameterTargetLabel(parameter) }}</small>
+                  </td>
+                  <td class="num compact-target">{{ parameterTargetLabel(parameter) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          </div>
         </div>
         <div v-else class="no-results">
           <strong>Keine Messwerte gefunden</strong>
@@ -491,7 +537,8 @@
 
 <script setup>
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import ViewSwitch from '@/components/ui/ViewSwitch.vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
 import { useAuthStore } from '@/stores/auth'
@@ -541,6 +588,24 @@ const selectedOsmosisGroup = ref('')
 const parameterDetailPanels = reactive({})
 const completedActions = reactive({})
 const showAllIssues = ref(false)
+// „Alle Werte“ und Osmose als Karten oder als kompakte Tabelle – eine Wahl für beide, die sich der Browser merkt.
+const VALUES_VIEW_KEY = 'reef-pilot:values-view'
+const valuesView = ref(readValuesView())
+function readValuesView() {
+  try { return localStorage.getItem(VALUES_VIEW_KEY) === 'table' ? 'table' : 'cards' } catch { return 'cards' }
+}
+function setValuesView(view) {
+  valuesView.value = view
+  try { localStorage.setItem(VALUES_VIEW_KEY, view) } catch { /* nichts zu tun */ }
+}
+// Aus der Tabelle zur Karte: aufklappen und hinscrollen.
+async function openParameterCard(parameter) {
+  setValuesView('cards')
+  collapsedGroups[parameterGroup(parameter).key] = false
+  expandedParameters[parameter.key] = true
+  await nextTick()
+  document.getElementById(`value-${parameter.key}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
 onMounted(() => analyses.load())
 
 // Gruppenköpfe unter „Alle Werte“ bleiben beim Scrollen direkt unter der Kopfleiste stehen.
@@ -617,6 +682,18 @@ const visibleGroupSections = computed(() => parameterGroups.value
     return { ...group, items, issueCount: items.filter((item) => item.tone !== 'good').length }
   })
   .filter((group) => group.items.length))
+// Tabelle: Gruppen auf zwei Spalten verteilen, jeweils in die kürzere – so enden beide etwa gleich.
+// Die ursprüngliche Reihenfolge bleibt als `order` erhalten, für die einspaltige Ansicht am Telefon.
+function balanceColumns(sections) {
+  const columns = [[], []]
+  const heights = [0, 0]
+  sections.forEach((group, order) => {
+    const target = heights[0] <= heights[1] ? 0 : 1
+    columns[target].push({ ...group, order })
+    heights[target] += group.items.length + 2 // Kopf und Spaltenzeile zählen mit
+  })
+  return columns.filter((column) => column.length)
+}
 const explorerSummary = computed(() => {
   const scope = parameterGroups.value.find((group) => group.key === selectedGroup.value)?.label || 'allen Gruppen'
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
@@ -1105,6 +1182,7 @@ function onPdfCreate({ pages }) {
   .action-footer > em { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .compact-values { animation: none; }
   .action-rise-enter-active { transition: none; }
   .action-card:hover { transform: none; }
 }
@@ -1123,6 +1201,47 @@ function onPdfCreate({ pages }) {
 .explorer-controls select { padding: 0 34px 0 12px; }
 .explorer-controls input:focus,
 .explorer-controls select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
+/* Kompakte Tabelle: jede Gruppe ein Block, die Blöcke fließen in Spalten – kaum Scrollen */
+.compact-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; animation: compact-in .25s ease-out; }
+.compact-column { display: grid; gap: 16px; min-width: 0; }
+.compact-group { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.compact-group-head { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f8fbfe; }
+.compact-group-head strong { color: var(--text); font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.compact-group-head > b { padding: 2px 8px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 11px; font-weight: 600; }
+.compact-group-head > em { margin-left: auto; color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.compact-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.compact-table thead th { padding: 7px 14px 5px; color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-align: left; text-transform: uppercase; }
+.compact-table .num { text-align: right; }
+.compact-table tbody tr { border-top: 1px solid #edf1f5; cursor: pointer; transition: background .15s; }
+.compact-table tbody tr:hover { background: #f5f9fd; }
+.compact-table tbody tr:focus-visible { outline: 2px solid rgba(0,114,206,0.35); outline-offset: -2px; }
+.compact-table tbody th,
+.compact-table td { padding: 7px 14px; vertical-align: baseline; }
+.compact-table tbody th { width: 100%; max-width: 0; font-weight: 600; text-align: left; }
+.compact-element { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.compact-dot { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+tr.watch .compact-dot { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.16); }
+tr.critical .compact-dot { background: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.16); }
+.compact-name { overflow: hidden; color: var(--text); font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+.compact-symbol { color: var(--text-muted); font-size: 11px; font-weight: 600; }
+.compact-value { white-space: nowrap; }
+/* Messwert als Pille in der Farbe des Status: Optimal leise, Auffälliges deutlich */
+.compact-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 9px; border-radius: 8px; background: linear-gradient(135deg, #f3fcf8, #e3f7ee); box-shadow: inset 0 0 0 1px rgba(16,185,129,0.16); color: #0f6b4c; }
+.compact-pill b { color: inherit; font-size: 14px; font-weight: 700; }
+.compact-pill small { color: inherit; font-size: 10.5px; font-weight: 600; opacity: 0.72; }
+tr.watch .compact-pill { background: linear-gradient(135deg, #fff8ea, #ffecc7); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.32); color: #92400e; }
+tr.critical .compact-pill { background: linear-gradient(135deg, #fff1ef, #fdd8d3); box-shadow: inset 0 0 0 1px rgba(232,93,79,0.34), 0 2px 8px rgba(232,93,79,0.14); color: #a92e22; }
+.compact-table:not(.osmosis) tr.undetected.good .compact-pill { background: #f2f5f9; box-shadow: inset 0 0 0 1px #e3e9f0; color: #94a3b8; }
+tr.undetected .compact-pill b { font-weight: 600; }
+tr.critical > th { background: linear-gradient(90deg, rgba(232,93,79,0.07), transparent 70%); }
+tr.watch > th { background: linear-gradient(90deg, rgba(245,158,11,0.06), transparent 70%); }
+.compact-target { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.compact-target-inline { display: none; }
+.compact-status { color: #047857; font-weight: 700; }
+tr.critical .compact-status { color: #b53a2e; }
+.compact-table.osmosis tr.critical .compact-target-inline { color: #b53a2e; font-weight: 700; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes compact-in { from { opacity: 0; transform: translateY(4px); } }
 .parameter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .parameter-groups button { min-height: 84px; display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 14px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: #f8fbfe; color: var(--text); cursor: pointer; }
 .group-filter-copy { display: grid; gap: 5px; min-width: 0; }
@@ -1145,11 +1264,11 @@ function onPdfCreate({ pages }) {
 .element-section { display: grid; gap: 10px; min-width: 0; }
 .element-section-head { position: sticky; z-index: 6; top: var(--sticky-top, 68px); display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 2px 9px; border: 0; border-bottom: 1px solid var(--border); background: #fff; color: inherit; text-align: left; cursor: pointer; }
 .element-section-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--group-accent, var(--brand-blue)); }
-.element-section.group-basis { --group-accent: #1686d9; }
-.element-section.group-quantity { --group-accent: #6b9f36; }
-.element-section.group-nutrients { --group-accent: #f59e0b; }
-.element-section.group-trace { --group-accent: #0f9f8f; }
-.element-section.group-pollutants { --group-accent: #d45f72; }
+.element-section.group-basis, .compact-group.group-basis { --group-accent: #1686d9; }
+.element-section.group-quantity, .compact-group.group-quantity { --group-accent: #6b9f36; }
+.element-section.group-nutrients, .compact-group.group-nutrients { --group-accent: #f59e0b; }
+.element-section.group-trace, .compact-group.group-trace { --group-accent: #0f9f8f; }
+.element-section.group-pollutants, .compact-group.group-pollutants { --group-accent: #d45f72; }
 .element-section-head strong { color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .element-section-head > b { padding: 3px 10px; border-radius: 999px; background: #eef3f8; color: var(--text-muted); font-size: 12px; font-weight: 600; }
 .element-section-head > em { color: #9a4d0a; font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
@@ -1279,7 +1398,19 @@ function onPdfCreate({ pages }) {
   .element-head > .target-gauge { padding-bottom: 0; }
   .element-detail { grid-template-columns: 1fr; padding-left: 18px; }
 }
+@media (max-width: 760px) {
+  .compact-values { display: flex; flex-direction: column; align-items: stretch; }
+  .compact-column { display: contents; }
+}
 @media (max-width: 600px) {
+  .compact-table tbody th, .compact-table td, .compact-table thead th { padding-inline: 10px; }
+  .compact-symbol { display: none; }
+  /* Am Telefon steht das Ziel klein unter dem Messwert – so bleibt der Name lesbar. */
+  .compact-table .compact-target { display: none; }
+  .compact-table tbody th { max-width: none; }
+  .compact-name { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+  .compact-table .compact-target-inline { display: block; margin-top: 1px; font-size: 10.5px; }
+  .compact-table tbody th, .compact-table td { padding-block: 6px; vertical-align: middle; }
   .parameter-detail-tabs button { min-height: 62px; padding-inline: 4px; }
   .parameter-tab-copy strong { font-size: 10px; }
 }
