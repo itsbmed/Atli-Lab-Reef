@@ -1420,6 +1420,8 @@ tr.critical .compact-status { color: #b53a2e; }
   .care-card-meta { justify-content: space-between; }
   .care-card-grid { grid-template-columns: 1fr; padding-left: 18px; }
   .explorer-controls input { width: 100%; }
+  /* Osmose hat nur den Umschalter – kompakt rechts statt über die volle Breite */
+  .osmosis-results .explorer-controls { align-items: flex-end; }
   .element-head { grid-template-columns: 50px minmax(0, 1fr) auto; }
   .element-row:not(.static) .element-name { padding-right: 44px; }
   .target-gauge { grid-column: 1 / -1; grid-row: 2; }
