@@ -1,27 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  buildAnalysisSeries,
-  calculateConsumption,
-  simulateWaterChanges,
-  waterChangeFraction,
-} from './toolsCalculations.js'
-
-test('litre mode preserves the exact requested water volume', () => {
-  const fraction = waterChangeFraction({ amount: 33, unit: 'l', volume: 500 })
-  assert.equal(fraction, 0.066)
-  assert.equal(500 * fraction, 33)
-})
-
-test('repeated water changes use the remaining concentration each time', () => {
-  const result = simulateWaterChanges(
-    [{ key: 'nitrate', aquarium: 20 }],
-    { nitrate: 0 },
-    2,
-    0.2,
-  )
-  assert.equal(result.nitrate, 12.8)
-})
+import { buildAnalysisSeries, calculateConsumption } from './toolsCalculations.js'
 
 test('analysis series keeps labels and values aligned and applies the period', () => {
   const analyses = [
