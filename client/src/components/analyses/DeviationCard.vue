@@ -205,10 +205,10 @@ const props = defineProps({
   emptyLabel: { type: String, default: 'Für dieses Diagramm liegen keine auswertbaren Werte vor.' },
 })
 
-const MODES = [{ key: 'dots', label: 'Punkte' }, { key: 'columns', label: 'Säulen' }]
+const MODES = [{ key: 'columns', label: 'Säulen' }, { key: 'dots', label: 'Punkte' }]
 const PERCENT_SCALES = [5, 10, 20, 30, 50]
 
-const mode = ref('dots')
+const mode = ref('columns')
 const sort = ref('given')
 const active = ref('')
 
