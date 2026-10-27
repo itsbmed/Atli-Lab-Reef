@@ -34,6 +34,8 @@ const aquariumType = {
 }
 
 const dimensions = { key: 'dimensions', label: 'Abmessungen', model: 'dimensions', placeholder: '120×50×50 cm' }
+// Wie viel Wasser auf einmal angesetzt werden kann – Grundlage des Wasserwechsel-Simulators.
+const waterChange = { key: 'max_water_change_l', label: 'Höchstmenge je Wasserwechsel', type: 'number', unit: 'l', model: 'water_details.max_water_change_l', placeholder: 'z. B. 100' }
 const favorites = { key: 'favorite_elements', label: 'Favoriten', type: 'tags', model: 'water_details.favorite_elements', options: ELEMENT_OPTIONS, hint: 'Diese Elemente heben wir im Bericht hervor.' }
 const livestock = { key: 'livestock', label: 'Besatz', model: 'water_details.livestock', placeholder: 'Korallen, Fische, Pflanzen...' }
 const stockingDensity = {
@@ -59,7 +61,7 @@ const lightPause = { key: 'lighting_pause', label: 'Beleuchtungspause', type: 'c
 export const WATER_TYPE_FIELDSETS = {
   Meerwasser: [
     { title: 'Auswertung', fields: [targetMode, favorites] },
-    { title: 'Aquarium', fields: [aquariumType, dimensions] },
+    { title: 'Aquarium', fields: [aquariumType, dimensions, waterChange] },
     { title: 'Ökodata', fields: [livestock, stockingDensity, runningSince] },
     { title: 'Dekoration', fields: [
       { key: 'decoration_type', label: 'Dekoration', model: 'water_details.decoration_type', placeholder: 'Lebendgestein, Totgestein...' },
