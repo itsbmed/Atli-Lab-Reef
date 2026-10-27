@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BUILT_IN_SCALE_MAP } from './evaluationScales.js'
-import { buildDirectRecommendations, evaluateAnalysis } from './directRecommendations.js'
+import { buildDirectRecommendations, evaluateAnalysis, supplySteps } from './directRecommendations.js'
 
 const scale = BUILT_IN_SCALE_MAP['ati-standard']
 const parameter = (key, label, groupKey, value, extra = {}) => ({ key, label, symbol: label.slice(0, 2), groupKey, unit: 'mg/l', value, ...extra })
@@ -267,4 +267,21 @@ test('V2.2: RO water findings use the workbook sentences, depending on RO and re
   assert.equal(all.detailItems.length, 3)
   assert.ok(all.detailItems[2].label.startsWith('Zink kann im RO Wasser vorkommen'))
   assert.deepEqual(all.tips, ['Mindestens 1 l Harz pro 30 GPD Tagesleistung der Osmoseanlage.'])
+})
+
+test('the supply plan reads as steps: changes with a direction, the rest kept', () => {
+  const steps = supplySteps([
+    { label: 'KH', value: '+10–20 %' },
+    { label: 'Ca/Mg', value: 'unverändert' },
+    { label: 'Spuren/DT', value: '−50 %' },
+    { label: 'Mg', value: '−10–20 %' },
+    { label: 'Zink', value: '−100 %' },
+  ])
+  assert.deepEqual(steps.kept, ['Ca/Mg'])
+  assert.deepEqual(steps.changes.map((step) => [step.label, step.direction, step.text]), [
+    ['KH', 'up', 'Tagesdosis um 10–20 % erhöhen'],
+    ['Spuren/DT', 'down', 'Tagesdosis um 50 % reduzieren'],
+    ['Mg', 'down', 'Tagesdosis um 10–20 % reduzieren'],
+    ['Zink', 'down', 'Dosierung aussetzen'],
+  ])
 })

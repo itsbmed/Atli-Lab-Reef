@@ -181,7 +181,11 @@
         </div>
         <div v-if="item.showDetail" class="rp-detail">
           <span class="rp-eyebrow">{{ item.detailLabel }}</span>
-          <ul><li v-for="entry in item.detailItems" :key="entry.label"><span>{{ entry.label }}</span><b v-if="entry.value">{{ entry.value }}</b></li></ul>
+          <ul v-if="item.key === 'reduce-supply'" class="rp-supply">
+            <li v-for="step in supplySteps(item.detailItems).changes" :key="step.label" :class="step.direction"><i aria-hidden="true">{{ step.direction === 'up' ? '↑' : '↓' }}</i><span><b>{{ step.label }}</b> · {{ step.text }}</span><em>{{ step.value }}</em></li>
+            <li v-if="supplySteps(item.detailItems).kept.length" class="kept"><i aria-hidden="true">=</i><span><b>Beibehalten</b> · {{ supplySteps(item.detailItems).kept.join(' · ') }}</span><em>unverändert</em></li>
+          </ul>
+          <ul v-else><li v-for="entry in item.detailItems" :key="entry.label"><span>{{ entry.label }}</span><b v-if="entry.value">{{ entry.value }}</b></li></ul>
         </div>
         <p v-if="item.products.length" class="rp-products-line">Produkte: {{ item.products.map((product) => product.productName).join(' · ') }}</p>
         <p v-for="tip in item.tips || []" :key="tip" class="rp-tip">Tipp: {{ tip }}</p>
@@ -247,6 +251,7 @@ import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import PairGauges from '@/components/analyses/PairGauges.vue'
 import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { printOsmosisGroups, printProducts, printRecommendations, printValueGroups } from '@/services/pdfExport'
+import { supplySteps } from '@/services/directRecommendations'
 import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
 
 const props = defineProps({
@@ -569,6 +574,14 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-options p { margin: 2px 0; }
 .rp-detail { margin-top: 7px; }
 .rp-detail .rp-eyebrow { margin-bottom: 3px; }
+.rp-detail ul.rp-supply { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.rp-detail .rp-supply li { align-items: center; justify-content: flex-start; gap: 7px; padding: 4px 7px; border: 1px solid #cfe4f3; border-radius: 6px; }
+.rp-supply i { display: grid; place-items: center; flex: none; width: 15px; height: 15px; border-radius: 4px; background: #e0f0fb; color: #0072ce; font-size: 8pt; font-style: normal; font-weight: 700; }
+.rp-supply li.down i { background: #fff4df; color: #9a4d0a; }
+.rp-supply span { flex: 1; }
+.rp-supply em { padding: 0 6px; border-radius: 999px; background: #0072ce; color: #fff; font-size: 7.5pt; font-style: normal; font-weight: 700; }
+.rp-detail .rp-supply li.kept { border-style: dashed; color: #5b6b82; }
+.rp-supply li.kept i, .rp-supply li.kept em { background: #eef2f7; color: #5b6b82; }
 .rp-detail ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 14px; margin: 0; padding: 0; list-style: none; }
 .rp-detail li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; border-bottom: 1px dotted #cbd5e1; }
 .rp-products-line { color: #0072ce; font-weight: 600; }
