@@ -142,7 +142,20 @@
 
                 <div v-if="showDetailBlock(item)" class="action-detail-block">
                   <span class="action-detail-label">{{ item.detailLabel }}</span>
-                  <ul>
+                  <!-- Versorgung: je Änderung eine Zeile mit Richtung und Handlungssatz, der Rest bleibt gesammelt -->
+                  <ol v-if="item.key === 'reduce-supply'" class="supply-steps">
+                    <li v-for="step in supplySteps(item.detailItems).changes" :key="step.label" :class="step.direction">
+                      <i aria-hidden="true"><svg viewBox="0 0 24 24"><path :d="step.direction === 'up' ? 'M12 19V5m-6 6 6-6 6 6' : 'M12 5v14m-6-6 6 6 6-6'" /></svg></i>
+                      <div><strong>{{ step.label }}</strong><span>{{ step.text }}</span></div>
+                      <b>{{ step.value }}</b>
+                    </li>
+                    <li v-if="supplySteps(item.detailItems).kept.length" class="kept">
+                      <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9.5h12M6 14.5h12" /></svg></i>
+                      <div><strong>Beibehalten</strong><span>{{ supplySteps(item.detailItems).kept.join(' · ') }}</span></div>
+                      <b>unverändert</b>
+                    </li>
+                  </ol>
+                  <ul v-else>
                     <li v-for="entry in item.detailItems" :key="entry.label">
                       <span>{{ entry.label }}</span>
                       <b v-if="entry.value">{{ entry.value }}</b>
@@ -609,7 +622,7 @@ import { recommendedDosingProducts, recommendedProductsForKeys } from '@/service
 import { essentialsRecommendation } from '@/services/atiProductCatalog'
 import { NYOS_LINK_LABEL, nyosRecommendation } from '@/services/nyosProductCatalog'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
-import { buildDirectRecommendations, evaluateAnalysis } from '@/services/directRecommendations'
+import { buildDirectRecommendations, evaluateAnalysis, supplySteps } from '@/services/directRecommendations'
 import { waterBalance } from '@/services/waterBalance'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
@@ -1221,6 +1234,16 @@ onBeforeUnmount(endPrint)
 .action-detail-block li { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #cfe4f3; border-radius: 10px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 700; }
 .action-detail-block li > b { flex: none; white-space: nowrap; padding: 2px 7px; border-radius: 999px; background: #0072ce; color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
 .action-card.critical .action-detail-block li > b { background: #e85d4f; }
+.supply-steps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.action-detail-block .supply-steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 13px; width: auto; padding: 11px 14px; font-weight: 400; }
+.supply-steps i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #e0f0fb; color: var(--brand-blue); }
+.supply-steps svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.supply-steps li.down i { background: #fff4df; color: #9a4d0a; }
+.supply-steps strong { display: block; color: var(--text); font-size: 13px; font-weight: 700; }
+.supply-steps span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 12.5px; line-height: 1.45; }
+.supply-steps li.kept { border-style: dashed; background: transparent; }
+.supply-steps li.kept i { background: #eef2f7; color: var(--text-muted); }
+.action-detail-block .supply-steps li.kept > b { background: #eef2f7; color: var(--text-muted); }
 .detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
 .detail-more:hover { background: var(--brand-blue); color: #fff; }
 .detail-more span { display: inline-block; transition: transform .18s; }
@@ -1252,6 +1275,8 @@ onBeforeUnmount(endPrint)
   .action-heading h3 { font-size: 17px; }
   .action-options, .action-detail-block, .action-tips { padding: 14px; }
   .action-detail-block li { width: 100%; justify-content: space-between; }
+  .action-detail-block .supply-steps li { gap: 10px; padding: 10px 12px; }
+  .action-detail-block .supply-steps li.kept > b { display: none; }
   .action-tips { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; }
   .action-tips > i { width: 24px; height: 24px; }
   .action-footer > em { margin-left: 0; }

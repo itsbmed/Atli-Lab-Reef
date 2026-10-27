@@ -74,6 +74,27 @@ function supplyPlan(parameters, parts) {
   return channels
 }
 
+// Für die Anzeige: Kanäle mit Änderung bekommen Richtung und Handlungssatz, die übrigen
+// werden als „beibehalten“ gesammelt. Werte und Reihenfolge bleiben wie im Plan.
+export function supplySteps(detailItems = []) {
+  const changes = []
+  const kept = []
+  for (const item of detailItems) {
+    const value = String(item.value || '')
+    if (!/^[+−-]/.test(value)) {
+      kept.push(item.label)
+      continue
+    }
+    const amount = value.slice(1)
+    const direction = value.startsWith('+') ? 'up' : 'down'
+    const text = direction === 'up'
+      ? `Tagesdosis um ${amount} erhöhen`
+      : amount === '100 %' ? 'Dosierung aussetzen' : `Tagesdosis um ${amount} reduzieren`
+    changes.push({ label: item.label, value, direction, text })
+  }
+  return { changes, kept }
+}
+
 function affected(parameters, predicate) {
   return parameters.filter((parameter) => parameter.evaluation && predicate(parameter.evaluation.score, parameter))
 }
