@@ -18,11 +18,50 @@ export function quickFields(waterType) {
   return QUICK_KEYS.map((key) => fields.find((field) => field.key === key)).filter(Boolean)
 }
 
+// US-Kunden rechnen in Gallonen und Zoll. Gespeichert wird das Volumen immer in Litern.
+export const LITRES_PER_GALLON = 3.785411784
+export const CM_PER_INCH = 2.54
+export const VOLUME_UNITS = Object.freeze({
+  l: { short: 'L', length: 'cm' },
+  gal: { short: 'gal', length: 'in' },
+})
+const VOLUME_UNIT_KEY = 'reef-pilot:volume-unit'
+
+export function loadVolumeUnit(storage) {
+  try { return storage.getItem(VOLUME_UNIT_KEY) === 'gal' ? 'gal' : 'l' } catch { return 'l' }
+}
+export function saveVolumeUnit(storage, unit) {
+  try { storage.setItem(VOLUME_UNIT_KEY, unit) } catch { /* nichts zu tun */ }
+}
+
+// Eingabe in der gewählten Einheit → ganze Liter (null, wenn nichts Sinnvolles eingegeben ist).
+export function litresFrom(value, unit) {
+  const number = Number(value)
+  if (value === '' || value === null || !(number > 0)) return null
+  return Math.max(1, Math.round(unit === 'gal' ? number * LITRES_PER_GALLON : number))
+}
+
+// Liter → Anzeige in der gewählten Einheit, Gallonen auf eine Nachkommastelle.
+export function litresTo(litres, unit) {
+  const number = Number(litres)
+  if (!(number > 0)) return null
+  return unit === 'gal' ? Math.round((number / LITRES_PER_GALLON) * 10) / 10 : number
+}
+
+export function formatVolume(litres, unit) {
+  const number = Number(litres)
+  if (!(number > 0)) return ''
+  const shown = unit === 'gal' ? Math.round(number / LITRES_PER_GALLON) : Math.round(number)
+  return `${shown.toLocaleString('de-DE')} ${VOLUME_UNITS[unit === 'gal' ? 'gal' : 'l'].short}`
+}
+
 // Gestein, Bodengrund und Technik verdrängen Wasser; netto bleiben erfahrungsgemäß rund 85 %.
 export const NET_SHARE = 0.85
 
-export function volumeFromDimensions(length, width, height) {
-  const sides = [length, width, height].map(Number)
+// Seiten in cm (oder in Zoll mit lengthUnit 'in'); Ergebnis immer in Litern.
+export function volumeFromDimensions(length, width, height, lengthUnit = 'cm') {
+  const factor = lengthUnit === 'in' ? CM_PER_INCH : 1
+  const sides = [length, width, height].map((side) => Number(side) * factor)
   if (!sides.every((side) => Number.isFinite(side) && side > 0)) return null
   const gross = (sides[0] * sides[1] * sides[2]) / 1000
   return { gross: Math.round(gross), net: Math.max(1, Math.round((gross * NET_SHARE) / 5) * 5) }
@@ -34,8 +73,13 @@ export function parseDimensions(text) {
   return numbers.length >= 3 ? numbers.slice(0, 3) : null
 }
 
-export function formatDimensions(length, width, height) {
-  return `${length}×${width}×${height} cm`
+// In welcher Einheit eine Maßangabe geschrieben ist – „48×20×20 in“ oder 48"×20"×20" sind Zoll.
+export function dimensionUnit(text) {
+  return /\d\s*("|in\b|inch|zoll)/i.test(String(text || '')) ? 'in' : 'cm'
+}
+
+export function formatDimensions(length, width, height, lengthUnit = 'cm') {
+  return `${length}×${width}×${height} ${lengthUnit === 'in' ? 'in' : 'cm'}`
 }
 
 function answered(form, field) {

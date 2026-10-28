@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clearDraft, loadDraft, parseDimensions, profileScore, quickFields, saveDraft, volumeFromDimensions } from './aquariumWizard.js'
+import {
+  clearDraft, dimensionUnit, formatDimensions, formatVolume, litresFrom, litresTo, loadDraft, parseDimensions, profileScore, quickFields,
+  saveDraft, volumeFromDimensions,
+} from './aquariumWizard.js'
 
 const memory = () => {
   const data = new Map()
@@ -59,4 +62,25 @@ test('a draft too large for the storage is kept without its photo', () => {
   const strict = { ...storage, setItem: (key, value) => { if (value.length > 400) throw new Error('quota'); storage.setItem(key, value) } }
   assert.equal(saveDraft(strict, 'u1', seawater({ name: 'Riff', image: `data:${'x'.repeat(1000)}` }), 2), true)
   assert.equal(loadDraft(storage, 'u1').form.image, null)
+})
+
+test('gallons are converted to whole litres and back', () => {
+  assert.equal(litresFrom(80, 'gal'), 303)
+  assert.equal(litresFrom(300, 'l'), 300)
+  assert.equal(litresFrom('', 'gal'), null)
+  assert.equal(litresFrom(0, 'l'), null)
+  assert.equal(litresTo(303, 'gal'), 80)
+  assert.equal(litresFrom(litresTo(300, 'gal'), 'gal'), 300, 'a round trip keeps the litres')
+  assert.equal(formatVolume(303, 'gal'), '80 gal')
+  assert.equal(formatVolume(1200, 'l'), '1.200 L')
+  assert.equal(formatVolume(null, 'l'), '')
+})
+
+test('dimensions in inches give litres', () => {
+  // 48×20×20 in = 121,92×50,8×50,8 cm ≈ 315 l brutto
+  assert.deepEqual(volumeFromDimensions(48, 20, 20, 'in'), { gross: 315, net: 265 })
+  assert.equal(formatDimensions(48, 20, 20, 'in'), '48×20×20 in')
+  assert.equal(dimensionUnit('48×20×20 in'), 'in')
+  assert.equal(dimensionUnit('48"×20"×20"'), 'in')
+  assert.equal(dimensionUnit('120×50×50 cm'), 'cm')
 })
