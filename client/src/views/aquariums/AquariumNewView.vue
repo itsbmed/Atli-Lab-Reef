@@ -100,21 +100,35 @@
                 <input
                   id="aqn-volume"
                   ref="volumeInput"
-                  v-model.number="form.net_volume"
+                  v-model.number="volumeValue"
                   type="number"
                   min="1"
-                  inputmode="numeric"
-                  placeholder="300"
+                  :step="volumeUnit === 'gal' ? 0.1 : 1"
+                  :inputmode="volumeUnit === 'gal' ? 'decimal' : 'numeric'"
+                  :placeholder="volumeUnit === 'gal' ? '80' : '300'"
                   :aria-invalid="!!errors.net_volume"
                   aria-describedby="aqn-volume-hint aqn-volume-error"
-                  @input="errors.net_volume = ''"
+                  @input="onVolumeInput"
                 />
-                <span>Liter</span>
+                <div class="unit-switch" role="radiogroup" aria-label="Einheit">
+                  <button
+                    v-for="unit in VOLUME_UNIT_CHOICES"
+                    :key="unit.key"
+                    type="button"
+                    role="radio"
+                    :aria-checked="volumeUnit === unit.key"
+                    :title="unit.title"
+                    :class="{ on: volumeUnit === unit.key }"
+                    @click="setVolumeUnit(unit.key)"
+                  >{{ unit.label }}</button>
+                </div>
               </div>
               <small v-if="errors.net_volume" id="aqn-volume-error" class="field-error">{{ errors.net_volume }}</small>
-              <small v-else id="aqn-volume-hint" class="field-hint">Wasser im System ohne Deko und Bodengrund.</small>
+              <small v-else id="aqn-volume-hint" class="field-hint">
+                <template v-if="volumeUnit === 'gal' && form.net_volume">Entspricht {{ formatVolume(form.net_volume, 'l') }} · </template>Wasser im System ohne Deko und Bodengrund.
+              </small>
             </div>
-            <VolumeHelper class="aqn-volume-helper" :form="form" @picked="errors.net_volume = ''" />
+            <VolumeHelper class="aqn-volume-helper" :form="form" :unit="volumeUnit" @picked="errors.net_volume = ''" />
           </div>
 
           <div v-if="showSupply" ref="supplyBlock" :class="['aqn-supply', { invalid: errors.supply }]">
@@ -292,7 +306,7 @@
           <div class="aqn-preview-body">
             <span class="aqn-preview-kicker">Vorschau</span>
             <strong>{{ form.name || 'Neues Aquarium' }}</strong>
-            <p>{{ form.net_volume ? `${Number(form.net_volume).toLocaleString('de-DE')} L` : 'Volumen offen' }}<template v-if="form.aquarium_type"> · {{ form.aquarium_type }}</template><template v-if="form.dimensions"> · {{ form.dimensions }}</template></p>
+            <p>{{ formatVolume(form.net_volume, volumeUnit) || 'Volumen offen' }}<template v-if="form.aquarium_type"> · {{ form.aquarium_type }}</template><template v-if="form.dimensions"> · {{ form.dimensions }}</template></p>
             <TransitionGroup name="aqn-tag" tag="div" class="aqn-preview-tags">
               <em v-for="tag in previewTags" :key="tag">{{ tag }}</em>
             </TransitionGroup>
@@ -332,7 +346,10 @@ import { AQUARIUM_PRESETS } from '@/services/aquariumPresets'
 import { fileToResizedDataUrl } from '@/services/imageUtil'
 import { asksForBottles, supportsSupplySystem } from '@/services/supplySystem'
 import { waterTypeGroups, waterTypeSummary, ensureWaterTypeDetails } from '@/services/waterTypeFields'
-import { EVALUATION_GROUP, QUICK_KEYS, clearDraft, loadDraft, profileScore, quickFields, saveDraft } from '@/services/aquariumWizard'
+import {
+  EVALUATION_GROUP, QUICK_KEYS, clearDraft, formatVolume, litresFrom, litresTo, loadDraft, loadVolumeUnit, profileScore, quickFields,
+  saveDraft, saveVolumeUnit,
+} from '@/services/aquariumWizard'
 
 const STEPS = [
   { key: 'basics', label: 'Becken' },
@@ -343,6 +360,10 @@ const STEP_TIPS = [
   { title: 'Warum das Volumen?', text: 'Aus dem Nettovolumen berechnen wir jede Dosiermenge. Ein grober Wert reicht – mit „Aus Maßen berechnen“ geht es in Sekunden.' },
   { title: 'Keine Pflicht', text: 'Technik und Besatz helfen bei der Ursachensuche, wenn ein Wert auffällt. Was Sie jetzt nicht wissen, ergänzen Sie einfach später.' },
   { title: 'Was passiert danach?', text: 'Nach dem Anlegen geht es direkt zur Analyse-Registrierung – Barcode erfassen, Probe einsenden, fertig.' },
+]
+const VOLUME_UNIT_CHOICES = [
+  { key: 'l', label: 'L', title: 'Liter' },
+  { key: 'gal', label: 'gal', title: 'US-Gallonen' },
 ]
 // Ein Vorschlag je Wassertyp, damit das Namensfeld nicht leer wirkt.
 const NAME_IDEAS = { Meerwasser: 'z. B. Wohnzimmer Reef', 'Süßwasser': 'z. B. Pflanzenbecken Büro', Osmosewasser: 'z. B. Osmoseanlage Keller', Meersalz: 'z. B. Salzansatz Vorratsfass', Aquakultur: 'z. B. Zuchtanlage Halle 2' }
@@ -365,6 +386,24 @@ const supplyBlock = ref(null)
 const showAllDetails = ref(false)
 const showEvaluation = ref(false)
 const pendingDraft = ref(null)
+
+// Das Feld zeigt Liter oder US-Gallonen; im Formular stehen immer ganze Liter. Die Wahl merkt sich der Browser.
+const volumeUnit = ref(loadVolumeUnit(localStorage))
+const volumeValue = ref(null)
+watch(() => [form.value.net_volume, volumeUnit.value], ([litres]) => {
+  // Nur nachziehen, wenn das Formular von außen geändert wurde (Rechner, Entwurf, Einheit) – nicht beim Tippen.
+  if (litresFrom(volumeValue.value, volumeUnit.value) !== (Number(litres) > 0 ? Number(litres) : null)) {
+    volumeValue.value = litresTo(litres, volumeUnit.value)
+  }
+}, { immediate: true })
+function onVolumeInput() {
+  form.value.net_volume = litresFrom(volumeValue.value, volumeUnit.value)
+  errors.value.net_volume = ''
+}
+function setVolumeUnit(unit) {
+  volumeUnit.value = unit
+  saveVolumeUnit(localStorage, unit)
+}
 
 onMounted(() => {
   aquariums.load()
@@ -398,7 +437,7 @@ const score = computed(() => profileScore(form.value, { osmosisSupported: suppor
 
 const basicsSummary = computed(() => [
   form.value.name,
-  form.value.net_volume ? `${form.value.net_volume} L` : '',
+  formatVolume(form.value.net_volume, volumeUnit.value),
   form.value.water_type,
   showSupply.value ? form.value.supply_system : '',
 ].filter(Boolean).join(' · '))
@@ -547,7 +586,7 @@ const previewTheme = computed(() => {
 // Osmosewasser wird in der Registrierung separat als Quelle gewählt, nicht als Aquarium.
 const activateLink = computed(() => created.value.water_type === 'Osmosewasser' ? '/analyses/activate' : `/analyses/activate?aquarium_id=${created.value.id}`)
 const createdMeta = computed(() => [
-  `${created.value.net_volume} L`,
+  formatVolume(created.value.net_volume, volumeUnit.value),
   created.value.water_type,
   created.value.supply_system,
 ].filter(Boolean).join(' · '))
@@ -649,8 +688,12 @@ async function startOver() {
 @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
 
 .input-unit { position: relative; }
-.input-unit input { padding-right: 60px; }
-.input-unit span { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; pointer-events: none; }
+.input-unit input { padding-right: 104px; }
+.unit-switch { position: absolute; top: 50%; right: 6px; display: flex; padding: 3px; border-radius: 999px; background: var(--teal-50); transform: translateY(-50%); }
+.unit-switch button { min-width: 42px; height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; }
+.unit-switch button:hover { color: var(--brand-blue); }
+.unit-switch button.on { background: #fff; color: var(--brand-blue); box-shadow: 0 1px 3px rgba(15, 40, 60, .14); }
+.unit-switch button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .field-hint { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
 .field-error { color: #c5392c; font-size: 12px; font-weight: var(--fw-semibold); }
 

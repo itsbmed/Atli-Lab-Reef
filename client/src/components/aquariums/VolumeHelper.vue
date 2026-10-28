@@ -10,16 +10,16 @@
         <label v-for="side in SIDES" :key="side.key">
           <span>{{ side.label }}</span>
           <div class="vh-input">
-            <input v-model.number="sides[side.key]" type="number" min="1" inputmode="decimal" :placeholder="side.placeholder" />
-            <small>cm</small>
+            <input v-model.number="sides[side.key]" type="number" min="1" inputmode="decimal" :placeholder="side.placeholder[lengthUnit]" />
+            <small>{{ lengthUnit }}</small>
           </div>
         </label>
       </div>
       <div class="vh-result" aria-live="polite">
         <template v-if="result">
           <p>
-            <span>Bruttovolumen {{ result.gross.toLocaleString('de-DE') }} L</span>
-            <strong>ca. {{ result.net.toLocaleString('de-DE') }} L netto</strong>
+            <span>Bruttovolumen {{ formatVolume(result.gross, unit) }}</span>
+            <strong>ca. {{ formatVolume(result.net, unit) }} netto</strong>
             <small>Gestein, Bodengrund und Technik verdrängen etwa 15 %.</small>
           </p>
           <button type="button" class="vh-apply" @click="apply">Übernehmen</button>
@@ -32,33 +32,36 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { formatDimensions, parseDimensions, volumeFromDimensions } from '@/services/aquariumWizard'
+import { VOLUME_UNITS, dimensionUnit, formatDimensions, formatVolume, parseDimensions, volumeFromDimensions } from '@/services/aquariumWizard'
 
 const props = defineProps({
   form: { type: Object, required: true },
+  // 'l' rechnet in cm, 'gal' in Zoll – das Ergebnis landet immer in Litern im Formular.
+  unit: { type: String, default: 'l' },
 })
 const emit = defineEmits(['picked'])
 
 const SIDES = [
-  { key: 'length', label: 'Länge', placeholder: '120' },
-  { key: 'width', label: 'Breite', placeholder: '50' },
-  { key: 'height', label: 'Höhe', placeholder: '50' },
+  { key: 'length', label: 'Länge', placeholder: { cm: '120', in: '48' } },
+  { key: 'width', label: 'Breite', placeholder: { cm: '50', in: '20' } },
+  { key: 'height', label: 'Höhe', placeholder: { cm: '50', in: '20' } },
 ]
 
 const open = ref(false)
 const sides = reactive({ length: null, width: null, height: null })
-const result = computed(() => volumeFromDimensions(sides.length, sides.width, sides.height))
+const lengthUnit = computed(() => VOLUME_UNITS[props.unit]?.length || 'cm')
+const result = computed(() => volumeFromDimensions(sides.length, sides.width, sides.height, lengthUnit.value))
 
 function toggle() {
   open.value = !open.value
-  // Schon eingetragene Abmessungen gleich übernehmen.
-  const known = parseDimensions(props.form.dimensions)
+  // Schon eingetragene Abmessungen gleich übernehmen – sofern sie in derselben Einheit stehen.
+  const known = dimensionUnit(props.form.dimensions) === lengthUnit.value && parseDimensions(props.form.dimensions)
   if (open.value && known && !sides.length) [sides.length, sides.width, sides.height] = known
 }
 
 function apply() {
   props.form.net_volume = result.value.net
-  props.form.dimensions = formatDimensions(sides.length, sides.width, sides.height)
+  props.form.dimensions = formatDimensions(sides.length, sides.width, sides.height, lengthUnit.value)
   open.value = false
   emit('picked')
 }
