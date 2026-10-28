@@ -1,19 +1,9 @@
 <template>
   <div class="vh">
-    <div class="vh-presets" role="group" aria-label="Typische Beckengrößen">
-      <button
-        v-for="liters in VOLUME_PRESETS"
-        :key="liters"
-        type="button"
-        :class="['vh-chip', { on: Number(form.net_volume) === liters }]"
-        :aria-pressed="Number(form.net_volume) === liters"
-        @click="setVolume(liters)"
-      >{{ liters.toLocaleString('de-DE') }} L</button>
-      <button type="button" :class="['vh-chip', 'vh-calc-toggle', { on: open }]" :aria-expanded="open" @click="toggle">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="2.5" width="14" height="15" rx="2.5" /><path d="M6.5 6h7M6.5 10h1M9.5 10h1M12.5 10h1M6.5 13.5h1M9.5 13.5h1M12.5 13.5h1" /></svg>
-        Aus Maßen berechnen
-      </button>
-    </div>
+    <button type="button" :class="['vh-chip', 'vh-calc-toggle', { on: open }]" :aria-expanded="open" @click="toggle">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="2.5" width="14" height="15" rx="2.5" /><path d="M6.5 6h7M6.5 10h1M9.5 10h1M12.5 10h1M6.5 13.5h1M9.5 13.5h1M12.5 13.5h1" /></svg>
+      Aus Maßen berechnen
+    </button>
 
     <div v-if="open" class="vh-calc">
       <div class="vh-sides">
@@ -42,7 +32,7 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { VOLUME_PRESETS, formatDimensions, parseDimensions, volumeFromDimensions } from '@/services/aquariumWizard'
+import { formatDimensions, parseDimensions, volumeFromDimensions } from '@/services/aquariumWizard'
 
 const props = defineProps({
   form: { type: Object, required: true },
@@ -66,24 +56,18 @@ function toggle() {
   if (open.value && known && !sides.length) [sides.length, sides.width, sides.height] = known
 }
 
-function setVolume(liters) {
-  props.form.net_volume = liters
-  emit('picked')
-}
-
 function apply() {
-  setVolume(result.value.net)
+  props.form.net_volume = result.value.net
   props.form.dimensions = formatDimensions(sides.length, sides.width, sides.height)
   open.value = false
+  emit('picked')
 }
 </script>
 
 <style scoped>
 .vh { display: grid; gap: 10px; }
-.vh-presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.vh-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.vh-chip { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
 .vh-chip:hover { border-color: var(--teal-300); }
-.vh-chip.on { border-color: var(--brand-blue); background: var(--brand-blue); color: #fff; }
 .vh-chip:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .vh-calc-toggle { border-style: dashed; color: var(--brand-blue); }
 .vh-calc-toggle.on { border-style: solid; background: var(--teal-50); color: var(--brand-blue); }

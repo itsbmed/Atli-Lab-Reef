@@ -18,8 +18,6 @@ export function quickFields(waterType) {
   return QUICK_KEYS.map((key) => fields.find((field) => field.key === key)).filter(Boolean)
 }
 
-export const VOLUME_PRESETS = Object.freeze([60, 120, 250, 400, 600, 1000])
-
 // Gestein, Bodengrund und Technik verdrängen Wasser; netto bleiben erfahrungsgemäß rund 85 %.
 export const NET_SHARE = 0.85
 

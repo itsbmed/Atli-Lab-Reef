@@ -421,7 +421,7 @@ const selectedPresetId = ref('')
 function basicsErrors() {
   const found = {}
   if (!form.value.name.trim()) found.name = 'Bitte geben Sie einen Namen an.'
-  if (!form.value.net_volume || form.value.net_volume < 1) found.net_volume = 'Bitte geben Sie das Volumen in Litern an – oder wählen Sie unten eine Größe.'
+  if (!form.value.net_volume || form.value.net_volume < 1) found.net_volume = 'Bitte geben Sie das Nettovolumen an – oder berechnen Sie es unten aus den Maßen.'
   if (showSupply.value) {
     if (!form.value.supply_mode) found.supply = 'Bitte wählen Sie ein Versorgungssystem – „Keine Versorgung“ ist auch eine Antwort.'
     else if (asksForBottles(form.value.supply_mode) && !form.value.supply_bottles) found.supply = 'Bitte wählen Sie, auf wie viele Flaschen sich das Mittel verteilt.'
