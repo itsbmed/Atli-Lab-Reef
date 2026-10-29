@@ -276,7 +276,7 @@
               <input v-model="remember" type="checkbox" />
               Auswahl für das nächste Mal merken
             </label>
-            <p v-if="status === 'done'" class="pdf-status" role="status">Einstellungen übernommen – die PDF-Erstellung wird mit dem Backend verbunden.</p>
+            <p v-if="status === 'done'" class="pdf-status" role="status">Der Druckdialog öffnet sich – dort „Als PDF sichern“ wählen.</p>
             <div class="pdf-actions">
               <button type="button" class="pdf-btn ghost" @click="close">Abbrechen</button>
               <button type="button" :class="['pdf-btn', 'primary', status]" :disabled="status === 'working'" @click="create">
@@ -426,7 +426,7 @@ function create() {
     else clearPdfSettings(localStorage, props.ownerId)
   }
   status.value = 'working'
-  // Kurzer Moment, damit der Klick sichtbar ankommt; erzeugt wird später im Backend.
+  // Kurzer Moment, damit der Klick sichtbar ankommt; gedruckt wird im Browser (der Bericht öffnet den Druckdialog).
   doneTimer = setTimeout(() => {
     status.value = 'done'
     emit('create', { settings: JSON.parse(JSON.stringify(settings.value)), pages: pages.value.length })
