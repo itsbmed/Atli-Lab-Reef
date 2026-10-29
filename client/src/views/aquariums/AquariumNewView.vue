@@ -603,7 +603,7 @@ async function submit() {
   saving.value = true
   try {
     createdScore.value = score.value
-    created.value = aquariums.create(data)
+    created.value = await aquariums.create(data)
     clearTimeout(saveTimer)
     clearDraft(localStorage, ownerId.value)
     await nextTick()

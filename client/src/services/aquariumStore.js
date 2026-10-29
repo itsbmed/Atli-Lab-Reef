@@ -49,14 +49,22 @@ export function linkedOsmosisSource(aquarium) {
   return getAquarium(aquarium.osmosis_source_id)
 }
 
+// Im Backend-Modus liegen die Aquarien des angemeldeten Nutzers hier im
+// Speicher (befüllt vom Aquarien-Store), damit synchrone Leser wie der
+// Analysen-Speicher sie weiter finden.
+let remoteAquariums = null
+export function setRemoteAquariums(list) {
+  remoteAquariums = list
+}
+
 // Alle Aquarien lesen – optional nach Besitzer gefiltert.
 export function getAquariums(ownerId) {
-  const all = read(AQUARIUMS_KEY, [])
+  const all = remoteAquariums ?? read(AQUARIUMS_KEY, [])
   return ownerId ? all.filter((a) => a.ownerId === ownerId) : all
 }
 
 export function getAquarium(id) {
-  return read(AQUARIUMS_KEY, []).find((a) => a.id === id) || null
+  return (remoteAquariums ?? read(AQUARIUMS_KEY, [])).find((a) => a.id === id) || null
 }
 
 export function addAquarium(ownerId, data) {

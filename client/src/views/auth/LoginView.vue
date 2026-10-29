@@ -85,7 +85,7 @@ async function submit() {
   loading.value = true
   error.value = ''
   try {
-    await auth.login({ login: form.value.login, password: form.value.password })
+    await auth.login({ login: form.value.login, password: form.value.password, remember: remember.value })
     playAppPreloader('login')
     router.push('/dashboard')
   } catch (e) {

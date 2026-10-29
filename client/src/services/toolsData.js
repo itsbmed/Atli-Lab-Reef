@@ -6,9 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 export const profileApi = {
   async list() {
     if (!useAuthStore().isLoggedIn) return []
-    const store = useAquariumsStore()
-    store.load()
-    return store.items
+    return useAquariumsStore().load()
   },
   async aquariums() {
     return (await this.list()).filter((profile) => !['Osmosewasser', 'Meersalz'].includes(profile.water_type))

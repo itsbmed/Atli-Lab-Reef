@@ -243,6 +243,7 @@
         <div class="confirm-card card">
           <h3>Profil wirklich löschen?</h3>
           <p>„{{ profile.name }}“ wird dauerhaft entfernt. Das kann nicht rückgängig gemacht werden.</p>
+          <p v-if="deleteError" class="alert alert-error">{{ deleteError }}</p>
           <div class="form-actions">
             <button type="button" class="btn btn-ghost" @click="confirmDelete = false">Abbrechen</button>
             <button type="button" class="btn btn-danger" @click="deleteProfile">Profil löschen</button>
@@ -306,6 +307,7 @@ const saveError = ref('')
 const photoError = ref('')
 const editForm = ref({})
 const confirmDelete = ref(false)
+const deleteError = ref('')
 const showEditPresetPicker = ref(false)
 
 onMounted(() => {
@@ -474,13 +476,13 @@ function themeFor(f) {
   if (f.aquarium_type === 'SPS') return 'reef-sps'
   return { 'Meerwasser': 'reef-mixed', 'Süßwasser': 'freshwater', 'Osmosewasser': 'osmosis', 'Meersalz': 'reef-sps', 'Aquakultur': 'freshwater' }[f.water_type] || 'reef-mixed'
 }
-function save() {
+async function save() {
   saving.value = true
   saveError.value = ''
   try {
     const data = { ...editForm.value, image_theme: themeFor(editForm.value) }
     if (!supportsSupplySystem(data.water_type)) Object.assign(data, { supply_mode: '', supply_line: '', supply_bottles: null, supply_product: '', supply_system: '' })
-    aquariums.update(profile.value.id, data)
+    await aquariums.update(profile.value.id, data)
     editing.value = false
     showEditPresetPicker.value = false
   } catch (e) {
@@ -489,9 +491,14 @@ function save() {
     saving.value = false
   }
 }
-function deleteProfile() {
-  aquariums.remove(profile.value.id)
-  router.push('/aquariums')
+async function deleteProfile() {
+  deleteError.value = ''
+  try {
+    await aquariums.remove(profile.value.id)
+    router.push('/aquariums')
+  } catch (e) {
+    deleteError.value = e.error || 'Löschen fehlgeschlagen'
+  }
 }
 function analysisTone(a) {
   if ((a.score ?? 100) < 86 || (a.issueCount || 0) >= 3) return 'critical'

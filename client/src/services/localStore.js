@@ -197,8 +197,10 @@ export function ensureDemoUsers() {
   if (changed) write(USERS_KEY, users)
 
   // Aktive Session eines angepassten Demo-Kontos aktualisieren (z. B. demo war „full").
+  // Backend-Sessions bleiben unangetastet.
   const session = loadSession()
-  const def = session?.user?.username && DEMO_USERS.find((d) => d.username === session.user.username)
+  if (!session?.token?.startsWith('local-')) return
+  const def = session.user?.username && DEMO_USERS.find((d) => d.username === session.user.username)
   const storedSessionUser = def && getUsers().find((user) => user.username === def.username)
   if (storedSessionUser && (session.user.kind !== storedSessionUser.kind || session.user.id !== storedSessionUser.id || session.user.role !== storedSessionUser.role)) {
     session.user = publicUser(storedSessionUser)
