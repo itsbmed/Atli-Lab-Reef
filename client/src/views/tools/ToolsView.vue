@@ -18,6 +18,10 @@
     <template v-else>
       <!-- Kopf: Werkzeug und Aquarium – das Aquarium gilt für alle vier Werkzeuge -->
       <section class="tools-hero">
+        <!-- Hintergrund: Foto des gewählten Aquariums, beim Wechsel weich überblendet -->
+        <Transition name="hero-bg">
+          <div :key="heroBackground" class="hero-bg" :style="{ backgroundImage: heroBackground }" aria-hidden="true"></div>
+        </Transition>
         <div class="hero-copy">
           <span class="hero-kicker">Tools · {{ activeToolMeta.label }}</span>
           <h1>{{ activeToolMeta.title }}</h1>
@@ -426,6 +430,21 @@ const selectedProfile = computed(() => profiles.value.find((profile) => String(p
 const selectedProfileAnalyses = computed(() => allAnalyses.value.filter((analysis) => String(analysis.profile_id) === String(selectedProfileId.value)))
 const latestAnalysis = computed(() => selectedProfileAnalyses.value.at(-1) || null)
 const analysisOptions = computed(() => [...selectedProfileAnalyses.value].reverse())
+// Eigenes Foto des Beckens; ohne Foto das Themenbild mit der Tönung wie auf den Karten der Übersicht,
+// damit sich auch Becken ohne eigenes Foto im Kopf unterscheiden.
+const THEME_BACKGROUNDS = {
+  'reef-mixed': ['/tanks/reef-mixed.png', 'rgba(0,114,206,0.18)'],
+  'reef-sps': ['/tanks/reef-mixed.png', 'rgba(76,29,149,0.42)'],
+  'reef-nano': ['/tanks/reef-mixed.png', 'rgba(13,148,136,0.5)'],
+  freshwater: ['/tanks/freshwater.png', 'rgba(21,128,61,0.3)'],
+  osmosis: ['/tanks/osmosis.png', 'rgba(8,145,178,0.35)'],
+}
+const heroBackground = computed(() => {
+  const profile = selectedProfile.value
+  if (profile?.image) return `url(${JSON.stringify(profile.image)})`
+  const [image, tint] = THEME_BACKGROUNDS[profile?.image_theme] || THEME_BACKGROUNDS['reef-mixed']
+  return `linear-gradient(${tint}, ${tint}), url(${JSON.stringify(image)})`
+})
 const netLitres = computed(() => Number(selectedProfile.value?.net_volume) || 0)
 
 /* ---------- Wasserwechsel-Simulator ---------- */
@@ -731,7 +750,12 @@ onMounted(async () => {
 
 <style scoped>
 /* ---------- Kopf ---------- */
-.tools-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 24px; align-items: center; margin-bottom: 16px; padding: clamp(24px, 4vw, 34px); border-radius: 24px; color: #fff; background: linear-gradient(115deg, rgba(10,27,67,0.98), rgba(0,114,206,0.72)), url('/reef-tank.webp') center / cover; box-shadow: var(--shadow); }
+.tools-hero { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 24px; align-items: center; margin-bottom: 16px; padding: clamp(24px, 4vw, 34px); border-radius: 24px; color: #fff; background: #0a1b43; box-shadow: var(--shadow); }
+/* Foto unten, der blaue Verlauf darüber hält den Text lesbar – egal wie hell das Bild ist. */
+.tools-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(100deg, rgba(10,27,67,0.94) 0%, rgba(10,27,67,0.72) 42%, rgba(10,27,67,0.22) 100%); }
+.hero-bg { position: absolute; inset: 0; z-index: -2; background-position: center 62%; background-size: cover; }
+.hero-bg-enter-active, .hero-bg-leave-active { transition: opacity .6s ease; }
+.hero-bg-enter-from, .hero-bg-leave-to { opacity: 0; }
 .hero-kicker { display: block; color: var(--teal-200); font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
 .tools-hero h1 { margin: 8px 0; color: #fff; font-size: clamp(30px, 4.2vw, 46px); line-height: 1; font-weight: 700; letter-spacing: -0.045em; }
 .tools-hero p { max-width: 620px; margin: 0; color: rgba(255,255,255,0.78); font-size: 14px; line-height: 1.6; }
@@ -908,6 +932,7 @@ tr.watch .dev-dot.after { background: #f59e0b; } tr.critical .dev-dot.after { ba
 .source-item li { color: var(--text); font-size: 12.5px; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-bg-enter-active, .hero-bg-leave-active { transition: none; }
   .curve-bar i { transition: none; }
 }
 @media (max-width: 1100px) {
