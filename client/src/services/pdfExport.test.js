@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { loadPrintJob, savePrintJob } from './pdfExport.js'
 import { PDF_NOTE_LIMIT, availableSections, defaultSettings, estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, sectionSelectable, valueRowCount } from './pdfExport.js'
 
 const context = {
@@ -102,4 +103,11 @@ test('values and osmosis always print as the table; an old style choice is dropp
   const restored = loadPdfSettings(storage, 'u1', context)
   assert.equal('style' in restored.values, false)
   assert.equal(matchPreset(restored, context), 'full')
+})
+
+test('print: the job is kept per report in the browser', () => {
+  const storage = memoryStorage()
+  assert.equal(loadPrintJob(storage, 'r1'), null)
+  assert.ok(savePrintJob(storage, 'r1', { sections: { cover: true } }))
+  assert.deepEqual(loadPrintJob(storage, 'r1').settings, { sections: { cover: true } })
 })

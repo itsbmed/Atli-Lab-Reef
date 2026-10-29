@@ -180,3 +180,15 @@ export function loadPdfSettings(storage, ownerId, context) {
 export function clearPdfSettings(storage, ownerId) {
   try { storage.removeItem(`${STORAGE_PREFIX}${ownerId || 'guest'}`) } catch { /* nichts zu tun */ }
 }
+
+// ── Druck ──────────────────────────────────────────────────────────────────────
+// Gedruckt wird im Browser (Drucken → Als PDF sichern).
+
+// Der zuletzt gestartete Druck je Bericht – damit eine eigene Druckseite (oder später der Server) ihn lesen kann.
+const JOB_PREFIX = 'reef-pilot:pdf-job:'
+export function savePrintJob(storage, analysisId, settings) {
+  try { storage.setItem(`${JOB_PREFIX}${analysisId}`, JSON.stringify({ settings, createdAt: new Date().toISOString() })); return true } catch { return false }
+}
+export function loadPrintJob(storage, analysisId) {
+  try { return JSON.parse(storage.getItem(`${JOB_PREFIX}${analysisId}`) || 'null') } catch { return null }
+}
