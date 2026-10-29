@@ -71,9 +71,24 @@
                 <i :class="tank.tone" :style="{ width: `${tank.score ?? 0}%` }"></i>
               </div>
 
-              <svg v-if="tank.spark" class="tank-spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
-                <polyline :points="tank.spark" />
-              </svg>
+              <!-- Verlauf: je Analyse eine Säule mit ihrer Wertung (Höhe = Wertung, Farbe = Zustand), dazu der Vergleich in Worten -->
+              <div v-if="tank.history" class="tank-history" role="img" :aria-label="tank.history.summary">
+                <div class="tank-history-head">
+                  <span>Letzte {{ tank.history.points.length }} Analysen</span>
+                  <b :class="tank.history.trend">{{ tank.history.trendLabel }}</b>
+                </div>
+                <ol class="tank-bars" aria-hidden="true">
+                  <li
+                    v-for="(point, index) in tank.history.points"
+                    :key="index"
+                    :class="[point.tone, { last: index === tank.history.points.length - 1 }]"
+                    :title="`Analyse vom ${point.date}`"
+                  >
+                    <small>{{ point.score }} %</small>
+                    <i :style="{ height: `${Math.max(point.score, 4) * 0.42}px` }"></i>
+                  </li>
+                </ol>
+              </div>
 
               <div class="tank-foot">
                 <span :class="tank.openMeasures ? 'has-work' : 'clean'">{{ tank.statusLabel }}</span>
@@ -315,15 +330,20 @@ const headStats = computed(() => {
   return rows
 })
 
-// Nur Becken mit mindestens zwei Berichten haben einen echten Verlauf.
-function sparkFor(reports) {
-  if (reports.length < 2) return ''
-  const series = reports.slice(0, 6).reverse().map((item) => Number(item.score))
-  const min = Math.min(...series)
-  const span = Math.max(Math.max(...series) - min, 1)
-  return series
-    .map((value, index) => `${(index / (series.length - 1)) * 100},${22 - ((value - min) / span) * 18}`)
-    .join(' ')
+// Nur Becken mit mindestens zwei Berichten haben einen echten Verlauf: die letzten vier, älteste zuerst,
+// und der Vergleich der neuesten mit der vorigen Analyse in Worten.
+function historyFor(reports) {
+  if (reports.length < 2) return null
+  const points = reports.slice(0, 4).reverse().map((item) => ({
+    score: Math.round(Number(item.score) || 0),
+    tone: item.severity || 'none',
+    date: formatDate(item.completedAt || item.createdAt),
+  }))
+  const delta = points[points.length - 1].score - points[points.length - 2].score
+  const trend = delta > 0 ? 'up' : delta < 0 ? 'down' : 'same'
+  const trendLabel = delta > 0 ? `▲ ${delta} % besser als zuvor` : delta < 0 ? `▼ ${-delta} % schlechter als zuvor` : 'gleich wie zuvor'
+  const summary = `Wertung der letzten ${points.length} Analysen: ${points.map((point) => `${point.score} %`).join(', ')}. ${trendLabel.replace(/^[▲▼] /, '')}.`
+  return { points, trend, trendLabel, summary }
 }
 
 function toneRank(tone) {
@@ -343,7 +363,7 @@ const tankCards = computed(() => tanks.value.map((tank) => {
     score: awaiting ? null : latest?.score ?? null,
     tone: !latest ? 'none' : awaiting ? 'open' : latest.severity,
     openMeasures: open,
-    spark: sparkFor(reports),
+    history: historyFor(reports),
     statusLabel: !latest
       ? 'Noch keine Probe'
       : awaiting
@@ -596,8 +616,26 @@ function formatDate(date) {
 .health-track i.critical { background: var(--coral); }
 .health-track i.watch { background: var(--amber); }
 .health-track i.good { background: var(--green); }
-.tank-spark { display: block; width: 100%; height: 22px; }
-.tank-spark polyline { fill: none; stroke: var(--brand-blue); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.tank-history { display: grid; gap: 6px; }
+.tank-history-head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.tank-history-head span { color: var(--text-muted); font-size: 10.5px; font-weight: 500; }
+.tank-history-head b { font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.tank-history-head b.up { color: var(--green-ink); }
+.tank-history-head b.down { color: var(--coral); }
+.tank-history-head b.same { color: var(--text-muted); }
+.tank-bars { display: flex; gap: 6px; align-items: stretch; height: 58px; margin: 0; padding: 0 0 1px; border-bottom: 1px solid #e5eaf1; list-style: none; }
+.tank-bars li { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; max-width: 46px; min-width: 0; }
+.tank-bars small { color: var(--text-muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+/* 100 % = 42px; darüber bleibt Platz für die Zahl */
+.tank-bars i { display: block; width: 100%; min-height: 3px; border-radius: 4px 4px 1px 1px; background: #cbd5e1; opacity: .4; }
+.tank-bars li.critical i { background: var(--coral); }
+.tank-bars li.watch i { background: var(--amber); }
+.tank-bars li.good i { background: var(--green); }
+.tank-bars li.last i { opacity: 1; }
+.tank-bars li.last small { color: var(--text); font-weight: 700; }
+.tank-bars li.last.critical small { color: var(--coral); }
+.tank-bars li.last.watch small { color: var(--amber-ink); }
+.tank-bars li.last.good small { color: var(--green-ink); }
 .tank-foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 9px; border-top: 1px solid var(--hair); }
 .tank-foot span { font-size: 11px; font-weight: 600; }
 .tank-foot .has-work { color: var(--amber-ink); }
