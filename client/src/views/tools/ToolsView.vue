@@ -146,7 +146,16 @@
           <p class="setup-total"><b>{{ changeCount }} × {{ formatNumber(changeLitres, 0) }} l</b> = {{ formatNumber(changeCount * changeLitres, 0) }} l Neuwasser</p>
         </aside>
 
-        <div v-if="simulationReady" class="sim-results">
+        <!-- Telefon: solange das Ergebnis außer Sicht ist, zeigt eine Leiste über der Navigation die Wirkung der Einstellungen -->
+        <Transition name="sim-peek">
+          <button v-if="simulationReady && !resultsInView" type="button" class="sim-peek" @click="scrollToResults">
+            <span>Nach {{ changeCount }}×</span>
+            <strong>{{ formatNumber(simulation.deviationAfter, 0) }} Pkt.</strong>
+            <em :class="simulation.improvement >= 0 ? 'up' : 'down'">{{ simulation.improvement >= 0 ? '+' : '−' }}{{ formatNumber(Math.abs(simulation.improvement), 0) }}</em>
+            <b>Ergebnis <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></b>
+          </button>
+        </Transition>
+        <div v-if="simulationReady" ref="simResults" class="sim-results">
           <div class="panel sim-score">
             <div class="score-tile">
               <span>Abweichung jetzt</span>
@@ -379,7 +388,10 @@
                 <div v-if="source.matches?.length" class="source-matches"><b v-for="key in source.matches" :key="key">{{ elementLabel(key) }}</b></div>
               </header>
               <p>{{ source.description }}</p>
-              <ul><li v-for="check in source.checks" :key="check">{{ check }}</li></ul>
+              <button type="button" class="source-toggle" :aria-expanded="Boolean(openSources[source.key])" @click="openSources[source.key] = !openSources[source.key]">
+                {{ openSources[source.key] ? 'Prüfpunkte ausblenden' : `${source.checks.length} Prüfpunkte anzeigen` }}
+              </button>
+              <ul :class="{ closed: !openSources[source.key] }"><li v-for="check in source.checks" :key="check">{{ check }}</li></ul>
             </article>
           </div>
           <EmptyState v-else kicker="Keine Treffer" title="Keine passende Quelle" message="In dieser Analyse liegt kein unerwünschtes Element über seinem Zielbereich. Wählen Sie „Alle Quellen anzeigen“, um die vollständige Liste zu sehen." mark="QUE" tone="compact" />
@@ -390,7 +402,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js'
@@ -718,6 +730,23 @@ watch(selectedProfileId, () => {
   if (!selectedProfileAnalyses.value.some((analysis) => analysis.id === sourceAnalysisId.value)) sourceAnalysisId.value = ''
 })
 
+// Ergebnis-Leiste: sichtbar, solange kein Teil des Ergebnisses im Bild ist (nur am Telefon per CSS).
+const simResults = ref(null)
+const resultsInView = ref(true)
+let resultsObserver = null
+watch(simResults, (element) => {
+  resultsObserver?.disconnect()
+  if (!element || typeof IntersectionObserver === 'undefined') return
+  resultsObserver = new IntersectionObserver(([entry]) => { resultsInView.value = entry.isIntersecting }, { rootMargin: '0px 0px -120px 0px' })
+  resultsObserver.observe(element)
+})
+onBeforeUnmount(() => resultsObserver?.disconnect())
+async function scrollToResults() {
+  await nextTick()
+  simResults.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+const openSources = reactive({})
+
 onMounted(async () => {
   try {
     const [loadedProfiles, loadedOsmosisProfiles, loadedAnalyses] = await Promise.all([
@@ -940,18 +969,24 @@ tr.watch .dev-dot.after { background: #f59e0b; } tr.critical .dev-dot.after { ba
   .score-arrow { display: none; }
   .score-tile.gain { grid-column: 1 / -1; }
 }
+.sim-peek { display: none; }
+.source-toggle { display: none; }
 @media (max-width: 980px) {
   .tools-hero, .sim, .tool-layout { grid-template-columns: 1fr; }
   .sim-setup, .tool-layout > .tool-panel { position: static; }
+  .sim-results { scroll-margin-top: calc(var(--topbar-height, 120px) + 12px); }
 }
-@media (max-width: 640px) {
-  .panel { padding: 18px; border-radius: 20px; }
-  .tools-hero { padding: 22px 20px; border-radius: 22px; }
-  .hero-tank dl { grid-template-columns: 1fr 1fr 1fr; }
-  .sim-score { grid-template-columns: 1fr; }
-  .curve { gap: 4px; height: 150px; }
-  .curve-bar em { font-size: 9px; }
-  /* Telefon: Element, Wert nachher (jetzt darunter) und % vom Ideal – ohne Querscrollen */
+/* Ergebnistabelle je nach verfügbarer Breite: bis 1500px ohne Neuwasser, bis 1200px auch ohne Ideal */
+@media (max-width: 1500px) {
+  .sim-table .col-new { display: none; }
+}
+@media (max-width: 1200px) {
+  .sim-table table { min-width: 0; }
+  .sim-table .col-ideal { display: none; }
+}
+/* Telefon – und Laptop bis 1280px, wo das Ergebnis neben den Einstellungen nur ~330px breit ist:
+   Element, Wert nachher (jetzt darunter) und % vom Ideal, ohne Querscrollen */
+@media (max-width: 640px), (min-width: 981px) and (max-width: 1280px) {
   .sim-table table { min-width: 0; }
   .sim-table .col-now, .sim-table .col-new, .sim-table .col-ideal, .dev-track { display: none; }
   .sim-table tbody th, .sim-table td { padding: 8px 6px; }
@@ -962,6 +997,50 @@ tr.watch .dev-dot.after { background: #f59e0b; } tr.critical .dev-dot.after { ba
   .dev-num { min-width: 0; }
   .sim-table thead .dev-col { font-size: 0; }
   .sim-table thead .dev-col::after { content: '% vom Ideal'; font-size: 10px; }
+}
+@media (max-width: 640px) {
+  .panel { padding: 18px; border-radius: 20px; }
+  /* Kopf kompakt: Titel und Aquarium, die Erklärung steht im Werkzeug selbst */
+  .tools-hero { gap: 14px; padding: 18px 16px; border-radius: 22px; }
+  .tools-hero h1 { margin: 6px 0 0; font-size: 26px; }
+  .tools-hero p { display: none; }
+  .hero-tank { gap: 6px; padding: 12px; border-radius: 16px; }
+  .hero-tank select { min-height: 44px; }
+  .hero-tank dl { grid-template-columns: 1fr 1fr 1fr; margin: 2px 0 0; }
+  .hero-tank dd { font-size: 14px; }
+  /* Alle vier Werkzeuge auf einen Blick, groß genug zum Tippen */
+  .tool-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; overflow: visible; }
+  .tool-tabs button { justify-content: center; min-height: 44px; padding: 0 10px; font-size: 13.5px; }
+  /* Jetzt und nachher nebeneinander, die Verbesserung darunter */
+  .sim-score { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+  .sim-score .score-arrow { display: none; }
+  .sim-score .score-tile.gain { grid-column: 1 / -1; }
+  .score-tile { padding: 12px; border-radius: 14px; }
+  .score-tile span { font-size: 10px; }
+  .score-tile strong { font-size: 26px; }
+  .score-tile small { font-size: 11px; }
+  .sim-peek {
+    position: fixed; z-index: 110; left: 16px; right: 16px; bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 10px 8px 14px;
+    border: 1px solid rgba(0,114,206,0.18); border-radius: 16px; background: rgba(255,255,255,0.97);
+    box-shadow: 0 12px 30px rgba(10,27,67,0.22); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+  .sim-peek > * { white-space: nowrap; }
+  .sim-peek span { min-width: 0; overflow: hidden; color: var(--text-muted); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; }
+  .sim-peek strong { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .sim-peek em { padding: 2px 7px; border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .sim-peek em.up { background: #e3f6ee; color: #0f8a5f; }
+  .sim-peek em.down { background: #fdecea; color: #b53a2e; }
+  .sim-peek b { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 7px 10px; border-radius: 11px; background: var(--brand-blue); color: #fff; font-size: 12px; font-weight: 700; }
+  .sim-peek svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .sim-peek-enter-active, .sim-peek-leave-active { transition: opacity .2s, transform .2s; }
+  .sim-peek-enter-from, .sim-peek-leave-to { opacity: 0; transform: translateY(10px); }
+  /* Quellen: Prüfpunkte erst auf Tippen */
+  .source-toggle { display: inline-flex; align-items: center; min-height: 36px; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .source-item ul.closed { display: none; }
+  .curve { gap: 4px; height: 150px; }
+  .curve-bar em { font-size: 9px; }
   .recipe-row { grid-template-columns: 1fr 1fr; gap: 8px; }
   .recipe-row.head { display: none; }
   .dose-adjustments { grid-template-columns: 1fr; }
