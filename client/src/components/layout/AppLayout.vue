@@ -62,52 +62,49 @@
 
         <div class="topbar-search" @focusin="searchOpen = true" @focusout="closeSearchSoon">
           <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/></svg>
-          <input type="search" placeholder="Suche nach Aquarium, Analyse, Barcode…" v-model="searchQuery" />
+          <input
+            ref="searchInput"
+            type="search"
+            placeholder="Suche nach Aquarium, Analyse oder Funktion…"
+            v-model="searchQuery"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="topbar-search-list"
+            :aria-expanded="searchOpen"
+            :aria-activedescendant="activeResult ? `search-option-${activeResult.id}` : undefined"
+            @keydown="onSearchKeydown"
+          />
           <button v-if="searchQuery" class="search-clear" type="button" aria-label="Suche zurücksetzen" @mousedown.prevent @click="searchQuery = ''">×</button>
-          <div v-if="searchOpen" class="search-panel">
-            <div v-if="!searchQuery" class="search-help">
-              <span>Direktsuche</span>
-              <strong>Aquarien, Barcodes und Analyseberichte finden</strong>
-            </div>
-            <template v-else-if="hasSearchResults">
-              <div v-if="aquariumResults.length" class="search-group">
-                <span class="search-group-label">Aquarien</span>
+          <div v-if="searchOpen" id="topbar-search-list" class="search-panel" role="listbox" aria-label="Suchergebnisse">
+            <template v-if="searchGroups.length">
+              <div v-for="group in searchGroups" :key="group.label" class="search-group" role="group" :aria-label="group.label">
+                <span class="search-group-label">{{ group.label }}</span>
                 <button
-                  v-for="item in aquariumResults"
-                  :key="item.id"
+                  v-for="result in group.results"
+                  :id="`search-option-${result.id}`"
+                  :key="result.id"
                   type="button"
-                  class="search-result"
+                  role="option"
+                  :aria-selected="activeResult?.id === result.id"
+                  :class="['search-result', { active: activeResult?.id === result.id }]"
                   @mousedown.prevent
-                  @click="goToAquarium(item.id)"
+                  @mouseenter="activeIndex = flatResults.indexOf(result)"
+                  @click="openResult(result)"
                 >
-                  <span class="search-result-icon" v-html="iconTank"></span>
+                  <span class="search-result-icon" v-html="result.icon"></span>
                   <span class="search-result-body">
-                    <strong>{{ item.name }}</strong>
-                    <small>{{ item.aquarium_type || item.water_type }}</small>
+                    <strong>{{ result.title }}</strong>
+                    <small>{{ result.hint }}</small>
                   </span>
+                  <em v-if="result.tag" class="search-result-tag">{{ result.tag }}</em>
                 </button>
               </div>
-              <div v-if="analysisResults.length" class="search-group">
-                <span class="search-group-label">Analysen</span>
-                <button
-                  v-for="item in analysisResults"
-                  :key="item.id"
-                  type="button"
-                  class="search-result"
-                  @mousedown.prevent
-                  @click="goToAnalysis(item.id)"
-                >
-                  <span class="search-result-icon" v-html="iconChart"></span>
-                  <span class="search-result-body">
-                    <strong>{{ item.barcode }}</strong>
-                    <small>{{ item.aquariumName }} · {{ item.statusLabel }}</small>
-                  </span>
-                </button>
-              </div>
+              <p v-if="!searchQuery" class="search-foot">Tippen Sie z. B. „Wasserwechsel“, „Passwort“ oder einen Barcode.</p>
             </template>
             <div v-else class="search-help">
               <span>Keine Treffer</span>
-              <strong>Für „{{ searchQuery }}" wurde nichts gefunden</strong>
+              <strong>Für „{{ searchQuery }}“ wurde nichts gefunden</strong>
+              <small>Versuchen Sie es mit einem Becken, einem Barcode oder einer Funktion wie „Chronik“.</small>
             </div>
           </div>
         </div>
@@ -214,6 +211,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import LanguageSwitch from '@/components/LanguageSwitch.vue'
+import { quickFunctions, searchFunctions } from '@/services/searchCatalog'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -261,18 +259,50 @@ const analysisResults = computed(() => {
     .slice(0, 5)
 })
 
-const hasSearchResults = computed(() => aquariumResults.value.length > 0 || analysisResults.value.length > 0)
+// Funktionen und Bildschirme: ohne Eingabe ein paar Schnellzugriffe, sonst die passenden Treffer.
+const FUNCTION_ICONS = { home: () => iconHome, tank: () => iconTank, chart: () => iconChart, clock: () => iconClock, tool: () => iconTools, user: () => iconUser, help: () => iconLifebuoy, settings: () => iconSettings, plus: () => iconPlus }
+const functionResults = computed(() => {
+  const role = auth.user?.role || ''
+  const items = normalizedSearchQuery.value ? searchFunctions(normalizedSearchQuery.value, { role }) : quickFunctions({ role })
+  return items.map((item) => ({ id: `fn-${item.key}`, title: item.title, hint: item.hint, tag: item.group, icon: FUNCTION_ICONS[item.icon]?.() || iconTools, to: item.to }))
+})
 
-function goToAquarium(id) {
-  searchQuery.value = ''
-  searchOpen.value = false
-  router.push(`/aquariums/${id}`)
+const searchGroups = computed(() => [
+  { label: normalizedSearchQuery.value ? 'Funktionen' : 'Schnellzugriff', results: functionResults.value },
+  { label: 'Aquarien', results: aquariumResults.value.map((item) => ({ id: `aq-${item.id}`, title: item.name, hint: item.aquarium_type || item.water_type, icon: iconTank, to: `/aquariums/${item.id}` })) },
+  { label: 'Analysen', results: analysisResults.value.map((item) => ({ id: `an-${item.id}`, title: item.barcode, hint: `${item.aquariumName} · ${item.statusLabel}`, icon: iconChart, to: `/analyses/${item.id}` })) },
+].filter((group) => group.results.length))
+
+// Tastatur: Pfeile wählen, Enter öffnet, Escape schließt.
+const flatResults = computed(() => searchGroups.value.flatMap((group) => group.results))
+const activeIndex = ref(-1)
+const activeResult = computed(() => flatResults.value[activeIndex.value] || null)
+watch(normalizedSearchQuery, (query) => { activeIndex.value = query ? 0 : -1 })
+const searchInput = ref(null)
+
+function onSearchKeydown(event) {
+  const count = flatResults.value.length
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    searchOpen.value = true
+    if (!count) return
+    const step = event.key === 'ArrowDown' ? 1 : -1
+    activeIndex.value = (activeIndex.value + step + count) % count
+  } else if (event.key === 'Enter' && activeResult.value) {
+    event.preventDefault()
+    openResult(activeResult.value)
+  } else if (event.key === 'Escape') {
+    searchOpen.value = false
+    searchInput.value?.blur()
+  }
 }
 
-function goToAnalysis(id) {
+function openResult(result) {
   searchQuery.value = ''
   searchOpen.value = false
-  router.push(`/analyses/${id}`)
+  activeIndex.value = -1
+  searchInput.value?.blur()
+  router.push(result.to)
 }
 
 // Mobiles Menü: Bottom-Tabbar + „Mehr“-Sheet (wie im Hauptprojekt).
@@ -317,6 +347,7 @@ const iconUser = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" str
 const iconSettings = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/></svg>`
 const iconLifebuoy = `<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" width="20" height="20"><circle cx="11" cy="11" r="8"/><circle cx="11" cy="11" r="3.2"/><path d="M5.3 5.3l3.4 3.4M13.3 13.3l3.4 3.4M16.7 5.3l-3.4 3.4M8.7 13.3l-3.4 3.4"/></svg>`
 
+const iconPlus = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" width="17" height="17"><path d="M10 4v12M4 10h12"/></svg>`
 const iconTools  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
 
 // Navigation – Aktiv-Zustand wird aus der aktuellen Route abgeleitet.
@@ -453,7 +484,13 @@ const sheetNav = computed(() => [...mainNav, ...accountNav.value])
 .search-group + .search-group { border-top: 1px solid rgba(93,132,145,0.14); margin-top: 4px; padding-top: 8px; }
 .search-group-label { display: block; padding: 6px 10px 4px; color: var(--teal-700); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .search-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; background: none; border-radius: 12px; cursor: pointer; text-align: left; transition: background 0.12s; }
-.search-result:hover { background: var(--teal-50); }
+.search-result:hover, .search-result.active { background: var(--teal-50); }
+.search-result-tag { margin-left: auto; flex-shrink: 0; padding: 2px 7px; border-radius: 999px; background: rgba(100,130,165,0.1); color: var(--text-muted); font-size: 10px; font-style: normal; font-weight: 700; }
+.search-panel { max-height: min(70vh, 560px); overflow-y: auto; background: #fff; }
+/* Nur unser eigenes ×, nicht zusätzlich das des Browsers */
+.topbar-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.search-help small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+.search-foot { margin: 2px 6px 4px; padding: 8px 10px 4px; border-top: 1px solid rgba(93,132,145,0.14); color: var(--text-muted); font-size: 11.5px; }
 .search-result-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; color: var(--teal-600); background: var(--teal-50); }
 .search-result-body { display: flex; flex-direction: column; min-width: 0; }
 .search-result-body strong { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

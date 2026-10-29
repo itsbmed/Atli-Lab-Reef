@@ -437,6 +437,8 @@ const allAnalyses = ref([])
 const loading = ref(true)
 const selectedProfileId = ref('')
 const route = useRoute()
+// Die Suche in der Kopfleiste öffnet ein Werkzeug über ?tool=… – auch wenn Tools schon offen ist.
+watch(() => route.query.tool, (tool) => { if (tools.some((item) => item.key === tool)) activeTool.value = tool })
 
 const selectedProfile = computed(() => profiles.value.find((profile) => String(profile.id) === String(selectedProfileId.value)) || profiles.value[0])
 const selectedProfileAnalyses = computed(() => allAnalyses.value.filter((analysis) => String(analysis.profile_id) === String(selectedProfileId.value)))
