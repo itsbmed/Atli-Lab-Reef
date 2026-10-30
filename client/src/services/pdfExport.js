@@ -1,5 +1,5 @@
-// Einstellungen für den PDF-Export eines Laborberichts: Vorlagen, Inhalt, Format und
-// eine Seitenschätzung für die Vorschau. Die PDF-Erzeugung selbst folgt später.
+// Einstellungen für den PDF-Export eines Laborberichts: Vorlagen, Inhalt, Format,
+// eine Seitenschätzung für die Vorschau und die Auswahl dessen, was gedruckt wird.
 
 export const PDF_SECTIONS = Object.freeze([
   { key: 'cover', label: 'Deckblatt & Gesamtbewertung', hint: 'Aquarium, Bewertung und die wichtigsten Hinweise auf einen Blick', locked: true },
@@ -182,7 +182,44 @@ export function clearPdfSettings(storage, ownerId) {
 }
 
 // ── Druck ──────────────────────────────────────────────────────────────────────
-// Gedruckt wird im Browser (Drucken → Als PDF sichern).
+// Was der Druck aus dem Bericht übernimmt. Gedruckt wird im Browser (Drucken → Als PDF sichern);
+// dieselbe Auswahl kann später ein Server mit Headless Chrome als PDF-Datei erzeugen.
+
+// Messwertgruppen in Berichtsreihenfolge, nur die gewählten, bei „Auffällige“ nur die nicht guten Werte.
+export function printValueGroups(groups = [], settings) {
+  return groups
+    .filter((group) => settings.values.groups.includes(group.key))
+    .map((group) => ({ ...group, items: settings.values.scope === 'issues' ? group.parameters.filter((item) => item.tone !== 'good') : group.parameters }))
+    .filter((group) => group.items.length)
+}
+
+// Osmoseprobe je Gruppe: alle Werte oder nur die nachweisbaren; Gruppen ohne Zeilen fallen weg.
+export function printOsmosisGroups(groups = [], settings) {
+  return groups
+    .map((group) => ({ ...group, items: settings.osmosis.scope === 'found' ? group.items.filter((row) => row.resultStatus !== 'below_detection') : group.items }))
+    .filter((group) => group.items.length)
+}
+
+// Empfehlungen, auf Wunsch ohne die als erledigt markierten.
+export function printRecommendations(items = [], settings, completed = {}) {
+  return settings.recommendations.hideDone ? items.filter((item) => !completed[item.key]) : items
+}
+
+// Jedes Produkt einmal, in der Reihenfolge der Empfehlungen – mit Link für den QR-Code.
+export function printProducts(items = []) {
+  const seen = new Set()
+  const products = []
+  for (const item of items) {
+    for (const product of item.products || []) {
+      const name = String(product.productName || '').trim()
+      const id = name.toLocaleLowerCase('de-DE')
+      if (!name || seen.has(id)) continue
+      seen.add(id)
+      products.push({ name, note: product.productNote || '', url: product.productUrl || '', image: product.productImage || '', forTitle: item.title })
+    }
+  }
+  return products
+}
 
 // Der zuletzt gestartete Druck je Bericht – damit eine eigene Druckseite (oder später der Server) ihn lesen kann.
 const JOB_PREFIX = 'reef-pilot:pdf-job:'

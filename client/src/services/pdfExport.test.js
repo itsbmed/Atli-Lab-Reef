@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadPrintJob, savePrintJob } from './pdfExport.js'
+import { printOsmosisGroups, printProducts, printRecommendations, printValueGroups, loadPrintJob, savePrintJob } from './pdfExport.js'
 import { PDF_NOTE_LIMIT, availableSections, defaultSettings, estimatePages, loadPdfSettings, matchPreset, presetSettings, savePdfSettings, sectionSelectable, valueRowCount } from './pdfExport.js'
 
 const context = {
@@ -103,6 +103,42 @@ test('values and osmosis always print as the table; an old style choice is dropp
   const restored = loadPdfSettings(storage, 'u1', context)
   assert.equal('style' in restored.values, false)
   assert.equal(matchPreset(restored, context), 'full')
+})
+
+test('print: chosen groups, and only the outliers when asked', () => {
+  const groups = [
+    { key: 'base', parameters: [{ key: 'kh', tone: 'critical' }, { key: 'salinity', tone: 'good' }] },
+    { key: 'major', parameters: [{ key: 'ca', tone: 'good' }] },
+    { key: 'trace', parameters: [{ key: 'i', tone: 'watch' }] },
+  ]
+  const settings = defaultSettings(context)
+  settings.values.groups = ['base', 'major']
+  assert.deepEqual(printValueGroups(groups, settings).map((group) => group.items.length), [2, 1])
+  settings.values.scope = 'issues'
+  assert.deepEqual(printValueGroups(groups, settings).map((group) => [group.key, group.items.map((row) => row.key)]), [['base', ['kh']]], 'a group without outliers drops out')
+})
+
+test('print: osmosis "found" keeps only detectable values, done recommendations can be left out', () => {
+  const settings = defaultSettings(context)
+  const groups = [
+    { key: 'trace', items: [{ key: 'zn', resultStatus: 'valid' }, { key: 'cu', resultStatus: 'below_detection' }] },
+    { key: 'pollutants', items: [{ key: 'pb', resultStatus: 'below_detection' }] },
+  ]
+  assert.deepEqual(printOsmosisGroups(groups, settings).map((group) => group.items.length), [2, 1])
+  settings.osmosis.scope = 'found'
+  assert.deepEqual(printOsmosisGroups(groups, settings).map((group) => [group.key, group.items.map((row) => row.key)]), [['trace', ['zn']]])
+  const items = [{ key: 'a' }, { key: 'b' }]
+  assert.equal(printRecommendations(items, settings, { a: true }).length, 2)
+  settings.recommendations.hideDone = true
+  assert.deepEqual(printRecommendations(items, settings, { a: true }).map((item) => item.key), ['b'])
+})
+
+test('print: every product once, with its link', () => {
+  const products = printProducts([
+    { title: 'Iod anheben', products: [{ productName: 'ATI Iodine', productUrl: 'https://shop/iod' }] },
+    { title: 'Spuren', products: [{ productName: 'ati iodine', productUrl: 'x' }, { productName: 'ATI Strontium', productUrl: 'https://shop/sr' }, { productName: '' }] },
+  ])
+  assert.deepEqual(products.map((product) => [product.name, product.url, product.forTitle]), [['ATI Iodine', 'https://shop/iod', 'Iod anheben'], ['ATI Strontium', 'https://shop/sr', 'Spuren']])
 })
 
 test('print: the job is kept per report in the browser', () => {
