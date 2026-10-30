@@ -168,6 +168,7 @@ function enrichAnalysis(analysis) {
     ...analysis,
     aquariumProfile: aquarium ? {
       name: aquarium.name,
+      image: aquarium.image || '',
       waterType: aquarium.water_type,
       volumeLiters: Number(aquarium.net_volume) || 0,
       aquariumType: aquarium.aquarium_type || 'Nicht angegeben',
