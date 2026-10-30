@@ -599,6 +599,7 @@ import { formatReading } from '@/services/targetGauge'
 import PairGauges from '@/components/analyses/PairGauges.vue'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import ReportPdfDialog from '@/components/analyses/ReportPdfDialog.vue'
+import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info u. Analytik', icon: 'i' },
@@ -719,21 +720,6 @@ const visibleGroupSections = computed(() => parameterGroups.value
     return { ...group, items, issueCount: items.filter((item) => item.tone !== 'good').length }
   })
   .filter((group) => group.items.length))
-// Tabelle: Gruppen auf zwei Spalten verteilen. Mit `leftKeys` stehen diese Gruppen fest links, der Rest rechts;
-// sonst kommt jede in die kürzere Spalte, so enden beide etwa gleich.
-// Die ursprüngliche Reihenfolge bleibt als `order` erhalten, für die einspaltige Ansicht am Telefon.
-const VALUES_LEFT_GROUPS = ['basis', 'quantity', 'nutrients']
-const OSMOSIS_LEFT_GROUPS = ['trace']
-function balanceColumns(sections, leftKeys = null) {
-  const columns = [[], []]
-  const heights = [0, 0]
-  sections.forEach((group, order) => {
-    const target = leftKeys ? (leftKeys.includes(group.key) ? 0 : 1) : heights[0] <= heights[1] ? 0 : 1
-    columns[target].push({ ...group, order })
-    heights[target] += group.items.length + 2 // Kopf und Spaltenzeile zählen mit
-  })
-  return columns.filter((column) => column.length)
-}
 const explorerSummary = computed(() => {
   const scope = parameterGroups.value.find((group) => group.key === selectedGroup.value)?.label || 'allen Gruppen'
   const issues = visibleParameters.value.filter((parameter) => parameter.tone !== 'good').length
