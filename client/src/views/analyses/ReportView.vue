@@ -11,6 +11,27 @@
 
     <template v-else>
       <ReportPdfDialog v-if="analysis.status === 'completed'" :open="pdfOpen" :context="pdfContext" :owner-id="String(auth.user?.id || 'guest')" @close="pdfOpen = false" @create="onPdfCreate" />
+      <!-- Druckfassung nach den Einstellungen des PDF-Dialogs; nur im Druck sichtbar -->
+      <Teleport to="body">
+        <ReportPrintDocument
+          v-if="printSettings"
+          :analysis="analysis"
+          :settings="printSettings"
+          :groups="parameterGroups"
+          :osmosis-groups="osmosisGroupSections"
+          :recommendation-items="printRecommendationItems"
+          :completed="completedActions"
+          :dosing-items="approvedDosingItems"
+          :balance="balance"
+          :salinity="measuredSalinity"
+          :composition-unit="compositionUnit"
+          :result-label="resultLabel"
+          :target-label="parameterTargetLabel"
+          :symbol="parameterSymbol"
+          :display-value="(parameter) => formatReading(displayParameterValue(parameter))"
+          @ready="runPrint"
+        />
+      </Teleport>
       <p v-if="analysis.demo" class="simulation-notice">Beispielbericht · Für die Demo aus dem ATI-Bericht {{ analysis.reportNumber.split('-')[1] }} abgeleitet, damit Verläufe sichtbar sind – keine Labormessung.</p>
       <p v-if="analysis.simulation" class="simulation-notice">Simulation · Messwerte sind Testdaten. Produkte und Dosierangaben stammen vom Hersteller. Aquarium und Nettovolumen kommen aus dem verknüpften Profil.</p>
       <section :class="['report-hero', analysis.severity]">
@@ -599,6 +620,8 @@ import { formatReading } from '@/services/targetGauge'
 import PairGauges from '@/components/analyses/PairGauges.vue'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import ReportPdfDialog from '@/components/analyses/ReportPdfDialog.vue'
+import ReportPrintDocument from '@/components/analyses/ReportPrintDocument.vue'
+import { savePrintJob } from '@/services/pdfExport'
 import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
 
 const PARAMETER_DETAIL_TABS = [
@@ -1050,10 +1073,36 @@ const pdfContext = computed(() => ({
   dosingCount: dosingItemCount.value,
   productCount: pdfProductCount.value,
 }))
-function onPdfCreate({ pages }) {
-  actionMsg.value = `PDF mit ${pages} Seiten vorbereitet – die Erstellung wird mit dem Backend verbunden.`
-  setTimeout(() => { actionMsg.value = '' }, 3200)
+// Drucken wie beim Dosierungsplan, nur im selben Fenster: Die Auswahl aus dem Dialog landet im Browser
+// (savePrintJob), die Druckfassung wird aufgebaut und der Druckdialog geöffnet – dort „Als PDF sichern“.
+// Später kann ein Server mit Headless Chrome dieselbe Druckfassung zu einer PDF-Datei machen.
+const printSettings = ref(null)
+const printRecommendationItems = computed(() => directRecommendations.value.map((item) => ({
+  ...item,
+  products: recommendationProducts(item),
+  showDetail: showDetailBlock(item),
+})))
+let pageStyle = null
+function onPdfCreate({ settings }) {
+  savePrintJob(localStorage, analysis.value.id, settings)
+  // Papierformat gilt nur für @page – das lässt sich nicht im Komponenten-CSS binden.
+  pageStyle = document.createElement('style')
+  pageStyle.textContent = `@page { size: A4 ${settings.format.orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 12mm 12mm 14mm; }`
+  document.head.appendChild(pageStyle)
+  document.documentElement.classList.add('rp-printing')
+  printSettings.value = settings
 }
+function runPrint() {
+  window.addEventListener('afterprint', endPrint, { once: true })
+  window.print()
+}
+function endPrint() {
+  document.documentElement.classList.remove('rp-printing')
+  pageStyle?.remove()
+  pageStyle = null
+  printSettings.value = null
+}
+onBeforeUnmount(endPrint)
 </script>
 
 <style scoped>
