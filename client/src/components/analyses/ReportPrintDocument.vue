@@ -273,9 +273,11 @@ const TONE_COLORS = { critical: '#e85d4f', watch: '#f59e0b', good: '#10b981' }
 const profile = computed(() => props.analysis.aquariumProfile)
 const volume = computed(() => Number(profile.value?.volumeLiters) || 0)
 const valueGroups = computed(() => printValueGroups(props.groups, props.settings))
-const valueColumns = computed(() => balanceColumns(valueGroups.value, VALUES_LEFT_GROUPS))
+// Hochformat wie die Website, Querformat drei gleich hohe Spalten – so passen die Tabellen auf eine Seite.
+const landscape = computed(() => props.settings.format.orientation === 'landscape')
+const valueColumns = computed(() => (landscape.value ? balanceColumns(valueGroups.value, null, 3) : balanceColumns(valueGroups.value, VALUES_LEFT_GROUPS)))
 const osmosisGroups = computed(() => printOsmosisGroups(props.osmosisGroups, props.settings))
-const osmosisColumns = computed(() => balanceColumns(osmosisGroups.value, OSMOSIS_LEFT_GROUPS))
+const osmosisColumns = computed(() => (landscape.value ? balanceColumns(osmosisGroups.value, null, 3) : balanceColumns(osmosisGroups.value, OSMOSIS_LEFT_GROUPS)))
 const recommendations = computed(() => printRecommendations(props.recommendationItems, props.settings, props.completed))
 const schedule = computed(() => doseSchedule(props.dosingItems))
 const doseGridStyle = computed(() => ({ gridTemplateColumns: `minmax(140px, 1.6fr) repeat(${schedule.value.days}, minmax(44px, 1fr)) minmax(70px, 0.9fr)` }))
@@ -335,7 +337,7 @@ const topIssues = computed(() => {
   return allParameters.value
     .filter((parameter) => parameter.tone !== 'good')
     .sort((a, b) => rank[a.tone] - rank[b.tone])
-    .slice(0, props.settings.format.orientation === 'landscape' ? 4 : 7)
+    .slice(0, landscape.value ? 4 : 7)
 })
 
 // Logo absolut, damit es auch in einem Druckfenster ohne eigene Basis-URL lädt.
@@ -396,7 +398,12 @@ function formatDate(date) {
 <style scoped>
 .rp-root { color: #14213d; font: 9.5pt/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .rp-bw { filter: grayscale(1); }
-.rp-section { break-before: page; }
+/* Seiten füllen: das Deckblatt steht allein, danach fließen die Abschnitte weiter. Nur Karten, Gruppen und
+   Diagramme werden nicht geteilt; eine Überschrift bleibt bei ihrem Inhalt. */
+.rp-cover { break-after: page; }
+.rp-section + .rp-section { margin-top: 26px; }
+.rp-head, .print-heading { break-inside: avoid; break-after: avoid; }
+.compact-group, .dosing-grid, .rp-legend, .plan-footer { break-inside: avoid; }
 h3 { margin: 0; font-size: 11pt; }
 .rp-eyebrow { display: block; color: #004f93; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .rp-head { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #0072ce; }
@@ -509,6 +516,12 @@ tr.watch > th { background: linear-gradient(90deg, rgba(245,158,11,0.06), transp
 .compact-target { color: #5b6b82; font-size: 7.5pt; }
 .compact-status { color: #047857; font-weight: 700; }
 tr.critical .compact-status { color: #b53a2e; }
+/* Querformat: niedrigere Zeilen, damit die Tabellen auf eine Seite passen */
+.rp-landscape .compact-table tbody th, .rp-landscape .compact-table td { padding-block: 1.5px; }
+.rp-landscape .compact-table thead th { padding-block: 3px 2px; }
+.rp-landscape .compact-group-head { padding-block: 5px; }
+.rp-landscape .compact-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rp-landscape .compact-values, .rp-landscape .compact-column { gap: 8px; }
 .rp-legend { margin: 10px 0 0; color: #5b6b82; font-size: 7.5pt; }
 .rp-legend i { display: inline-block; width: 7px; height: 7px; margin: 0 4px 0 10px; border-radius: 50%; background: #10b981; }
 .rp-legend i:first-child { margin-left: 0; }
@@ -516,14 +529,33 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-legend i.critical { background: #e85d4f; }
 
 /* ── Diagramme: Bildschirm-Komponenten, im Druck ohne Schatten und Animation ── */
-.rp-charts { display: grid; gap: 14px; align-content: start; }
+.rp-charts { display: block; }
+.rp-charts > * + * { margin-top: 14px; }
 .rp-charts :deep(*) { animation: none !important; transition: none !important; box-shadow: none !important; }
 .rp-charts > * { min-width: 0; break-inside: avoid; }
+/* Lange Paar-Anzeigen dürfen zwischen zwei Zeilen umbrechen, damit keine halbe Seite leer bleibt */
+.rp-charts > .pg { display: block; container-type: normal; break-inside: auto; }
+.rp-charts > .pg { padding: 14px 18px; }
+.rp-charts > .pg > * + * { margin-top: 10px; }
+.rp-charts :deep(.pg-row) { padding-block: 9px; }
+.rp-charts :deep(.pg-head h3) { font-size: 16px; }
+.rp-charts :deep(.pg-rows) { display: block; }
+.rp-charts :deep(.pg-row + .pg-row) { margin-top: 7px; }
+.rp-charts :deep(.pg-row) { break-inside: avoid; }
+.rp-charts :deep(.pg-head) { break-inside: avoid; break-after: avoid; }
 /* Bedienelemente gehören nicht aufs Papier */
 .rp-charts :deep(.cmp-seg), .rp-charts :deep(.cmp-guide-hint) { display: none !important; }
 .rp-charts :deep(.cmp-toolbar) { justify-content: flex-end; }
 /* Skalenbeschriftung der Paar-Anzeigen bleibt in ihrer Karte */
 .rp-charts :deep(.tg-scale) { overflow: hidden; }
+.rp-charts > .cmp { display: block; container-type: normal; }
+.rp-charts > .cmp > * + * { margin-top: 14px; }
+/* Im Druck nur die Lesehilfe, ohne die versteckte Detailansicht; der Kasten bleibt als Ganzes zusammen */
+.rp-charts :deep(.cmp-readout > .hidden) { display: none; }
+.rp-charts :deep(.cmp-readout) { break-inside: avoid; }
+.rp-landscape .rp-charts :deep(.cmp-stage) { height: 150px; }
+.rp-landscape .rp-charts > .cmp { padding-block: 16px; }
+.rp-landscape .rp-charts > .cmp > * + * { margin-top: 8px; }
 
 /* ── Empfehlungen ── */
 .rp-action { margin-bottom: 10px; padding: 11px 14px; border: 1px solid rgba(10,27,67,0.12); border-left: 4px solid #10b981; border-radius: 12px; break-inside: avoid; }
