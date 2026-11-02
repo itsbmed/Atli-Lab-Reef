@@ -246,6 +246,7 @@
           </div>
           <div class="explorer-controls">
             <ViewSwitch :model-value="valuesView" label="Darstellung der Messwerte" @update:model-value="setValuesView" />
+            <ArrangeButton v-if="valuesView === 'table'" v-model="valuesArrange.editing" />
             <input v-model="parameterSearch" type="search" placeholder="Parameter suchen..." aria-label="Parameter suchen" />
             <select v-model="parameterStatus" aria-label="Messwerte nach Status filtern">
               <option value="all">Alle Status</option>
@@ -281,6 +282,7 @@
           </button>
         </div>
 
+        <ArrangeBar v-if="valuesView === 'table'" class="compact-arrange" :editing="valuesArrange.editing" :customized="valuesArrange.customized" :hint="ARRANGE_TABLE_HINT" @reset="valuesArrange.reset()" @done="valuesArrange.finish()" />
         <div v-if="visibleParameters.length && valuesView === 'cards'" ref="elementSections" class="element-sections" :style="{ '--sticky-top': `${stickyTop}px` }">
           <section v-for="group in visibleGroupSections" :key="group.key" :class="['element-section', `group-${group.key}`, { collapsed: collapsedGroups[group.key] }]">
             <button type="button" class="element-section-head" :aria-expanded="!collapsedGroups[group.key]" @click="toggleGroupSection(group.key)">
@@ -347,9 +349,9 @@
           </section>
         </div>
         <!-- Kompakt: alle Werte als Tabelle je Gruppe, auf breiten Bildschirmen zweispaltig -->
-        <div v-else-if="visibleParameters.length" class="compact-values">
-          <div v-for="(column, columnIndex) in balanceColumns(visibleGroupSections, VALUES_LEFT_GROUPS)" :key="columnIndex" class="compact-column">
-          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
+        <div v-else-if="visibleParameters.length" ref="valuesBoard" :class="['compact-values', { arranging: valuesArrange.editing }]">
+          <div v-for="(column, columnIndex) in valuesColumns" :key="columnIndex" :class="['compact-column', { 'arrange-empty': !column.length }]" :data-arrange-column="columnIndex">
+          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`, { 'arrange-dragging': valuesArrange.dragging === group.key }]" :style="{ order: group.order }" :data-arrange-key="group.key" @pointerdown="valuesArrange.start($event, group.key)">
             <header class="compact-group-head">
               <i class="element-section-dot" aria-hidden="true"></i>
               <strong>{{ group.label }}</strong>
@@ -425,6 +427,7 @@
           </div>
           <div class="explorer-controls">
             <ViewSwitch :model-value="valuesView" label="Darstellung der Osmosewerte" @update:model-value="setValuesView" />
+            <ArrangeButton v-if="valuesView === 'table'" v-model="osmosisArrange.editing" />
           </div>
         </div>
 
@@ -494,9 +497,10 @@
           </section>
         </div>
         <!-- Kompakt wie unter „Alle Werte“; statt eines Zielbereichs zählt nur sauber oder belastet -->
-        <div v-else class="compact-values">
-          <div v-for="(column, columnIndex) in balanceColumns(visibleOsmosisSections, OSMOSIS_LEFT_GROUPS)" :key="columnIndex" class="compact-column">
-          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`]" :style="{ order: group.order }">
+        <ArrangeBar v-if="valuesView === 'table'" class="compact-arrange" :editing="osmosisArrange.editing" :customized="osmosisArrange.customized" :hint="ARRANGE_TABLE_HINT" @reset="osmosisArrange.reset()" @done="osmosisArrange.finish()" />
+        <div v-if="valuesView !== 'cards'" ref="osmosisBoard" :class="['compact-values', { arranging: osmosisArrange.editing }]">
+          <div v-for="(column, columnIndex) in osmosisColumns" :key="columnIndex" :class="['compact-column', { 'arrange-empty': !column.length }]" :data-arrange-column="columnIndex">
+          <section v-for="group in column" :key="group.key" :class="['compact-group', `group-${group.key}`, { 'arrange-dragging': osmosisArrange.dragging === group.key }]" :style="{ order: group.order }" :data-arrange-key="group.key" @pointerdown="osmosisArrange.start($event, group.key)">
             <header class="compact-group-head">
               <i class="element-section-dot" aria-hidden="true"></i>
               <strong>{{ group.label }}</strong>
@@ -609,6 +613,9 @@
 <script setup>
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import ViewSwitch from '@/components/ui/ViewSwitch.vue'
+import ArrangeBar from '@/components/ui/ArrangeBar.vue'
+import ArrangeButton from '@/components/ui/ArrangeButton.vue'
+import { useArrangement } from '@/composables/useArrangement'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAnalysesStore } from '@/stores/analyses'
@@ -635,7 +642,7 @@ import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import ReportPdfDialog from '@/components/analyses/ReportPdfDialog.vue'
 import ReportPrintDocument from '@/components/analyses/ReportPrintDocument.vue'
 import { savePrintJob } from '@/services/pdfExport'
-import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
+import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS } from '@/services/reportColumns'
 
 const PARAMETER_DETAIL_TABS = [
   { key: 'info', label: 'Info u. Analytik', icon: 'i' },
@@ -997,6 +1004,44 @@ const visibleOsmosisSections = computed(() => (selectedOsmosisGroup.value
   ? osmosisGroupSections.value.filter((group) => group.key === selectedOsmosisGroup.value)
   : osmosisGroupSections.value))
 
+// Tabellenansicht: die Gruppen ordnet jeder selbst an (Spalte und Reihenfolge), sonst
+// gilt die feste Aufteilung. Am Telefon bleibt ohne eigene Anordnung die Gruppenfolge.
+const ARRANGE_TABLE_HINT = 'Ziehen Sie die Gruppen an ihren Platz – auch in die andere Spalte. Am Telefon kurz halten, dann ziehen.'
+const valuesBoard = ref(null)
+const osmosisBoard = ref(null)
+const arrangeOwner = computed(() => String(auth.user?.id || 'guest'))
+function fixedColumns(keys, leftKeys) {
+  return [keys.filter((key) => leftKeys.includes(key)), keys.filter((key) => !leftKeys.includes(key))]
+}
+const valuesArrange = reactive(useArrangement({
+  area: 'values',
+  ownerId: arrangeOwner,
+  keys: computed(() => parameterGroups.value.map((group) => group.key)),
+  defaults: computed(() => fixedColumns(parameterGroups.value.map((group) => group.key), VALUES_LEFT_GROUPS)),
+  container: valuesBoard,
+}))
+const osmosisArrange = reactive(useArrangement({
+  area: 'osmosis',
+  ownerId: arrangeOwner,
+  keys: computed(() => osmosisGroupSections.value.map((group) => group.key)),
+  defaults: computed(() => fixedColumns(osmosisGroupSections.value.map((group) => group.key), OSMOSIS_LEFT_GROUPS)),
+  container: osmosisBoard,
+}))
+function arrangedColumns(sections, arrange) {
+  const byKey = new Map(sections.map((group, order) => [group.key, { ...group, order }]))
+  let order = 0
+  return arrange.arrangement.columns.map((keys) => keys
+    .filter((key) => byKey.has(key))
+    .map((key) => (arrange.customized ? { ...byKey.get(key), order: order++ } : byKey.get(key))))
+}
+const valuesColumns = computed(() => arrangedColumns(visibleGroupSections.value, valuesArrange))
+const osmosisColumns = computed(() => arrangedColumns(visibleOsmosisSections.value, osmosisArrange))
+// Wer die Ansicht wechselt, beendet das Anordnen.
+watch([valuesView, activeTab], () => {
+  valuesArrange.finish()
+  osmosisArrange.finish()
+})
+
 function toggleOsmosisSection(key) {
   collapsedOsmosisGroups[key] = !collapsedOsmosisGroups[key]
 }
@@ -1303,7 +1348,8 @@ onBeforeUnmount(endPrint)
 .explorer-controls select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(0,114,206,0.1); }
 /* Kompakte Tabelle: jede Gruppe ein Block, die Blöcke fließen in Spalten – kaum Scrollen */
 .compact-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; animation: compact-in .25s ease-out; }
-.compact-column { display: grid; gap: 16px; min-width: 0; }
+.compact-column { display: grid; align-content: start; gap: 16px; min-width: 0; }
+.compact-arrange { margin-bottom: 16px; }
 .compact-group { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
 .compact-group-head { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f8fbfe; }
 .compact-group-head strong { color: var(--text); font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -1503,6 +1549,9 @@ tr.critical .compact-status { color: #b53a2e; }
 @media (max-width: 760px) {
   .compact-values { display: flex; flex-direction: column; align-items: stretch; }
   .compact-column { display: contents; }
+  /* Beim Anordnen braucht jede Spalte eine eigene Fläche, untereinander */
+  .compact-values.arranging { gap: 22px; }
+  .compact-values.arranging .compact-column { display: grid; }
 }
 @media (max-width: 600px) {
   .compact-table tbody th, .compact-table td, .compact-table thead th { padding-inline: 10px; }
