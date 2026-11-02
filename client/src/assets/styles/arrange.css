@@ -1,0 +1,70 @@
+/* Anordnen: Kästen wackeln wie die Widgets am iPhone und lassen sich ziehen (useArrangement). */
+[data-arrange-key] { position: relative; }
+.arranging [data-arrange-key] {
+  outline: 2px dashed rgba(0,114,206,0.32);
+  outline-offset: 4px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  animation: arrange-jiggle .28s ease-in-out infinite alternate;
+  animation-delay: var(--jiggle-delay, 0s);
+}
+.arranging [data-arrange-key]:nth-child(2n) { --jiggle-delay: -.14s; }
+.arranging [data-arrange-key]:nth-child(3n) { --jiggle-delay: -.07s; }
+.arranging [data-arrange-key] a,
+.arranging [data-arrange-key] button:not(.arrange-remove) { pointer-events: none; }
+.arranging [data-arrange-key].arrange-dragging {
+  z-index: 40;
+  outline: 2px solid var(--brand-blue);
+  box-shadow: 0 26px 54px -18px rgba(10,27,67,0.42);
+  cursor: grabbing;
+  animation: none;
+}
+.arranging [data-arrange-column].arrange-empty {
+  min-height: 140px;
+  border: 2px dashed #bae6fd;
+  border-radius: 18px;
+  background: rgba(239,248,255,0.6);
+}
+.arranging [data-arrange-column].arrange-empty::before {
+  content: 'Hierher ziehen';
+  display: grid;
+  place-items: center;
+  min-height: 136px;
+  color: var(--brand-blue);
+  font-size: 12px;
+  font-weight: 700;
+}
+.arrange-remove {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #64748b;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(10,27,67,0.25);
+  animation: arrange-pop .2s ease-out;
+}
+.arrange-remove:hover { background: #e85d4f; }
+
+@keyframes arrange-jiggle {
+  from { transform: rotate(-0.22deg); }
+  to { transform: rotate(0.22deg); }
+}
+@keyframes arrange-pop {
+  from { transform: scale(0.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arranging [data-arrange-key], .arrange-remove { animation: none; }
+}

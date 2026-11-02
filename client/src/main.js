@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import './assets/styles/main.css'
+import './assets/styles/arrange.css'
 import { ensureDemoUsers } from '@/services/localStore'
 import { ensureDemoAquariums } from '@/services/aquariumStore'
 
