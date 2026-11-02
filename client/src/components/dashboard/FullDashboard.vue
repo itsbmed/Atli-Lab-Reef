@@ -9,6 +9,7 @@
         <div class="head-actions">
           <RouterLink to="/analyses/activate" class="btn btn-primary">Neue Analyse registrieren</RouterLink>
           <RouterLink to="/analyses" class="btn btn-ghost">Alle Berichte</RouterLink>
+          <ArrangeButton v-model="editing" />
         </div>
       </div>
 
@@ -23,9 +24,23 @@
       </div>
     </header>
 
-    <div class="split">
+    <div class="arrange-row">
+      <ArrangeBar :editing="editing" :hidden="hiddenWidgets" :customized="customized" @show="show" @reset="reset" @done="finish" />
+    </div>
+
+    <!-- Die Kästen darunter ordnet jeder selbst an: zwei Spalten, Reihenfolge und Ausblenden. -->
+    <div ref="board" :class="['split', { arranging: editing, solo: !editing && shownColumns < 2 }]">
+      <div
+        v-for="(column, columnIndex) in arrangement.columns"
+        v-show="editing || column.some(isRendered)"
+        :key="columnIndex"
+        :class="['dash-column', columnIndex ? 'side' : 'main', { 'arrange-empty': !column.some(isRendered) }]"
+        :data-arrange-column="columnIndex"
+      >
+      <template v-for="key in column" :key="key">
       <!-- 3 · Ein Becken pro Karte, das dringendste zuerst. -->
-      <section class="panel tanks">
+      <section v-if="key === 'tanks'" class="panel tanks" v-bind="widget('tanks')">
+        <button v-if="editing" type="button" class="arrange-remove" aria-label="Ihre Aquarien ausblenden" @click="hide('tanks')">−</button>
         <header class="panel-head">
           <div>
             <h2>Ihre Aquarien</h2>
@@ -109,9 +124,9 @@
         </RouterLink>
       </section>
 
-      <aside class="side">
         <!-- 4 · Muster über alle Becken hinweg. -->
-        <section v-if="deviations.length" class="panel pattern">
+        <section v-else-if="key === 'pattern' && deviations.length" class="panel pattern" v-bind="widget('pattern')">
+          <button v-if="editing" type="button" class="arrange-remove" aria-label="Häufigste Abweichungen ausblenden" @click="hide('pattern')">−</button>
           <header class="panel-head tight">
             <div>
                 <h2>Häufigste Abweichungen</h2>
@@ -131,7 +146,8 @@
         </section>
 
         <!-- 5 · Proben ohne Ergebnis, damit klar ist, worauf gewartet wird. -->
-        <section v-if="pipeline.length" class="panel pipeline">
+        <section v-else-if="key === 'pipeline' && pipeline.length" class="panel pipeline" v-bind="widget('pipeline')">
+          <button v-if="editing" type="button" class="arrange-remove" aria-label="Unterwegs ausblenden" @click="hide('pipeline')">−</button>
           <header class="panel-head tight">
             <div>
                 <h2>Unterwegs</h2>
@@ -148,7 +164,8 @@
         </section>
 
         <!-- 6 · Die letzten Berichte als Einstieg. -->
-        <section class="panel recent">
+        <section v-else-if="key === 'recent'" class="panel recent" v-bind="widget('recent')">
+          <button v-if="editing" type="button" class="arrange-remove" aria-label="Letzte Berichte ausblenden" @click="hide('recent')">−</button>
           <header class="panel-head tight">
             <div>
                 <h2>Letzte Berichte</h2>
@@ -165,14 +182,19 @@
             <b :class="item.severity">{{ item.score }}%</b>
           </RouterLink>
         </section>
-      </aside>
+      </template>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
-import { computed, onMounted } from 'vue'
+import ArrangeBar from '@/components/ui/ArrangeBar.vue'
+import ArrangeButton from '@/components/ui/ArrangeButton.vue'
+import { computed, onMounted, ref } from 'vue'
+import { useArrangement } from '@/composables/useArrangement'
+import { useAuthStore } from '@/stores/auth'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { buildDosingPlan } from '@/services/dosingPlan'
@@ -185,6 +207,34 @@ const DAY = 86400000
 
 const aquariums = useAquariumsStore()
 const analyses = useAnalysesStore()
+const auth = useAuthStore()
+
+// Kästen unter dem Kopfband: links die breite, rechts die schmale Spalte.
+const WIDGETS = [
+  { key: 'tanks', label: 'Ihre Aquarien' },
+  { key: 'pattern', label: 'Häufigste Abweichungen' },
+  { key: 'pipeline', label: 'Unterwegs' },
+  { key: 'recent', label: 'Letzte Berichte' },
+]
+const board = ref(null)
+const { arrangement, editing, dragging, customized, start, hide, show, reset, finish } = useArrangement({
+  area: 'dashboard',
+  ownerId: computed(() => String(auth.user?.id || 'guest')),
+  keys: computed(() => WIDGETS.map((item) => item.key)),
+  defaults: computed(() => [['tanks'], ['pattern', 'pipeline', 'recent']]),
+  container: board,
+})
+const hiddenWidgets = computed(() => WIDGETS.filter((item) => arrangement.value.hidden.includes(item.key)))
+// Abweichungen und Unterwegs erscheinen nur, wenn es etwas zu zeigen gibt.
+function isRendered(key) {
+  if (key === 'pattern') return deviations.value.length > 0
+  if (key === 'pipeline') return pipeline.value.length > 0
+  return true
+}
+const shownColumns = computed(() => arrangement.value.columns.filter((column) => column.some(isRendered)).length)
+function widget(key) {
+  return { 'data-arrange-key': key, class: { 'arrange-dragging': dragging.value === key }, onPointerdown: (event) => start(event, key) }
+}
 
 onMounted(() => {
   aquariums.load()
@@ -441,9 +491,8 @@ function formatDate(date) {
   --hair: rgba(10,27,67,0.1);
   flex: 1;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   align-content: start;
-  gap: 20px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -457,7 +506,7 @@ function formatDate(date) {
 }
 /* Die Hauptspalte führt, die Seitenspalte tritt eine Stufe zurück. */
 .tanks { box-shadow: 0 1px 1px rgba(10,27,67,0.04), 0 18px 40px -24px rgba(10,27,67,0.26); }
-.side .panel { background: #fcfdfe; }
+.dash-column.side .panel { background: #fcfdfe; }
 .panel-head { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .panel-head.tight { margin-bottom: 11px; align-items: center; }
 .panel-head h2 { color: var(--text); font-size: 22px; font-weight: 700; letter-spacing: -0.015em; }
@@ -535,8 +584,16 @@ function formatDate(date) {
 .head-stat b { display: block; color: #fff; font-size: 12px; font-weight: 600; }
 .head-stat em { display: block; margin-top: 2px; color: rgba(186,214,241,0.74); font-size: 10.5px; font-style: normal; font-weight: 400; }
 
+.dashboard-head { margin-bottom: 20px; }
+.arrange-row :deep(.arrange-bar) { margin-bottom: 20px; }
+/* Auf dem dunklen Kopfband wie die übrigen hellen Schaltflächen */
+.head-actions :deep(.arrange-button:not(.on)) { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: #fff; }
+.head-actions :deep(.arrange-button:not(.on):hover) { border-color: #fff; background: rgba(255,255,255,0.2); }
+
 /* 3 · Becken */
 .split { display: grid; grid-template-columns: minmax(0, 1.68fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.split.solo { grid-template-columns: minmax(0, 1fr); }
+.dash-column { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 /* Beide Spalten beginnen oben und enden unten bündig: links wächst die
    Kartenfläche, rechts die letzte Karte. */
 .tanks { display: flex; flex-direction: column; }
@@ -549,7 +606,7 @@ function formatDate(date) {
 
 .tank-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
 @media (min-width: 1500px) {
-  .tank-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-column.main .tank-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .tank-card {
   overflow: hidden;
@@ -673,9 +730,8 @@ function formatDate(date) {
 .tanks-more b { color: var(--brand-blue); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 
 /* 4-6 · Seitenspalte */
-.side { display: flex; flex-direction: column; gap: 20px; }
-/* Die letzte Karte füllt den Rest, damit beide Spalten bündig abschließen. */
-.side > :last-child { flex: 1 1 auto; }
+/* Die letzte Karte jeder Spalte füllt den Rest, damit beide Spalten bündig abschließen. */
+.dash-column > :last-child { flex: 1 1 auto; }
 .pattern-hint { margin-bottom: 14px; color: var(--text-muted); font-size: 11.5px; font-weight: 400; line-height: 1.55; }
 .pattern-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .pattern-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -726,7 +782,7 @@ function formatDate(date) {
 
 @media (max-width: 1100px) {
   .split { grid-template-columns: 1fr; }
-  .side > :last-child { flex: 0 0 auto; }
+  .dash-column > :last-child { flex: 0 0 auto; }
   .dashboard-head { grid-template-columns: 1fr; align-items: start; }
   .head-stats { flex-wrap: wrap; }
   .head-stat { flex: 1 1 140px; }
