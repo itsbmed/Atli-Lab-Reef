@@ -26,6 +26,7 @@
           :salinity="measuredSalinity"
           :composition-unit="compositionUnit"
           :result-label="resultLabel"
+          :value-direction="valueDirection"
           :target-label="parameterTargetLabel"
           :symbol="parameterSymbol"
           :display-value="(parameter) => formatReading(displayParameterValue(parameter))"
@@ -382,7 +383,7 @@
                     </span>
                   </th>
                   <td class="num compact-value">
-                    <span class="compact-pill"><b>{{ formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
+                    <span class="compact-pill"><ValueDirection :direction="valueDirection(parameter)" /><b>{{ formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
                     <small class="compact-target-inline">Ziel {{ parameterTargetLabel(parameter) }}</small>
                   </td>
                   <td class="num compact-target">{{ parameterTargetLabel(parameter) }}</td>
@@ -521,7 +522,7 @@
                     </span>
                   </th>
                   <td class="num compact-value">
-                    <span class="compact-pill"><b>{{ isUndetectable(parameter) ? 'n. n.' : formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
+                    <span class="compact-pill"><ValueDirection :direction="parameter.tone === 'good' || isUndetectable(parameter) ? '' : 'high'" /><b>{{ isUndetectable(parameter) ? 'n. n.' : formatReading(displayParameterValue(parameter)) }}</b><small v-if="!isUndetectable(parameter)">{{ parameter.unit }}</small></span>
                     <small class="compact-target-inline">{{ osmosisStatusLabel(parameter) }}</small>
                   </td>
                   <td class="num compact-target compact-status">{{ osmosisStatusLabel(parameter) }}</td>
@@ -614,6 +615,7 @@
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import ViewSwitch from '@/components/ui/ViewSwitch.vue'
 import ArrangeBar from '@/components/ui/ArrangeBar.vue'
+import ValueDirection from '@/components/analyses/ValueDirection.vue'
 import ArrangeButton from '@/components/ui/ArrangeButton.vue'
 import { useArrangement } from '@/composables/useArrangement'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -1056,6 +1058,18 @@ function parameterDetailPanel(key) {
 }
 function selectParameterDetail(key, panel) {
   parameterDetailPanels[key] = panel
+}
+// Auffällige Werte: zu hoch oder zu niedrig – laut Originalbericht oder gemessen am Zielbereich der Anzeige.
+function valueDirection(parameter) {
+  if (parameter.tone === 'good') return ''
+  // Nicht nachweisbar und trotzdem markiert heißt: zu wenig davon im Wasser.
+  if (isUndetectable(parameter)) return 'low'
+  if (parameter.sourceDirection) return parameter.sourceDirection === 'low' ? 'low' : 'high'
+  const [minimum, maximum] = gaugeBounds(parameter)
+  const value = Number(parameter.value)
+  if (!Number.isFinite(value)) return ''
+  // Auch knapp im Bereich, aber schon markiert: Richtung zur näheren Grenze.
+  return value > (minimum + maximum) / 2 ? 'high' : 'low'
 }
 function parameterInsight(parameter) {
   if (parameter.tone === 'good') return `${parameter.label} liegt im vorgesehenen Zielbereich und unterstützt die aktuelle Systemstabilität.`

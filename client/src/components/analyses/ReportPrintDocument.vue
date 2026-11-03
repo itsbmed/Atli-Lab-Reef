@@ -48,7 +48,7 @@
             <tbody>
               <tr v-for="parameter in topIssues" :key="parameter.key" :class="parameter.tone">
                 <th scope="row"><span class="compact-element"><i class="compact-dot"></i><span class="compact-name">{{ parameter.label }}</span></span></th>
-                <td class="num"><span class="compact-pill"><b>{{ displayValue(parameter) }}</b><small>{{ parameter.unit }}</small></span></td>
+                <td class="num"><span class="compact-pill"><ValueDirection :direction="valueDirection(parameter)" /><b>{{ displayValue(parameter) }}</b><small>{{ parameter.unit }}</small></span></td>
                 <td class="num compact-target">Ziel {{ targetLabel(parameter) }}</td>
               </tr>
             </tbody>
@@ -102,7 +102,7 @@
                       <small class="compact-symbol">{{ symbol(parameter) }}</small>
                     </span>
                   </th>
-                  <td class="num"><span class="compact-pill"><b>{{ displayValue(parameter) }}</b><small v-if="!undetected(parameter)">{{ parameter.unit }}</small></span></td>
+                  <td class="num"><span class="compact-pill"><ValueDirection :direction="valueDirection(parameter)" /><b>{{ displayValue(parameter) }}</b><small v-if="!undetected(parameter)">{{ parameter.unit }}</small></span></td>
                   <td class="num compact-target">{{ targetLabel(parameter) }}</td>
                 </tr>
               </tbody>
@@ -110,7 +110,7 @@
           </section>
         </div>
       </div>
-      <p class="rp-legend"><i class="good"></i>Optimal <i class="watch"></i>Beobachten <i class="critical"></i>Kritisch · „n. n.“ = nicht nachweisbar</p>
+      <p class="rp-legend"><i class="good"></i>Optimal <i class="watch"></i>Beobachten <i class="critical"></i>Kritisch · ↑ zu hoch · ↓ zu niedrig · „n. n.“ = nicht nachweisbar</p>
     </section>
 
     <!-- Osmosewasser: ebenfalls die Tabellenansicht der Website -->
@@ -139,7 +139,7 @@
                       <small class="compact-symbol">{{ symbol(parameter) }}</small>
                     </span>
                   </th>
-                  <td class="num"><span class="compact-pill"><b>{{ undetected(parameter) ? 'n. n.' : displayValue(parameter) }}</b><small v-if="!undetected(parameter)">{{ parameter.unit }}</small></span></td>
+                  <td class="num"><span class="compact-pill"><ValueDirection :direction="parameter.tone === 'good' || undetected(parameter) ? '' : 'high'" /><b>{{ undetected(parameter) ? 'n. n.' : displayValue(parameter) }}</b><small v-if="!undetected(parameter)">{{ parameter.unit }}</small></span></td>
                   <td class="num compact-target compact-status">{{ undetected(parameter) ? 'Optimal' : 'Belastet' }}</td>
                 </tr>
               </tbody>
@@ -250,6 +250,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import PairGauges from '@/components/analyses/PairGauges.vue'
+import ValueDirection from '@/components/analyses/ValueDirection.vue'
 import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { printOsmosisGroups, printProducts, printRecommendations, printValueGroups } from '@/services/pdfExport'
 import { supplySteps } from '@/services/directRecommendations'
@@ -269,6 +270,7 @@ const props = defineProps({
   compositionUnit: { type: String, default: '' },
   resultLabel: { type: String, default: '' },
   targetLabel: { type: Function, required: true },
+  valueDirection: { type: Function, default: () => '' }, // 'high' | 'low' | ''
   displayValue: { type: Function, required: true },
   symbol: { type: Function, required: true },
 })
