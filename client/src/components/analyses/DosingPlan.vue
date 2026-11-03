@@ -13,6 +13,13 @@
       </div>
     </header>
 
+    <aside class="blocking-note" role="note">
+      <i aria-hidden="true">!</i>
+      <div><strong>Dieser Dosierungsplan gilt ausschließlich für {{ analysis.aquariumName || 'das zugeordnete Aquarium' }} (ID: {{ analysis.aquariumId || 'nicht hinterlegt' }}).</strong>
+        <p>Grundlage: Analyse {{ analysis.reportNumber || analysis.id }} · Analyse-ID {{ analysis.id }} · {{ analysisDate }}. Nicht auf andere Aquarien oder Analysen übertragen.</p>
+      </div>
+    </aside>
+
     <section v-if="managedDoses.length" class="managed-doses" aria-label="Fortlaufende Dosierung aus dem Laborbericht">
       <header><span>Direkte Empfehlung aus dem Laborbericht</span><strong>Fortlaufende Dosierung</strong></header>
       <article v-for="item in managedDoses" :key="item.key">
@@ -52,6 +59,10 @@ import DosingCalendar from '@/components/analyses/DosingCalendar.vue'
 import { formatMl } from '@/services/dosingCalendar'
 
 const props = defineProps({ analysis: { type: Object, required: true } })
+const analysisDate = computed(() => {
+  const value = props.analysis.sampledAt || props.analysis.completedAt || props.analysis.createdAt
+  return value ? new Date(value).toLocaleDateString('de-DE') : 'Analysedatum nicht hinterlegt'
+})
 const volume = computed(() => Number(props.analysis.aquariumProfile?.volumeLiters || props.analysis.aquariumProfile?.net_volume || 0))
 const supplySystem = computed(() => props.analysis.aquariumProfile?.supplySystem || 'Versorgung nicht hinterlegt')
 const corrections = computed(() => buildDosingPlan(props.analysis.parameters, volume.value))
