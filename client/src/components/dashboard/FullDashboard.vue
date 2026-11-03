@@ -86,24 +86,8 @@
                 <i :class="tank.tone" :style="{ width: `${tank.score ?? 0}%` }"></i>
               </div>
 
-              <!-- Verlauf: je Analyse eine Säule mit ihrer Wertung (Höhe = Wertung, Farbe = Zustand), dazu der Vergleich in Worten -->
-              <div v-if="tank.history" class="tank-history" role="img" :aria-label="tank.history.summary">
-                <div class="tank-history-head">
-                  <span>Letzte {{ tank.history.points.length }} Analysen</span>
-                  <b :class="tank.history.trend">{{ tank.history.trendLabel }}</b>
-                </div>
-                <ol class="tank-bars" aria-hidden="true">
-                  <li
-                    v-for="(point, index) in tank.history.points"
-                    :key="index"
-                    :class="[point.tone, { last: index === tank.history.points.length - 1 }]"
-                    :title="`Analyse vom ${point.date}`"
-                  >
-                    <small>{{ point.score }} %</small>
-                    <i :style="{ height: `${Math.max(point.score, 4) * 0.42}px` }"></i>
-                  </li>
-                </ol>
-              </div>
+              <!-- Verlauf: nur der Vergleich mit der vorigen Analyse -->
+              <p v-if="tank.history" :class="['tank-trend', tank.history.trend]" :aria-label="tank.history.summary">{{ tank.history.trendLabel }}</p>
 
               <div class="tank-foot">
                 <span :class="tank.openMeasures ? 'has-work' : 'clean'">{{ tank.statusLabel }}</span>
@@ -676,26 +660,9 @@ function formatDate(date) {
 .health-track i.critical { background: var(--coral); }
 .health-track i.watch { background: var(--amber); }
 .health-track i.good { background: var(--green); }
-.tank-history { display: grid; gap: 6px; }
-.tank-history-head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
-.tank-history-head span { color: var(--text-muted); font-size: 10.5px; font-weight: 500; }
-.tank-history-head b { font-size: 10.5px; font-weight: 600; white-space: nowrap; }
-.tank-history-head b.up { color: var(--green-ink); }
-.tank-history-head b.down { color: var(--coral); }
-.tank-history-head b.same { color: var(--text-muted); }
-.tank-bars { display: flex; gap: 6px; align-items: stretch; height: 58px; margin: 0; padding: 0 0 1px; border-bottom: 1px solid #e5eaf1; list-style: none; }
-.tank-bars li { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; max-width: 46px; min-width: 0; }
-.tank-bars small { color: var(--text-muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
-/* 100 % = 42px; darüber bleibt Platz für die Zahl */
-.tank-bars i { display: block; width: 100%; min-height: 3px; border-radius: 4px 4px 1px 1px; background: #cbd5e1; opacity: .4; }
-.tank-bars li.critical i { background: var(--coral); }
-.tank-bars li.watch i { background: var(--amber); }
-.tank-bars li.good i { background: var(--green); }
-.tank-bars li.last i { opacity: 1; }
-.tank-bars li.last small { color: var(--text); font-weight: 700; }
-.tank-bars li.last.critical small { color: var(--coral); }
-.tank-bars li.last.watch small { color: var(--amber-ink); }
-.tank-bars li.last.good small { color: var(--green-ink); }
+.tank-trend { width: fit-content; margin: 0; padding: 4px 10px; border-radius: 999px; background: #f1f5f9; color: var(--text-muted); font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.tank-trend.up { background: #dcfce7; color: var(--green-ink); }
+.tank-trend.down { background: #fdecea; color: var(--coral); }
 .tank-foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 9px; border-top: 1px solid var(--hair); }
 .tank-foot span { font-size: 11px; font-weight: 600; }
 .tank-foot .has-work { color: var(--amber-ink); }
