@@ -60,7 +60,11 @@ class AquariumRequest extends FormRequest
             'image_theme' => ['sometimes', 'nullable', 'string', 'max:30'],
             'image' => ['sometimes', 'nullable', 'string', 'starts_with:data:image/', 'max:'.self::IMAGE_MAX_LENGTH],
             'water_details' => ['sometimes', 'nullable', 'array'],
-            'evaluation_scale_id' => ['sometimes', 'nullable', 'string', 'max:50'],
+            // Globale Skalen oder eigene Zielwerte des Nutzers.
+            'evaluation_scale_id' => [
+                'sometimes', 'nullable', 'string', 'max:50',
+                Rule::exists('evaluation_scales', 'id')->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $this->user()->id)),
+            ],
         ];
     }
 
@@ -80,6 +84,7 @@ class AquariumRequest extends FormRequest
             'notes.max' => 'Die Notizen dürfen höchstens 10000 Zeichen lang sein.',
             'image.starts_with' => 'Ungültiges Bild.',
             'image.max' => 'Das Bild ist zu groß.',
+            'evaluation_scale_id.exists' => 'Diese Bewertungsskala wurde nicht gefunden.',
             // Spezifische Meldungen vor den allgemeinen – Laravel nimmt den ersten passenden Eintrag.
             'links.osmosis_source.exists' => 'Diese Osmosequelle wurde nicht gefunden.',
             'links.array' => 'Diese Verknüpfung wird nicht unterstützt.',

@@ -147,6 +147,58 @@ class ImportLegacyUsersTest extends TestCase
         $this->assertSame($newHash, $user->password);
     }
 
+    public function test_imports_only_selected_accounts_by_id_and_email(): void
+    {
+        $this->legacyUser(['id' => 1, 'email' => 'eins@example.com']);
+        $this->legacyUser(['id' => 2, 'email' => 'Zwei@Example.com']);
+        $this->legacyUser(['id' => 3, 'email' => 'drei@example.com']);
+        $this->legacyUser(['id' => 4, 'email' => 'gesperrt@example.com', 'status' => 0]);
+
+        $this->artisan('legacy:import-users', ['--id' => [1, 4, 99], '--email' => ['zwei@example.com', 'fehlt@example.com']])
+            ->expectsOutputToContain('Unbekannte alte IDs: 99')
+            ->expectsOutputToContain('Keine Konten mit diesen E-Mail-Adressen: fehlt@example.com')
+            ->expectsTable(['', 'Anzahl'], [
+                ['Neu angelegt', 2],
+                ['Aktualisiert', 0],
+                ['Übersprungen', 0],
+                ['Nicht übernommen (gelöscht/gesperrt)', 1],
+            ])
+            ->assertSuccessful();
+
+        $this->assertSame([1, 2], User::orderBy('legacy_id')->pluck('legacy_id')->all());
+    }
+
+    public function test_sample_picks_random_active_accounts_with_a_completed_analysis(): void
+    {
+        Schema::connection('legacy')->create('tanks', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('users_id');
+        });
+        Schema::connection('legacy')->create('analysis', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('tanks_id');
+            $table->tinyInteger('status');
+        });
+
+        $this->legacyUser(['id' => 1, 'email' => 'fertig@example.com']);
+        $this->legacyUser(['id' => 2, 'email' => 'offen@example.com']);
+        $this->legacyUser(['id' => 3, 'email' => 'ohne@example.com']);
+        $this->legacyUser(['id' => 4, 'email' => 'gesperrt@example.com', 'status' => 0]);
+        $this->legacyUser(['id' => 5, 'email' => 'auch-fertig@example.com']);
+        DB::connection('legacy')->table('tanks')->insert([
+            ['id' => 10, 'users_id' => 1], ['id' => 20, 'users_id' => 2], ['id' => 40, 'users_id' => 4], ['id' => 50, 'users_id' => 5],
+        ]);
+        DB::connection('legacy')->table('analysis')->insert([
+            ['tanks_id' => 10, 'status' => 2], ['tanks_id' => 20, 'status' => -1], ['tanks_id' => 40, 'status' => 2], ['tanks_id' => 50, 'status' => 2],
+        ]);
+
+        $this->artisan('legacy:import-users', ['--sample' => 1])->assertSuccessful();
+        $this->assertContains(User::sole()->legacy_id, [1, 5]);
+
+        $this->artisan('legacy:import-users', ['--sample' => 10])->assertSuccessful();
+        $this->assertSame([1, 5], User::orderBy('legacy_id')->pluck('legacy_id')->all());
+    }
+
     public function test_dry_run_writes_nothing(): void
     {
         $this->legacyUser(['id' => 1, 'email' => 'riff@example.com']);

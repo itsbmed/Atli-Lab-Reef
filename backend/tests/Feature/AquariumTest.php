@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Aquarium;
 use App\Models\AquariumLink;
+use App\Models\EvaluationScale;
 use App\Models\User;
 use Database\Seeders\DemoAquariumSeeder;
 use Database\Seeders\DemoUserSeeder;
@@ -212,6 +213,20 @@ class AquariumTest extends TestCase
         $this->actingWithToken($user)->deleteJson("/api/aquariums/{$tank->id}")->assertOk();
         $this->assertModelExists($other);
         $this->assertSame(0, AquariumLink::count());
+    }
+
+    public function test_only_global_and_own_evaluation_scales_can_be_chosen(): void
+    {
+        $user = User::factory()->create();
+        $aquarium = Aquarium::factory()->for($user)->create();
+        EvaluationScale::create(['id' => 'eigen', 'user_id' => $user->id, 'name' => ['de' => 'Eigene']]);
+        EvaluationScale::create(['id' => 'fremd', 'user_id' => User::factory()->create()->id, 'name' => ['de' => 'Fremd']]);
+        $patch = fn (string $scale) => $this->actingWithToken($user)->patchJson("/api/aquariums/{$aquarium->id}", ['evaluation_scale_id' => $scale]);
+
+        $patch('nyos')->assertOk()->assertJsonPath('aquarium.evaluation_scale_id', 'nyos');
+        $patch('eigen')->assertOk()->assertJsonPath('aquarium.evaluation_scale_id', 'eigen');
+        $patch('fremd')->assertUnprocessable()->assertJsonValidationErrors(['evaluation_scale_id' => 'Diese Bewertungsskala wurde nicht gefunden.']);
+        $patch('gibt-es-nicht')->assertUnprocessable()->assertJsonValidationErrors('evaluation_scale_id');
     }
 
     public function test_aquarium_endpoints_require_a_token(): void

@@ -206,7 +206,9 @@ const completed = computed(() => analyses.items
   .filter((item) => item.status === 'completed' && item.score !== null && item.score !== undefined)
   .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt)))
 const pipeline = computed(() => analyses.items.filter((item) => item.status !== 'completed'))
-const evaluatedCount = computed(() => new Set(completed.value.map((item) => item.aquariumId)).size)
+// Eigenständige Osmose-Berichte (ältere Laborberichte ohne Hauptanalyse) zählen nicht als Becken.
+const isTank = (aquariumId) => tanks.value.some((tank) => tank.id === aquariumId)
+const evaluatedCount = computed(() => new Set(completed.value.map((item) => item.aquariumId).filter(isTank)).size)
 
 function reportsFor(tankId) {
   return completed.value.filter((item) => item.aquariumId === tankId)
@@ -234,6 +236,7 @@ const measures = computed(() => {
   const rows = []
   for (const analysis of completed.value) {
     const tank = tanks.value.find((item) => item.id === analysis.aquariumId)
+    if (!tank) continue
     for (const recommendation of recommendationsFor(analysis)) {
       const due = dueFrom(analysis, recommendation.recheckDays)
       const overdue = due ? Math.floor((Date.now() - due.getTime()) / DAY) : null

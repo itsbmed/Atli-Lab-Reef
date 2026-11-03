@@ -17,10 +17,16 @@ use Illuminate\Support\Str;
  *
  * Wiederholbar: bereits übernommene Konten (legacy_id) werden aktualisiert und
  * behalten ihren Benutzernamen.
+ *
+ * Für Testdaten lassen sich einzelne Konten auswählen (--id, --email, --sample);
+ * anschließend mit legacy:anonymize anonymisieren.
  */
 class ImportLegacyUsers extends Command
 {
     protected $signature = 'legacy:import-users
+                            {--id=* : Nur diese Konten (alte IDs)}
+                            {--email=* : Nur diese Konten (E-Mail-Adressen)}
+                            {--sample= : Nur so viele zufällige Konten mit mindestens einer fertigen Analyse}
                             {--dry-run : Nur prüfen und zählen, nichts schreiben}
                             {--chunk=1000 : Datensätze pro Durchlauf}';
 
@@ -43,7 +49,9 @@ class ImportLegacyUsers extends Command
         $dryRun = (bool) $this->option('dry-run');
         $this->loadExistingUsers();
 
-        $legacy = DB::connection('legacy')->table('users');
+        $selected = $this->selectedIds();
+        $legacy = DB::connection('legacy')->table('users')
+            ->when($selected !== null, fn ($q) => $q->whereIn('id', $selected));
         $excluded = (clone $legacy)->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhere('status', '!=', 1))->count();
 
         $created = 0;
@@ -72,15 +80,17 @@ class ImportLegacyUsers extends Command
                 }
             });
 
-        $orphaned = count(array_diff_key($this->legacyUsernames, $activeIds));
-
-        $this->table(['', 'Anzahl'], [
+        $rows = [
             ['Neu angelegt', $created],
             ['Aktualisiert', $updated],
             ['Übersprungen', array_sum(array_map('count', $this->skipped))],
             ['Nicht übernommen (gelöscht/gesperrt)', $excluded],
-            ['Bereits übernommen, inzwischen gelöscht/gesperrt', $orphaned],
-        ]);
+        ];
+        // Bei einer Auswahl fehlen alle übrigen Konten absichtlich – nur ein Gesamtlauf erkennt Verwaiste.
+        if ($selected === null) {
+            $rows[] = ['Bereits übernommen, inzwischen gelöscht/gesperrt', count(array_diff_key($this->legacyUsernames, $activeIds))];
+        }
+        $this->table(['', 'Anzahl'], $rows);
 
         foreach ($this->skipped as $reason => $ids) {
             $this->warn(sprintf('%s: %d (alte IDs: %s)', $reason, count($ids), implode(', ', array_slice($ids, 0, 20)).(count($ids) > 20 ? ', …' : '')));
@@ -91,6 +101,55 @@ class ImportLegacyUsers extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Alte IDs der ausgewählten Konten, null = alle.
+     *
+     * @return list<int>|null
+     */
+    private function selectedIds(): ?array
+    {
+        $ids = array_map('intval', $this->option('id'));
+        $emails = array_map(fn (string $email) => mb_strtolower(trim($email)), $this->option('email'));
+        $sample = (int) $this->option('sample');
+
+        if (! $ids && ! $emails && $sample < 1) {
+            return null;
+        }
+
+        $users = DB::connection('legacy')->table('users');
+
+        if ($emails) {
+            $found = (clone $users)->whereIn(DB::raw('LOWER(email)'), $emails)->pluck('email', 'id')->map(fn ($email) => mb_strtolower($email));
+            if ($missing = array_diff($emails, $found->all())) {
+                $this->warn('Keine Konten mit diesen E-Mail-Adressen: '.implode(', ', $missing));
+            }
+            $ids = [...$ids, ...$found->keys()->map(fn ($id) => (int) $id)];
+        }
+
+        if ($sample > 0) {
+            $ids = [...$ids, ...(clone $users)
+                ->whereNull('deleted_at')->where('status', 1)
+                ->whereNotIn('id', $ids)
+                ->whereExists(fn ($q) => $q->select(DB::raw(1))
+                    ->from('tanks')
+                    ->join('analysis', 'analysis.tanks_id', '=', 'tanks.id')
+                    ->whereColumn('tanks.users_id', 'users.id')
+                    ->where('analysis.status', 2))
+                ->inRandomOrder()
+                ->limit($sample)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)];
+        }
+
+        $ids = array_values(array_unique($ids));
+        $unknown = array_diff($ids, (clone $users)->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all());
+        if ($unknown) {
+            $this->warn('Unbekannte alte IDs: '.implode(', ', $unknown));
+        }
+
+        return $ids;
     }
 
     private function loadExistingUsers(): void

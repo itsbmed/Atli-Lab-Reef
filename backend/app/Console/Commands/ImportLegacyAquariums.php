@@ -96,7 +96,7 @@ class ImportLegacyAquariums extends Command
         $this->waterTypes = [];
         $this->counts = [];
 
-        $this->users =DB::table('users')->whereNotNull('legacy_id')->pluck('id', 'legacy_id')->all();
+        $this->users = DB::table('users')->whereNotNull('legacy_id')->pluck('id', 'legacy_id')->all();
         if (! $this->users) {
             $this->warn('Es sind noch keine Konten übernommen – bitte zuerst legacy:import-users ausführen.');
         }

@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1330" height="810" viewBox="0 0 1330 810" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<style>.r{font:12px Consolas,"SF Mono",Menlo,monospace;fill:#0f172a}.k{font-size:10px;font-weight:600;fill:#64748b}.t{font-size:13px;font-weight:600;fill:#fff}.e{fill:none;stroke:#475569;stroke-width:1.4}.c{font-size:11px;fill:#334155}</style>
+<rect width="1330" height="810" fill="#ffffff"/>
+<text x="40" y="36" font-size="18" font-weight="700" fill="#0f172a">Analysen · DB-Schema</text>
+<polyline class="e" points="250,100 300,100"/>
+<text class="c" x="254" y="94" text-anchor="start">1</text>
+<text class="c" x="296" y="94" text-anchor="end">n</text>
+<polyline class="e" points="510,100 560,100"/>
+<text class="c" x="514" y="94" text-anchor="start">n</text>
+<text class="c" x="556" y="94" text-anchor="end">1</text>
+<polyline class="e" points="770,100 820,100"/>
+<text class="c" x="774" y="94" text-anchor="start">1</text>
+<text class="c" x="816" y="94" text-anchor="end">n</text>
+<polyline class="e" points="925,170 925,250"/>
+<text class="c" x="931" y="184" text-anchor="start">n</text>
+<text class="c" x="931" y="244" text-anchor="start">1</text>
+<polyline class="e" points="1030,290 1135,290 1135,152"/>
+<text class="c" x="1036" y="284" text-anchor="start">n</text>
+<text class="c" x="1141" y="166" text-anchor="start">1</text>
+<polyline class="e" points="145,152 145,250"/>
+<text class="c" x="151" y="166" text-anchor="start">1</text>
+<text class="c" x="151" y="244" text-anchor="start">n</text>
+<polyline class="e" points="250,300 300,300"/>
+<text class="c" x="254" y="294" text-anchor="start">1</text>
+<text class="c" x="296" y="294" text-anchor="end">0..1</text>
+<polyline class="e" points="330,250 330,200 220,200 220,152"/>
+<text class="c" x="336" y="244" text-anchor="start">n</text>
+<text class="c" x="226" y="166" text-anchor="start">1</text>
+<polyline class="e" points="480,250 480,200 600,200 600,152"/>
+<text class="c" x="486" y="244" text-anchor="start">n</text>
+<text class="c" x="606" y="166" text-anchor="start">1</text>
+<polyline class="e" points="510,320 560,320"/>
+<text class="c" x="514" y="314" text-anchor="start">1</text>
+<text class="c" x="556" y="314" text-anchor="end">n</text>
+<polyline class="e" points="770,320 820,320"/>
+<text class="c" x="774" y="314" text-anchor="start">n</text>
+<text class="c" x="816" y="314" text-anchor="end">1</text>
+<polyline class="e" points="665,378 665,480"/>
+<text class="c" x="671" y="392" text-anchor="start">1</text>
+<text class="c" x="671" y="474" text-anchor="start">n</text>
+<polyline class="e" points="770,525 820,525"/>
+<text class="c" x="774" y="519" text-anchor="start">n</text>
+<text class="c" x="816" y="519" text-anchor="end">1</text>
+<polyline class="e" points="405,450 405,480"/>
+<text class="c" x="399" y="464" text-anchor="end">1</text>
+<text class="c" x="411" y="476" text-anchor="start">n</text>
+<polyline class="e" points="770,650 820,650"/>
+<text class="c" x="774" y="644" text-anchor="start">1</text>
+<text class="c" x="816" y="644" text-anchor="end">n</text>
+<polyline class="e" points="250,660 560,660"/>
+<text class="c" x="254" y="654" text-anchor="start">n</text>
+<text class="c" x="556" y="654" text-anchor="end">1</text>
+<polyline class="e" points="500,450 500,466 530,466 530,630 560,630"/>
+<text class="c" x="494" y="462" text-anchor="end">n</text>
+<text class="c" x="556" y="624" text-anchor="end">0..1</text>
+<polyline class="e" points="40,488 22,488 22,740 620,740 620,702"/>
+<text class="c" x="36" y="482" text-anchor="end">1</text>
+<text class="c" x="626" y="716" text-anchor="start">n</text>
+<polyline class="e" points="1185,480 1185,152"/>
+<text class="c" x="1191" y="474" text-anchor="start">n</text>
+<text class="c" x="1191" y="166" text-anchor="start">1</text>
+<polyline class="e" points="250,483 270,483 270,400 300,400"/>
+<text class="c" x="254" y="477" text-anchor="start">1</text>
+<text class="c" x="296" y="394" text-anchor="end">n</text>
+<polyline class="e" points="250,610 285,610 285,420 300,420"/>
+<text class="c" x="254" y="604" text-anchor="start">0..1</text>
+<text class="c" x="296" y="436" text-anchor="end">n</text>
+<polyline class="e" points="145,516 145,580"/>
+<text class="c" x="151" y="530" text-anchor="start">1</text>
+<text class="c" x="151" y="574" text-anchor="start">n</text>
+<path class="e" d="M510,425 H550 V455 H659 A6,6 0 0 1 671,455 H1120 V480"/>
+<text class="c" x="514" y="440" text-anchor="start">1</text>
+<text class="c" x="1114" y="474" text-anchor="end">n</text>
+<path class="e" d="M1030,680 H1055 V461 A6,6 0 0 0 1055,449 V340 H1030"/>
+<text class="c" x="1036" y="674">n</text>
+<text class="c" x="1036" y="354">1</text>
+<path class="e" d="M510,385 H540 V410 H510"/>
+<text class="c" x="544" y="402" font-style="italic">parent_id</text>
+<g>
+<rect x="40" y="60" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M40,90 V68 a8,8 0 0 1 8,-8 H242 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
+<rect x="40" y="60" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="52" y="80">analysis_packages</text>
+<text class="r" x="52" y="107">id</text>
+<text class="k" x="240" y="107" text-anchor="end">PK</text>
+<text class="r" x="52" y="125">key</text>
+<text class="k" x="240" y="125" text-anchor="end">UQ</text>
+<text class="r" x="52" y="143">includes_osmosis</text>
+</g>
+<g>
+<rect x="300" y="60" width="210" height="74" rx="8" fill="#fff"/>
+<path d="M300,90 V68 a8,8 0 0 1 8,-8 H502 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
+<rect x="300" y="60" width="210" height="74" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="312" y="80">analysis_package_methods</text>
+<text class="r" x="312" y="107">package_id</text>
+<text class="k" x="500" y="107" text-anchor="end">PK FK</text>
+<text class="r" x="312" y="125">method_id</text>
+<text class="k" x="500" y="125" text-anchor="end">PK FK</text>
+</g>
+<g>
+<rect x="560" y="60" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M560,90 V68 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
+<rect x="560" y="60" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="572" y="80">analysis_methods</text>
+<text class="r" x="572" y="107">id</text>
+<text class="k" x="760" y="107" text-anchor="end">PK</text>
+<text class="r" x="572" y="125">key</text>
+<text class="k" x="760" y="125" text-anchor="end">UQ</text>
+<text class="r" x="572" y="143">water_type</text>
+</g>
+<g>
+<rect x="820" y="60" width="210" height="110" rx="8" fill="#fff"/>
+<path d="M820,90 V68 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
+<rect x="820" y="60" width="210" height="110" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="832" y="80">analysis_method_elements</text>
+<text class="r" x="832" y="107">method_id</text>
+<text class="k" x="1020" y="107" text-anchor="end">PK FK</text>
+<text class="r" x="832" y="125">element_id</text>
+<text class="k" x="1020" y="125" text-anchor="end">PK FK</text>
+<text class="r" x="832" y="143">is_evaluated</text>
+<text class="r" x="832" y="161">precision</text>
+</g>
+<g>
+<rect x="1080" y="60" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M1080,90 V68 a8,8 0 0 1 8,-8 H1282 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
+<rect x="1080" y="60" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="1092" y="80">element_groups</text>
+<text class="r" x="1092" y="107">id</text>
+<text class="k" x="1280" y="107" text-anchor="end">PK</text>
+<text class="r" x="1092" y="125">key</text>
+<text class="k" x="1280" y="125" text-anchor="end">UQ</text>
+<text class="r" x="1092" y="143">in_quality_index</text>
+</g>
+<g>
+<rect x="40" y="250" width="210" height="110" rx="8" fill="#fff"/>
+<path d="M40,280 V258 a8,8 0 0 1 8,-8 H242 a8,8 0 0 1 8,8 V280 Z" fill="#1d4ed8"/>
+<rect x="40" y="250" width="210" height="110" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="52" y="270">vouchers</text>
+<text class="r" x="52" y="297">id</text>
+<text class="k" x="240" y="297" text-anchor="end">PK</text>
+<text class="r" x="52" y="315">code</text>
+<text class="k" x="240" y="315" text-anchor="end">UQ</text>
+<text class="r" x="52" y="333">package_id</text>
+<text class="k" x="240" y="333" text-anchor="end">FK</text>
+<text class="r" x="52" y="351">is_free</text>
+</g>
+<g>
+<rect x="300" y="250" width="210" height="200" rx="8" fill="#fff"/>
+<path d="M300,280 V258 a8,8 0 0 1 8,-8 H502 a8,8 0 0 1 8,8 V280 Z" fill="#1d4ed8"/>
+<rect x="300" y="250" width="210" height="200" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="312" y="270">analyses</text>
+<text class="r" x="312" y="297">id</text>
+<text class="k" x="500" y="297" text-anchor="end">PK</text>
+<text class="r" x="312" y="315">user_id</text>
+<text class="k" x="500" y="315" text-anchor="end">FK</text>
+<text class="r" x="312" y="333">aquarium_id</text>
+<text class="k" x="500" y="333" text-anchor="end">FK</text>
+<text class="r" x="312" y="351">voucher_id</text>
+<text class="k" x="500" y="351" text-anchor="end">FK UQ</text>
+<text class="r" x="312" y="369">parent_id</text>
+<text class="k" x="500" y="369" text-anchor="end">FK</text>
+<text class="r" x="312" y="387">package_id</text>
+<text class="k" x="500" y="387" text-anchor="end">FK</text>
+<text class="r" x="312" y="405">method_id</text>
+<text class="k" x="500" y="405" text-anchor="end">FK</text>
+<text class="r" x="312" y="423">evaluation_scale_id</text>
+<text class="k" x="500" y="423" text-anchor="end">FK</text>
+<text class="r" x="312" y="441">status</text>
+</g>
+<g>
+<rect x="560" y="250" width="210" height="128" rx="8" fill="#fff"/>
+<path d="M560,280 V258 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V280 Z" fill="#1d4ed8"/>
+<rect x="560" y="250" width="210" height="128" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="572" y="270">analysis_results</text>
+<text class="r" x="572" y="297">analysis_id</text>
+<text class="k" x="760" y="297" text-anchor="end">PK FK</text>
+<text class="r" x="572" y="315">element_id</text>
+<text class="k" x="760" y="315" text-anchor="end">PK FK</text>
+<text class="r" x="572" y="333">value</text>
+<text class="r" x="572" y="351">band</text>
+<text class="r" x="572" y="369">target, min, max</text>
+</g>
+<g>
+<rect x="820" y="250" width="210" height="110" rx="8" fill="#fff"/>
+<path d="M820,280 V258 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V280 Z" fill="#0f766e"/>
+<rect x="820" y="250" width="210" height="110" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="832" y="270">elements</text>
+<text class="r" x="832" y="297">id</text>
+<text class="k" x="1020" y="297" text-anchor="end">PK</text>
+<text class="r" x="832" y="315">element_group_id</text>
+<text class="k" x="1020" y="315" text-anchor="end">FK</text>
+<text class="r" x="832" y="333">key</text>
+<text class="k" x="1020" y="333" text-anchor="end">UQ</text>
+<text class="r" x="832" y="351">unit</text>
+</g>
+<g>
+<rect x="40" y="460" width="210" height="56" rx="8" fill="#fff"/>
+<path d="M40,490 V468 a8,8 0 0 1 8,-8 H242 a8,8 0 0 1 8,8 V490 Z" fill="#64748b"/>
+<rect x="40" y="460" width="210" height="56" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="52" y="480">users</text>
+<text class="r" x="52" y="507">id</text>
+<text class="k" x="240" y="507" text-anchor="end">PK</text>
+</g>
+<g>
+<rect x="40" y="580" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M40,610 V588 a8,8 0 0 1 8,-8 H242 a8,8 0 0 1 8,8 V610 Z" fill="#64748b"/>
+<rect x="40" y="580" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="52" y="600">aquariums</text>
+<text class="r" x="52" y="627">id</text>
+<text class="k" x="240" y="627" text-anchor="end">PK</text>
+<text class="r" x="52" y="645">user_id</text>
+<text class="k" x="240" y="645" text-anchor="end">FK</text>
+<text class="r" x="52" y="663">evaluation_scale_id</text>
+<text class="k" x="240" y="663" text-anchor="end">FK</text>
+</g>
+<g>
+<rect x="560" y="610" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M560,640 V618 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V640 Z" fill="#0f766e"/>
+<rect x="560" y="610" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="572" y="630">evaluation_scales</text>
+<text class="r" x="572" y="657">id</text>
+<text class="k" x="760" y="657" text-anchor="end">PK</text>
+<text class="r" x="572" y="675">user_id</text>
+<text class="k" x="760" y="675" text-anchor="end">FK</text>
+<text class="r" x="572" y="693">is_built_in</text>
+</g>
+<g>
+<rect x="820" y="610" width="210" height="128" rx="8" fill="#fff"/>
+<path d="M820,640 V618 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V640 Z" fill="#0f766e"/>
+<rect x="820" y="610" width="210" height="128" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="832" y="630">evaluation_scale_thresholds</text>
+<text class="r" x="832" y="657">scale_id</text>
+<text class="k" x="1020" y="657" text-anchor="end">PK FK</text>
+<text class="r" x="832" y="675">water_type</text>
+<text class="k" x="1020" y="675" text-anchor="end">PK</text>
+<text class="r" x="832" y="693">element_id</text>
+<text class="k" x="1020" y="693" text-anchor="end">PK FK</text>
+<text class="r" x="832" y="711">target, min, max</text>
+<text class="r" x="832" y="729">crit_low … too_high</text>
+</g>
+<g>
+<rect x="300" y="480" width="210" height="74" rx="8" fill="#fff"/>
+<path d="M300,510 V488 a8,8 0 0 1 8,-8 H502 a8,8 0 0 1 8,8 V510 Z" fill="#1d4ed8"/>
+<rect x="300" y="480" width="210" height="74" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="312" y="500">analysis_addons</text>
+<text class="r" x="312" y="527">analysis_id</text>
+<text class="k" x="500" y="527" text-anchor="end">PK FK</text>
+<text class="r" x="312" y="545">addon</text>
+<text class="k" x="500" y="545" text-anchor="end">PK</text>
+</g>
+<g>
+<rect x="560" y="480" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M560,510 V488 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V510 Z" fill="#1d4ed8"/>
+<rect x="560" y="480" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="572" y="500">analysis_dosings</text>
+<text class="r" x="572" y="527">id</text>
+<text class="k" x="760" y="527" text-anchor="end">PK</text>
+<text class="r" x="572" y="545">analysis_id, element_id</text>
+<text class="k" x="760" y="545" text-anchor="end">FK</text>
+<text class="r" x="572" y="563">product_id</text>
+<text class="k" x="760" y="563" text-anchor="end">FK</text>
+</g>
+<g>
+<rect x="820" y="480" width="210" height="74" rx="8" fill="#fff"/>
+<path d="M820,510 V488 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V510 Z" fill="#0f766e"/>
+<rect x="820" y="480" width="210" height="74" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="832" y="500">products</text>
+<text class="r" x="832" y="527">id</text>
+<text class="k" x="1020" y="527" text-anchor="end">PK</text>
+<text class="r" x="832" y="545">key</text>
+<text class="k" x="1020" y="545" text-anchor="end">UQ</text>
+</g>
+<g>
+<rect x="1080" y="480" width="210" height="92" rx="8" fill="#fff"/>
+<path d="M1080,510 V488 a8,8 0 0 1 8,-8 H1282 a8,8 0 0 1 8,8 V510 Z" fill="#1d4ed8"/>
+<rect x="1080" y="480" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
+<text class="t" x="1092" y="500">analysis_group_scores</text>
+<text class="r" x="1092" y="527">analysis_id</text>
+<text class="k" x="1280" y="527" text-anchor="end">PK FK</text>
+<text class="r" x="1092" y="545">element_group_id</text>
+<text class="k" x="1280" y="545" text-anchor="end">PK FK</text>
+<text class="r" x="1092" y="563">score</text>
+</g>
+<rect x="300" y="774" width="14" height="14" rx="3" fill="#0f766e"/>
+<text class="c" x="322" y="785">Katalog (Stammdaten, Seeder)</text>
+<rect x="530" y="774" width="14" height="14" rx="3" fill="#1d4ed8"/>
+<text class="c" x="552" y="785">Bewegungsdaten</text>
+<rect x="760" y="774" width="14" height="14" rx="3" fill="#64748b"/>
+<text class="c" x="782" y="785">bestehende Tabellen</text>
+<text class="c" x="1290" y="785" text-anchor="end">PK Primärschlüssel · FK Fremdschlüssel · UQ eindeutig</text>
+</svg>

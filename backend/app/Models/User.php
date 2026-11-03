@@ -89,6 +89,14 @@ class User extends Authenticatable
         return $this->hasMany(Aquarium::class);
     }
 
+    /**
+     * @return HasMany<Analysis, $this>
+     */
+    public function analyses(): HasMany
+    {
+        return $this->hasMany(Analysis::class);
+    }
+
     public static function usernameTaken(string $username, ?string $exceptId = null): bool
     {
         return static::whereRaw('LOWER(username) = ?', [mb_strtolower(trim($username))])

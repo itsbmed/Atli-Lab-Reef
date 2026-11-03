@@ -22,7 +22,7 @@ export const profileApi = {
 export const analysisApi = {
   async list({ profile_id, status } = {}) {
     const store = useAnalysesStore()
-    store.load()
+    await store.load()
     return store.items
       .filter((item) => (!profile_id || String(item.aquariumId) === String(profile_id))
         && (!status || item.status === status))

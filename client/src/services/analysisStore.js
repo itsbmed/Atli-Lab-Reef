@@ -18,6 +18,10 @@ export const ANALYSIS_PACKAGES = [
   { key: 'standard', label: 'Standard Laboranalyse', badge: 'STD', desc: 'Basiswerte, Makros & Nährstoffe', params: '24 Parameter' },
   { key: 'pro', label: 'Pro', badge: 'PRO', desc: 'Plus Osmosewasser & erweiterte Kontrolle', params: '36 Parameter' },
   { key: 'ultimate-ms', label: 'Ultimate-MS', badge: 'MS', desc: 'Meersalz & Osmose inkl. Ultra-Spurenelemente', params: '40+ Parameter' },
+  // Pakete der Barcodes im Backend (analysis_packages)
+  { key: 'icp-oes', label: 'ICP-OES', badge: 'OES', desc: 'Laboranalyse inkl. Osmosewasser', params: '' },
+  { key: 'icp-basic', label: 'ICP-Basic', badge: 'BASIC', desc: 'Laboranalyse ohne Osmosewasser', params: '' },
+  { key: 'icp-ms', label: 'ICP-MS', badge: 'MS', desc: 'Inkl. Ultra-Spurenelemente und Osmosewasser', params: '' },
 ]
 
 export const ANALYSIS_REASONS = [
@@ -58,6 +62,17 @@ function makeId() {
   return `an-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+// Im Backend-Modus liegen die Analysen des angemeldeten Nutzers hier im Speicher
+// (befüllt vom Analysen-Store), damit die synchronen Leser unten sie weiter finden.
+let remoteAnalyses = null
+export function setRemoteAnalyses(list) {
+  remoteAnalyses = list
+}
+
+function records() {
+  return remoteAnalyses ?? read(ANALYSES_KEY, [])
+}
+
 export function getFavoriteParameters(ownerId) {
   const favorites = read(FAVORITES_KEY, {})
   return favorites[ownerId || 'guest'] || []
@@ -93,19 +108,18 @@ export function severity(analysis) {
 
 export function getAnalyses(ownerId) {
   if (!ownerId) return []
-  const all = read(ANALYSES_KEY, [])
-  return all.filter((a) => a.ownerId === ownerId)
+  return records().filter((a) => a.ownerId === ownerId)
     .map(enrichAnalysis)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
 export function getAllAnalysisRecords() {
-  return read(ANALYSES_KEY, [])
+  return records()
 }
 
 export function getAnalysis(id, ownerId) {
   if (!ownerId) return null
-  const item = read(ANALYSES_KEY, []).find((a) => a.id === id && a.ownerId === ownerId)
+  const item = records().find((a) => a.id === id && a.ownerId === ownerId)
   return item ? enrichAnalysis(item) : null
 }
 

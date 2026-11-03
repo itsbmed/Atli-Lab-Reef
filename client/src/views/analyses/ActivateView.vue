@@ -66,16 +66,17 @@
           <div class="barcode-panel">
             <label class="field">
               <span>Barcode / QR-Code</span>
-              <input v-model.trim="form.barcode" type="text" placeholder="ATI-S-2026-0001" autofocus @blur="normalizeBarcodeInput" />
+              <input v-model.trim="form.barcode" type="text" :placeholder="useBackendAuth ? 'XXXX-XXXX-XXXX-XXXX' : 'ATI-S-2026-0001'" autofocus @blur="normalizeBarcodeInput" />
               <em>Tippen Sie den Code ein oder scannen Sie den QR-Code auf dem Testkit.</em>
             </label>
-            <div v-if="form.barcode" :class="['scan-result', { invalid: !detectedPackage }]">
-              <span>{{ detectedPackage ? 'Paket erkannt' : 'Code nicht erkannt' }}</span>
+            <div v-if="form.barcode" :class="['scan-result', { invalid: !detectedPackage && voucherState !== 'checking' }]">
+              <span>{{ detectedPackage ? 'Paket erkannt' : voucherState === 'checking' ? 'Wird geprüft' : 'Code nicht erkannt' }}</span>
               <strong>{{ form.barcode }}</strong>
-              <em v-if="detectedPackage">{{ detectedPackage.label }} · {{ detectedPackage.params }}</em>
+              <em v-if="detectedPackage">{{ detectedPackage.label }}<template v-if="detectedPackage.params"> · {{ detectedPackage.params }}</template></em>
+              <em v-else-if="useBackendAuth">{{ voucherMessage }}</em>
               <em v-else>Testcodes beginnen mit ATI-S, ATI-P oder ATI-U.</em>
             </div>
-            <div class="scan-help">
+            <div v-if="!useBackendAuth" class="scan-help">
               <strong>Testcodes für die lokale Prüfung</strong>
               <p>ATI-S erkennt Standard, ATI-P erkennt Pro und ATI-U erkennt Ultimate-MS.</p>
             </div>
@@ -127,9 +128,9 @@
         <div v-if="selectedAquarium && needsOsmoseAquarium" class="osmosis-panel">
           <div class="osmosis-panel-head">
             <span>Osmosewasser</span>
-            <strong>{{ linkedOsmoseAquarium ? 'Automatisch verknüpft' : 'Quelle auswählen' }}</strong>
+            <strong>{{ !osmosisRequired ? 'Optional' : linkedOsmoseAquarium ? 'Automatisch verknüpft' : 'Quelle auswählen' }}</strong>
           </div>
-          <div v-if="linkedOsmoseAquarium" class="osmosis-source-summary">
+          <div v-if="linkedOsmoseAquarium && osmosisRequired" class="osmosis-source-summary">
             <span :class="`tank-thumb ${linkedOsmoseAquarium.image_theme}`">
               <img v-if="linkedOsmoseAquarium.image" :src="linkedOsmoseAquarium.image" alt="" />
             </span>
@@ -142,14 +143,16 @@
           <label v-else-if="osmoseAquariums.length" class="field">
             <span>Osmosewasserprofil</span>
             <select v-model="form.osmoseAquariumId">
-              <option value="">Osmoseprofil auswählen</option>
+              <option value="">{{ osmosisRequired ? 'Osmoseprofil auswählen' : 'Ohne Osmoseprobe' }}</option>
               <option v-for="a in osmoseAquariums" :key="a.id" :value="a.id">{{ a.name }} · {{ a.net_volume || '—' }} L</option>
             </select>
-            <em>{{ packageName }} enthält eine separate Osmosewasseranalyse.</em>
+            <em v-if="osmosisRequired">{{ packageName }} enthält eine separate Osmosewasseranalyse.</em>
+            <em v-else>{{ packageName }} wertet eine beigelegte Osmosewasserprobe mit aus.</em>
           </label>
           <div v-else class="osmosis-missing">
             <strong>Kein Osmosewasserprofil vorhanden</strong>
-            <span>Für {{ packageName }} wird zusätzlich eine Osmosewasserquelle benötigt.</span>
+            <span v-if="osmosisRequired">Für {{ packageName }} wird zusätzlich eine Osmosewasserquelle benötigt.</span>
+            <span v-else>Mit einem Osmoseprofil wertet {{ packageName }} auch Ihr Osmosewasser aus.</span>
             <RouterLink to="/aquariums/new">Osmoseprofil anlegen</RouterLink>
           </div>
         </div>
@@ -232,6 +235,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAquariumsStore } from '@/stores/aquariums'
 import { useAnalysesStore } from '@/stores/analyses'
 import { ANALYSIS_ADDONS, ANALYSIS_PACKAGES, ANALYSIS_REASONS } from '@/services/analysisStore'
+import { analysisApi, useBackendAuth } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -268,6 +272,43 @@ const form = ref({
   osmoseAquariumId: '',
 })
 
+// Im Backend-Modus prüft GET /api/vouchers/{code} den Barcode und liefert das Paket.
+const voucher = ref(null)
+const voucherState = ref('idle') // idle | checking | valid | used | invalid | error
+const voucherMessage = computed(() => ({
+  checking: 'Barcode wird geprüft …',
+  invalid: 'Dieser Barcode ist ungültig.',
+  used: 'Dieser Barcode wurde bereits verwendet.',
+  error: 'Der Barcode konnte nicht geprüft werden. Bitte versuchen Sie es gleich noch einmal.',
+}[voucherState.value] || ''))
+let voucherCheck = 0
+
+watch(() => form.value.barcode, (value) => {
+  if (!useBackendAuth) return
+  voucher.value = null
+  const code = sanitizeBarcode(value)
+  if (code.length < 6) {
+    voucherState.value = 'idle'
+    return
+  }
+  voucherState.value = 'checking'
+  const ticket = ++voucherCheck
+  // Erst prüfen, wenn das Tippen kurz ruht; ältere Antworten werden verworfen.
+  setTimeout(() => { if (ticket === voucherCheck) checkVoucher(code, ticket) }, 400)
+})
+
+async function checkVoucher(code, ticket) {
+  try {
+    const result = await analysisApi.voucher(code)
+    if (ticket !== voucherCheck) return
+    voucher.value = result
+    voucherState.value = result.isUsed ? 'used' : 'valid'
+  } catch (e) {
+    if (ticket !== voucherCheck) return
+    voucherState.value = e.status === 404 ? 'invalid' : 'error'
+  }
+}
+
 onMounted(() => {
   aquariums.load()
   const requestedAquarium = route.query.aquarium_id?.toString()
@@ -284,8 +325,17 @@ watch(stepIndex, (step) => {
 const selectedAquarium = computed(() => aquariums.byId(form.value.aquariumId))
 const osmoseAquariums = computed(() => aquariums.items.filter((a) => a.water_type === 'Osmosewasser'))
 const eligibleAquariums = computed(() => aquariums.items.filter((a) => a.water_type !== 'Osmosewasser'))
-const detectedPackage = computed(() => packageForBarcode(form.value.barcode))
-const needsOsmoseAquarium = computed(() => ['pro', 'ultimate-ms'].includes(form.value.package))
+const detectedPackage = computed(() => (useBackendAuth ? voucherPackage.value : packageForBarcode(form.value.barcode)))
+const voucherPackage = computed(() => {
+  if (voucherState.value !== 'valid') return null
+  const meta = packages.find((p) => p.key === voucher.value.package)
+  return { ...meta, key: voucher.value.package, label: voucher.value.packageName?.de || meta?.label || voucher.value.package }
+})
+const needsOsmoseAquarium = computed(() => (useBackendAuth
+  ? Boolean(voucherPackage.value && voucher.value.includesOsmosis)
+  : ['pro', 'ultimate-ms'].includes(form.value.package)))
+// Im Backend-Modus ist die Osmoseprobe freiwillig; der lokale Test-Speicher verlangt sie für Pro/Ultimate-MS.
+const osmosisRequired = computed(() => !useBackendAuth && needsOsmoseAquarium.value)
 const linkedOsmoseAquarium = computed(() => {
   const sourceId = selectedAquarium.value?.osmosis_source_id
   return sourceId ? osmoseAquariums.value.find((a) => a.id === sourceId) || null : null
@@ -294,7 +344,7 @@ const packageName = computed(() => packages.find((p) => p.key === form.value.pac
 const reasonName = computed(() => reasons.find((r) => r.key === form.value.reason)?.label || form.value.reason)
 const osmoseName = computed(() => {
   if (!needsOsmoseAquarium.value) return 'Nicht erforderlich'
-  return osmoseAquariums.value.find((a) => a.id === form.value.osmoseAquariumId)?.name || 'Offen'
+  return osmoseAquariums.value.find((a) => a.id === form.value.osmoseAquariumId)?.name || (osmosisRequired.value ? 'Offen' : 'Ohne Osmoseprobe')
 })
 
 watch(detectedPackage, (pkg) => {
@@ -320,11 +370,11 @@ watch(
 )
 
 const canSubmit = computed(() => {
-  return !!form.value.package && !!form.value.barcode && !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
+  return !!form.value.package && !!form.value.barcode && !!form.value.aquariumId && (!osmosisRequired.value || !!form.value.osmoseAquariumId)
 })
 const canAdvance = computed(() => {
   if (stepIndex.value === 0) return !!detectedPackage.value && sanitizeBarcode(form.value.barcode).length >= 6
-  if (stepIndex.value === 1) return !!form.value.aquariumId && (!needsOsmoseAquarium.value || !!form.value.osmoseAquariumId)
+  if (stepIndex.value === 1) return !!form.value.aquariumId && (!osmosisRequired.value || !!form.value.osmoseAquariumId)
   return true
 })
 
@@ -466,6 +516,13 @@ async function scanImageFile(e) {
 function applyScannedCode(rawValue) {
   const code = normalizeScannedCode(rawValue)
   form.value.barcode = code
+  if (useBackendAuth) {
+    // Das Paket liefert die Barcode-Prüfung (watch auf form.barcode).
+    scannerStatus.value = 'Code erkannt – wird geprüft.'
+    scannerStatusTone.value = 'success'
+    stopScanner()
+    return
+  }
   const pkg = packageForBarcode(code)
   scannerStatus.value = pkg ? `${pkg.label} erkannt. Sie können fortfahren.` : 'Code erkannt, aber keinem Paket zugeordnet.'
   scannerStatusTone.value = pkg ? 'success' : 'error'
@@ -497,15 +554,16 @@ function cameraErrorMessage(err) {
   return 'Scanner konnte nicht gestartet werden. Bitte Code manuell eingeben.'
 }
 
-function submit() {
+async function submit() {
   if (!canSubmit.value) return
   saving.value = true
   error.value = ''
   try {
-    analyses.activate({ ...form.value, barcode: sanitizeBarcode(form.value.barcode), addons: selectedAddons.value })
+    await analyses.activate({ ...form.value, barcode: sanitizeBarcode(form.value.barcode), addons: selectedAddons.value })
     router.push('/analyses')
   } catch (e) {
-    error.value = e.error || 'Analyse konnte nicht registriert werden.'
+    // Backend: { message, errors: { feld: [Meldung] } }; lokaler Speicher: { error }
+    error.value = Object.values(e.errors || {}).flat()[0] || e.error || e.message || 'Analyse konnte nicht registriert werden.'
   } finally {
     saving.value = false
   }

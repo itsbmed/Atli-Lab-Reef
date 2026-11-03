@@ -1,6 +1,8 @@
 // Zentraler Service-Layer. Die UI spricht ausschließlich über diese Datei
 // mit dem Backend — so bleibt die Oberfläche backend-agnostisch.
 
+import { activationToApi, analysisFromApi } from '@/services/analysisFromApi'
+
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // Login über das Laravel-Backend statt über den lokalen Test-Speicher.
@@ -58,6 +60,15 @@ function aquariumToApi(data) {
   delete payload.links
   if (Object.keys(links).length) payload.links = links
   return payload
+}
+
+// Analysen kommen mit allen Messwerten, weil Dashboard, Chronik und Bericht synchron daraus lesen.
+export const analysisApi = {
+  list: () => request('/analyses?include=details').then(({ analyses }) => analyses.map(analysisFromApi)),
+  activate: (data) => request('/analyses', { method: 'POST', body: JSON.stringify(activationToApi(data)) })
+    .then(({ analysis }) => analysisFromApi(analysis)),
+  // Paket, Osmose-Auswertung und ob der Barcode schon benutzt ist; 404 bei unbekanntem Code.
+  voucher: (code) => request(`/vouchers/${encodeURIComponent(code)}`).then(({ voucher }) => voucher),
 }
 
 export const aquariumApi = {
