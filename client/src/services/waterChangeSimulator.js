@@ -3,6 +3,8 @@
 //   neu = alt × (100 − p) / 100 + Neuwasser × p / 100,  p = WW-Liter × 100 / Nettoliter
 // Bewertet wird jedes Element in % seines Idealwerts; die Abweichung ist |100 − %|.
 // Die Summe der Abweichungen vorher minus nachher sind die „verbesserten Punkte“.
+// Die Mappe zeigt die Rechnung an 14 Elementen; dieselbe Formel gilt für jedes Element des Berichts.
+// Die Punkte bleiben bei den 14 der Mappe, damit sie mit ihr vergleichbar sind.
 
 export const MAX_WATER_CHANGES = 10
 
@@ -38,13 +40,34 @@ export const ABSOLUTE_OCEAN = Object.freeze({
   strontium: 8.1, boron: 4.5, fluoride: 1.3, nitrate: 0, silicon: 30, lithium: 180, zinc: 2,
 })
 
-const finite = (value) => value !== null && value !== '' && Number.isFinite(Number(value))
+// Weniger ist hier kein Mangel: Nitrat (wie in der Mappe) und die unerwünschten Elemente.
+// Unter oder auf dem Idealwert gelten sie als ideal.
+export const LOWER_IS_FINE = Object.freeze([
+  'nitrate', 'aluminium', 'antimony', 'bismuth', 'cadmium', 'lanthanum', 'lead', 'mercury', 'thallium', 'titanium', 'tungsten',
+])
+// Was ein frisch angesetztes Salz nicht mitbringt: Nährstoffe und unerwünschte Elemente.
+const NOT_IN_SALT = Object.freeze(['nitrate', 'phosphate', 'phosphorus', ...LOWER_IS_FINE])
+
+// Absolute Ocean für alle Elemente: die 14 Werte der Mappe, sonst die ATI-Referenz (= Idealwert
+// des Labors); Nährstoffe und unerwünschte Elemente mit 0.
+export function referenceSalt(ideals = {}) {
+  const salt = {}
+  for (const [key, ideal] of Object.entries(ideals)) {
+    if (finite(ideal)) salt[key] = NOT_IN_SALT.includes(key) ? 0 : Number(ideal)
+  }
+  return { ...salt, ...ABSOLUTE_OCEAN }
+}
+
+const finite = (value) => (
+  (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+  && Number.isFinite(Number(value))
+)
 
 // Anteil eines Wechsels in Prozent des Nettovolumens.
 export function changePercent(changeLitres, netLitres) {
   const net = Number(netLitres)
   const litres = Number(changeLitres)
-  if (!(net > 0) || !(litres > 0)) return 0
+  if (!finite(netLitres) || !finite(changeLitres) || !(net > 0) || !(litres > 0)) return 0
   return Math.min(100, (litres * 100) / net)
 }
 
@@ -52,9 +75,11 @@ export function mixStep(value, newWater, percent) {
   return (value * (100 - percent)) / 100 + (newWater * percent) / 100
 }
 
-// % vom Ideal. Nitrat unter seinem Idealwert gilt als ideal – zu wenig Nitrat bewertet die Mappe nicht.
+// % vom Ideal. Nitrat unter seinem Idealwert gilt als ideal – zu wenig Nitrat bewertet die Mappe nicht;
+// dasselbe gilt für die unerwünschten Elemente. Ohne positiven Idealwert gibt es keinen Prozentwert.
 export function percentOfIdeal(key, value, ideal) {
-  if (key === 'nitrate' && value < ideal) return 100
+  if (LOWER_IS_FINE.includes(key) && value <= ideal) return 100
+  if (!(ideal > 0)) return null
   return (value * 100) / ideal
 }
 
@@ -62,16 +87,22 @@ function round(value) {
   return Math.round(value * 1e9) / 1e9
 }
 
-// aquarium, osmosis, salt, ideal: { [elementKey]: Zahl }. Fehlt im Aquarium, im Salz oder beim Ideal
-// ein Wert, wird das Element übersprungen statt mit 0 gerechnet. Fehlendes Osmosewasser ist 0 (n. n.).
-export function simulateWaterChange({ aquarium = {}, osmosis = {}, salt = {}, ideal = {}, percent = 0, count = 1 } = {}) {
+// aquarium, osmosis, salt, ideal, units: { [elementKey]: Zahl | Einheit }. Gerechnet werden die 14 der
+// Mappe und jedes weitere Element mit Aquariumwert. Fehlt im Aquarium, im Salz oder beim Ideal ein Wert,
+// wird das Element übersprungen statt mit 0 gerechnet. Fehlendes Osmosewasser ist 0 (n. n.).
+export function simulateWaterChange({ aquarium = {}, osmosis = {}, salt = {}, ideal = {}, units = {}, percent = 0, count = 1 } = {}) {
   const changes = Math.round(Math.min(MAX_WATER_CHANGES, Math.max(0, Number(count) || 0)))
   const share = Math.min(100, Math.max(0, Number(percent) || 0))
   const rows = []
   const skipped = []
-  for (const { key, unit } of SIMULATION_ELEMENTS) {
+  const elements = [
+    ...SIMULATION_ELEMENTS,
+    ...Object.keys(aquarium).filter((key) => !SIMULATION_KEYS.includes(key)).map((key) => ({ key, unit: units[key] || '' })),
+  ]
+  for (const { key, unit } of elements) {
+    const scored = SIMULATION_KEYS.includes(key)
     const idealValue = Number(ideal[key])
-    if (!finite(aquarium[key]) || !finite(salt[key]) || !(idealValue > 0)) {
+    if (!finite(aquarium[key]) || !finite(salt[key]) || !finite(ideal[key]) || !(idealValue > 0 || (!scored && idealValue === 0))) {
       skipped.push(key)
       continue
     }
@@ -86,18 +117,20 @@ export function simulateWaterChange({ aquarium = {}, osmosis = {}, salt = {}, id
     const pctBefore = percentOfIdeal(key, before, idealValue)
     const pctAfter = percentOfIdeal(key, value, idealValue)
     rows.push({
-      key, unit, before, newWater, steps, after: value, ideal: idealValue,
+      key, unit, scored, before, newWater, steps, after: value, ideal: idealValue,
       pctBefore, pctAfter,
-      devBefore: Math.abs(100 - pctBefore),
-      devAfter: Math.abs(100 - pctAfter),
+      devBefore: pctBefore === null ? null : Math.abs(100 - pctBefore),
+      devAfter: pctAfter === null ? null : Math.abs(100 - pctAfter),
     })
   }
-  const sum = (field) => round(rows.reduce((total, row) => total + row[field], 0))
-  const mean = (field) => (rows.length ? round(sum(field) / rows.length) : 0)
+  const scoredRows = rows.filter((row) => row.scored)
+  const sum = (field) => round(scoredRows.reduce((total, row) => total + row[field], 0))
+  const mean = (field) => (scoredRows.length ? round(sum(field) / scoredRows.length) : 0)
   const deviationBefore = sum('devBefore')
   const deviationAfter = sum('devAfter')
   return {
     rows,
+    scoredCount: scoredRows.length,
     skipped,
     percent: share,
     count: changes,
@@ -119,6 +152,7 @@ export function deviationCurve(input, max = MAX_WATER_CHANGES) {
 
 // Der Wechsel, ab dem der nächste weniger als `minGain` Punkte bringt (Kosten-Nutzen).
 export function sensibleCount(curve, minGain = 5) {
+  if (curve.length < 2 || curve[0].deviation - curve[1].deviation < minGain) return 0
   for (let index = 1; index < curve.length; index += 1) {
     const gainNext = index + 1 < curve.length ? curve[index].deviation - curve[index + 1].deviation : 0
     if (gainNext < minGain) return index
@@ -126,17 +160,19 @@ export function sensibleCount(curve, minGain = 5) {
   return curve.length - 1
 }
 
-// Werte eines Laborberichts für die Simulation: Messwert (n. n. = 0) und der Idealwert des Labors.
+// Werte eines Laborberichts für die Simulation: Messwert (n. n. = 0), Idealwert des Labors und Einheit –
+// für alle Elemente des Berichts.
 export function valuesFromParameters(parameters = []) {
   const values = {}
   const ideals = {}
+  const units = {}
   for (const parameter of parameters) {
-    if (!SIMULATION_KEYS.includes(parameter.key)) continue
+    if (!parameter.key) continue
     const undetectable = parameter.resultStatus === 'below_detection'
-    const value = undetectable ? 0 : Number(parameter.value)
-    if (Number.isFinite(value)) values[parameter.key] = value
-    const ideal = Number(parameter.sourceIdealValue ?? parameter.correctionTarget)
-    if (ideal > 0) ideals[parameter.key] = ideal
+    if (undetectable || finite(parameter.value)) values[parameter.key] = undetectable ? 0 : Number(parameter.value)
+    const ideal = parameter.sourceIdealValue ?? parameter.correctionTarget
+    if (finite(ideal) && (Number(ideal) > 0 || (Number(ideal) === 0 && LOWER_IS_FINE.includes(parameter.key)))) ideals[parameter.key] = Number(ideal)
+    if (parameter.unit) units[parameter.key] = parameter.unit
   }
-  return { values, ideals }
+  return { values, ideals, units }
 }
