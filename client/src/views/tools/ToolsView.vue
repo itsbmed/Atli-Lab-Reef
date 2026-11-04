@@ -33,7 +33,7 @@
             <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
           <dl>
-            <div><dt>Nettovolumen</dt><dd>{{ netLitres ? `${formatNumber(netLitres, 0)} l` : '–' }}</dd></div>
+            <div><dt>Nettovolumen</dt><dd>{{ netLitres ? formatVolume(netLitres) : '–' }}</dd></div>
             <div><dt>Berichte</dt><dd>{{ selectedProfileAnalyses.length }}</dd></div>
             <div><dt>Letzter Bericht</dt><dd>{{ latestAnalysis ? formatDate(analysisDate(latestAnalysis)) : '–' }}</dd></div>
           </dl>
@@ -68,8 +68,23 @@
             <h2>So wird gewechselt</h2>
           </header>
 
+          <!-- Dasselbe Aquarium wie oben im Kopf – hier, damit alle Einstellungen beisammen sind -->
           <div class="setup-step">
             <span class="step-no">1</span>
+            <div class="step-body">
+              <label for="sim-tank">Aquarium</label>
+              <div class="sim-tank">
+                <span class="sim-tank-photo" :style="{ backgroundImage: heroBackground }" aria-hidden="true"></span>
+                <select id="sim-tank" v-model="selectedProfileId">
+                  <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
+              </div>
+              <small>{{ netLitres ? `${formatVolume(netLitres)} Nettovolumen` : 'Kein Nettovolumen hinterlegt' }} · {{ selectedProfile?.water_type || 'Wasserart offen' }}</small>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <span class="step-no">2</span>
             <div class="step-body">
               <label for="sim-report">Ausgangswerte</label>
               <select id="sim-report" v-model="simReportId" :disabled="!selectedProfileAnalyses.length">
@@ -81,7 +96,7 @@
           </div>
 
           <div class="setup-step">
-            <span class="step-no">2</span>
+            <span class="step-no">3</span>
             <div class="step-body">
               <label for="sim-osmosis">Osmosewasser</label>
               <select id="sim-osmosis" v-model="osmosisProfileId">
@@ -93,7 +108,7 @@
           </div>
 
           <div class="setup-step">
-            <span class="step-no">3</span>
+            <span class="step-no">4</span>
             <div class="step-body">
               <span class="step-label" id="sim-salt-label">Salz</span>
               <div class="salt-options" role="radiogroup" aria-labelledby="sim-salt-label">
@@ -119,22 +134,26 @@
           </div>
 
           <div class="setup-step">
-            <span class="step-no">4</span>
+            <span class="step-no">5</span>
             <div class="step-body">
               <label for="sim-litres">Wasser je Wechsel</label>
+              <div class="volume-units" role="group" aria-label="Volumeneinheit">
+                <button type="button" :aria-pressed="volumeUnit === 'l'" @click="volumeUnit = 'l'">Liter</button>
+                <button type="button" :aria-pressed="volumeUnit === 'gal'" @click="volumeUnit = 'gal'">US-Gallonen</button>
+              </div>
               <div class="litres-input">
-                <input id="sim-litres" v-model.number="changeLitres" type="number" min="1" :max="netLitres || 1" step="1" @change="normalizeLitres" />
-                <span>l</span>
+                <input id="sim-litres" v-model.number="displayChangeVolume" type="number" :min="1 / litresPerUnit" :max="(netLitres || 1) / litresPerUnit" step="any" @change="normalizeLitres" />
+                <span>{{ volumeUnit }}</span>
                 <b>{{ formatNumber(simPercent, 1) }} %</b>
               </div>
-              <input v-model.number="changeLitres" class="litres-range" type="range" min="1" :max="Math.max(1, Math.round(netLitres * 0.6))" step="1" aria-label="Wasser je Wechsel in Litern" />
-              <small v-if="profileMaxLitres">Höchstmenge laut Profil: <b>{{ formatNumber(profileMaxLitres, 0) }} l</b> · <button type="button" class="link" @click="changeLitres = profileMaxLitres">übernehmen</button></small>
+              <input v-model.number="displayChangeVolume" class="litres-range" type="range" :min="1 / litresPerUnit" :max="Math.max(1, Math.round(netLitres * 0.6)) / litresPerUnit" :step="volumeUnit === 'l' ? 1 : 0.1" :aria-label="`Wasser je Wechsel in ${volumeUnit === 'l' ? 'Litern' : 'US-Gallonen'}`" />
+              <small v-if="profileMaxLitres">Höchstmenge laut Profil: <b>{{ formatVolume(profileMaxLitres) }}</b> · <button type="button" class="link" @click="changeLitres = profileMaxLitres; normalizeLitres()">übernehmen</button></small>
               <small v-else>Im Profil ist keine Höchstmenge hinterlegt. <RouterLink :to="`/aquariums/${selectedProfileId}`">Im Aquarium ergänzen</RouterLink></small>
             </div>
           </div>
 
           <div class="setup-step">
-            <span class="step-no">5</span>
+            <span class="step-no">6</span>
             <div class="step-body">
               <span class="step-label" id="sim-count-label">Anzahl Wechsel</span>
               <div class="count-chips" role="radiogroup" aria-labelledby="sim-count-label">
@@ -143,7 +162,7 @@
             </div>
           </div>
 
-          <p class="setup-total"><b>{{ changeCount }} × {{ formatNumber(changeLitres, 0) }} l</b> = {{ formatNumber(changeCount * changeLitres, 0) }} l Neuwasser</p>
+          <p class="setup-total"><b>{{ changeCount }} × {{ formatVolume(changeLitres) }}</b> = {{ formatVolume(changeCount * changeLitres) }} Neuwasser</p>
         </aside>
 
         <!-- Telefon: solange das Ergebnis außer Sicht ist, zeigt eine Leiste über der Navigation die Wirkung der Einstellungen -->
@@ -160,7 +179,7 @@
             <div class="score-tile">
               <span>Abweichung jetzt</span>
               <strong>{{ formatNumber(simulation.deviationBefore, 1) }}</strong>
-              <small>Punkte · Summe über {{ simulation.rows.length }} Elemente</small>
+              <small>Punkte · Summe über die {{ simulation.scoredCount }} Leitelemente</small>
             </div>
             <svg class="score-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
             <div class="score-tile">
@@ -171,7 +190,7 @@
             <div :class="['score-tile', 'gain', simulation.improvement >= 0 ? 'up' : 'down']">
               <span>{{ simulation.improvement >= 0 ? 'Verbessert' : 'Verschlechtert' }}</span>
               <strong>{{ simulation.improvement >= 0 ? '+' : '−' }}{{ formatNumber(Math.abs(simulation.improvement), 1) }}</strong>
-              <small>Punkte · {{ improvementShare }} % weniger Abweichung</small>
+              <small>Punkte · {{ improvementShare }} % {{ simulation.improvement >= 0 ? 'weniger' : 'mehr' }} Abweichung</small>
             </div>
           </div>
 
@@ -208,36 +227,68 @@
               </div>
               <span class="legend"><i class="good"></i>±{{ BALANCE_BAND }} % <i class="watch"></i>±{{ BALANCE_BAND * 2 }} % <i class="critical"></i>darüber</span>
             </header>
-            <div class="table-scroll">
+            <!-- Alle Werte des Berichts; berechnet werden nur die Elemente mit Salz- und Idealwert -->
+            <div class="sim-filter">
+              <label class="sim-search">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="m13.2 13.2 3.3 3.3" /></svg>
+                <input v-model.trim="simQuery" type="search" placeholder="Element suchen" aria-label="Element suchen" />
+              </label>
+              <div class="sim-chips" role="group" aria-label="Werte filtern">
+                <button v-for="option in simFilterOptions" :key="option.key" type="button" :aria-pressed="simFilter === option.key" @click="simFilter = option.key">
+                  {{ option.label }} <small>{{ option.count }}</small>
+                </button>
+              </div>
+            </div>
+            <div v-if="visibleSimRows.length" class="table-scroll">
               <table>
                 <thead>
-                  <tr><th scope="col">Element</th><th scope="col" class="num col-now">Jetzt</th><th scope="col" class="num col-new">Neuwasser</th><th scope="col" class="num">Nachher</th><th scope="col" class="num col-ideal">Ideal</th><th scope="col" class="dev-col">% vom Ideal · vorher → nachher</th></tr>
+                  <tr><th scope="col">Element</th><th scope="col" class="num col-now">Jetzt</th><th scope="col" class="num col-new">Neuwasser</th><th scope="col" class="num">Nachher</th><th scope="col" class="num col-ideal">Ideal</th><th scope="col" class="dev-col">Abweichung vom Ideal · nachher</th></tr>
                 </thead>
-                <tbody>
-                  <tr v-for="row in tableRows" :key="row.key" :class="row.tone">
-                    <th scope="row"><span class="el"><i aria-hidden="true"></i><b>{{ row.label }}</b><small>{{ row.symbol }}</small></span></th>
-                    <td class="num muted col-now">{{ formatValue(row.key, row.before) }}</td>
-                    <td class="num muted col-new">{{ formatValue(row.key, row.newWater) }}</td>
-                    <td class="num"><span class="pill">{{ formatValue(row.key, row.after) }}<small>{{ row.unit }}</small></span><small class="was">jetzt {{ formatValue(row.key, row.before) }}</small></td>
-                    <td class="num muted col-ideal">{{ formatValue(row.key, row.ideal) }}</td>
-                    <td class="dev-col">
-                      <span class="dev-track" :aria-label="`${formatNumber(row.pctBefore, 0)} % → ${formatNumber(row.pctAfter, 0)} %`">
-                        <span class="dev-band" :style="bandStyle"></span>
-                        <span class="dev-mid"></span>
-                        <span class="dev-move" :style="moveStyle(row)"></span>
-                        <span class="dev-dot before" :style="{ left: `${devPos(row.pctBefore)}%` }"></span>
-                        <span class="dev-dot after" :style="{ left: `${devPos(row.pctAfter)}%` }"></span>
-                      </span>
-                      <span class="dev-num">{{ formatNumber(row.pctBefore, 0) }} → <b>{{ formatNumber(row.pctAfter, 0) }} %</b></span>
-                    </td>
+                <!-- Je Gruppe ein eigener Abschnitt, wie unter „Alle Werte“ im Bericht -->
+                <tbody v-for="group in simGroups" :key="group.key" :class="['sim-group', `group-${group.key}`]">
+                  <tr class="sim-group-head">
+                    <th colspan="6" scope="colgroup">
+                      <span><i :style="{ background: group.color }" aria-hidden="true"></i>{{ group.label }}<b>{{ group.rows.length }}</b><em v-if="group.off">{{ group.off }} außerhalb</em></span>
+                    </th>
                   </tr>
+                  <template v-for="row in group.rows" :key="row.key">
+                    <tr v-if="row.simulated" :class="row.tone">
+                      <th scope="row"><span class="el"><i aria-hidden="true"></i><b>{{ row.label }}</b><small>{{ row.symbol }}</small></span></th>
+                      <td class="num muted col-now">{{ formatValue(row.key, row.before) }}</td>
+                      <td class="num muted col-new">{{ formatValue(row.key, row.newWater) }}</td>
+                      <td class="num"><span class="pill"><ValueDirection :direction="row.direction" />{{ formatValue(row.key, row.after) }}<small>{{ row.unit }}</small></span><small class="was">jetzt {{ formatValue(row.key, row.before) }}</small></td>
+                      <td class="num muted col-ideal">{{ formatValue(row.key, row.ideal) }}</td>
+                      <td v-if="row.pctAfter === null" class="dev-col"><span class="unsim-note">Idealwert 0 – kein Prozentwert</span></td>
+                      <td v-else class="dev-col">
+                        <TargetGauge
+                          class="sim-gauge"
+                          :value="row.pctAfter - 100"
+                          :min="-BALANCE_BAND"
+                          :max="BALANCE_BAND"
+                          :label="signedPercent(row.pctAfter - 100)"
+                          tick-suffix=" %"
+                          zone-label="ideal"
+                          :far-beyond="BALANCE_BAND"
+                        />
+                        <span class="dev-num"><b>{{ signedPercent(row.pctAfter - 100) }}</b><small>vorher {{ signedPercent(row.pctBefore - 100) }}</small></span>
+                      </td>
+                    </tr>
+                    <tr v-else class="unsimulated">
+                      <th scope="row"><span class="el"><i aria-hidden="true"></i><b>{{ row.label }}</b><small>{{ row.symbol }}</small></span></th>
+                      <td class="num muted col-now">{{ row.undetectable ? 'n. n.' : formatValue(row.key, row.before) }}</td>
+                      <td class="num muted col-new">–</td>
+                      <td class="num muted">–<small class="was">jetzt {{ row.undetectable ? 'n. n.' : `${formatValue(row.key, row.before)} ${row.unit}` }}</small></td>
+                      <td class="num muted col-ideal">–</td>
+                      <td class="dev-col"><span class="unsim-note">Nicht berechnet – {{ row.reason }}</span></td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
-            <p v-if="skippedLabels.length" class="sim-skipped">Nicht berechnet, weil der Bericht oder das Salz keinen Wert enthält: {{ skippedLabels.join(', ') }}.</p>
+            <p v-else class="sim-skipped">Kein Wert passt zu diesem Filter. <button type="button" class="link" @click="simQuery = ''; simFilter = 'all'">Filter zurücksetzen</button></p>
           </div>
 
-          <p class="disclaimer">Neuwasser = Osmosewasser + Salz. Jeder Wechsel tauscht {{ formatNumber(simPercent, 1) }} % des Nettovolumens; der nächste rechnet mit dem Ergebnis des vorigen. Abweichung = Abstand zu 100 % vom Ideal; Nitrat unter seinem Idealwert zählt als ideal. Das Ergebnis hängt davon ab, wie sich die Werte seit der Probenentnahme verändert haben – keine Gewähr für die Richtigkeit.</p>
+          <p class="disclaimer">Neuwasser = Osmosewasser + Salz. Jeder Wechsel tauscht {{ formatNumber(simPercent, 1) }} % des Nettovolumens; der nächste rechnet mit dem Ergebnis des vorigen. Abweichung = Abstand zu 100 % vom Ideal; Nitrat und unerwünschte Elemente unter ihrem Idealwert zählen als ideal. Gerechnet wird jedes Element des Berichts; die Punkte zählen die 14 Leitelemente. Absolute Ocean bringt die ATI-Referenzwerte mit, aber keine Nährstoffe und keine unerwünschten Elemente. Das Ergebnis hängt davon ab, wie sich die Werte seit der Probenentnahme verändert haben – keine Gewähr für die Richtigkeit.</p>
         </div>
 
         <EmptyState v-else kicker="Simulation nicht verfügbar" title="Es fehlen Ausgangswerte" :message="simulationUnavailable" mark="H₂O" tone="compact">
@@ -410,16 +461,18 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { POLLUTANT_SOURCES, sourcesForElements, suspectElements } from '@/services/pollutantSources'
 import { evaluateAnalysis } from '@/services/directRecommendations'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
-import { ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
+import { ANALYSIS_GROUPS, ELEMENT_DEFINITION_MAP } from '@/services/analysisCatalog'
 import { BALANCE_BAND, compositionTone } from '@/services/waterBalance'
 import { analysisApi, profileApi } from '@/services/toolsData'
 import { buildAnalysisSeries, calculateConsumption, parameterFromAnalysis } from '@/services/toolsCalculations'
 import {
-  ABSOLUTE_OCEAN, DEFAULT_IDEALS, MAX_WATER_CHANGES, SIMULATION_KEYS, changePercent, deviationCurve, sensibleCount,
+  DEFAULT_IDEALS, MAX_WATER_CHANGES, changePercent, deviationCurve, referenceSalt, sensibleCount,
   simulateWaterChange, valuesFromParameters,
 } from '@/services/waterChangeSimulator'
 import '@/assets/styles/report-base.css'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import TargetGauge from '@/components/analyses/TargetGauge.vue'
+import ValueDirection from '@/components/analyses/ValueDirection.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
@@ -469,6 +522,16 @@ const saltKey = ref('absolute-ocean')
 const saltAnalysisId = ref('')
 const changeLitres = ref(0)
 const changeCount = ref(2)
+// Keep the canonical amount in litres so switching display units never changes a simulation.
+const volumeUnit = ref('l')
+const litresPerUnit = computed(() => volumeUnit.value === 'gal' ? 3.785411784 : 1)
+const displayChangeVolume = computed({
+  get: () => Number((changeLitres.value / litresPerUnit.value).toFixed(3)),
+  set: (value) => { changeLitres.value = Number(value) * litresPerUnit.value },
+})
+function formatVolume(litres) {
+  return `${formatNumber(litres / litresPerUnit.value, volumeUnit.value === 'gal' ? 2 : 1)} ${volumeUnit.value}`
+}
 
 const simReport = computed(() => selectedProfileAnalyses.value.find((analysis) => analysis.id === simReportId.value) || latestAnalysis.value)
 const reportValues = computed(() => valuesFromParameters(simReport.value?.parameters || []))
@@ -485,12 +548,13 @@ const osmosisHint = computed(() => {
   if (!osmosisProfileId.value) return 'Osmosewasser ohne nachweisbare Elemente.'
   if (!osmosisSample.value) return 'Zu diesem Osmosewasser gibt es noch keine Probe – Restwerte werden mit 0 angesetzt.'
   const found = Object.values(osmosisValues.value).filter((value) => value > 0).length
-  return `Probe aus Bericht ${osmosisSample.value.reportNumber || ''} · ${found ? `${found} der ${SIMULATION_KEYS.length} Elemente nachweisbar` : 'alle Elemente n. n.'}.`
+  const total = Object.keys(osmosisValues.value).length
+  return `Probe aus Bericht ${osmosisSample.value.reportNumber || ''} · ${found ? `${found} von ${total} Elementen nachweisbar` : 'alle Elemente n. n.'}.`
 })
 
 const saltAnalyses = computed(() => allAnalyses.value.filter((analysis) => analysis.waterType === 'Meersalz'))
 const saltSources = computed(() => [
-  { key: 'absolute-ocean', name: 'Absolute Ocean', caption: 'ATI Referenzwerte bei 35 PSU', values: ABSOLUTE_OCEAN },
+  { key: 'absolute-ocean', name: 'Absolute Ocean', caption: 'ATI Referenzwerte bei 35 PSU', values: referenceSalt(reportValues.value.ideals) },
   { key: 'analysis', name: 'Salzanalyse', caption: 'Aus einem Meersalz-Bericht', disabled: !saltAnalyses.value.length, disabledReason: 'Keine Salzanalyse vorhanden' },
   { key: 'nyos', name: 'Nyos pure', disabled: true, disabledReason: 'Chargenwerte folgen' },
   { key: 'balancer', name: 'Balancer', disabled: true, disabledReason: 'Bald verfügbar' },
@@ -509,7 +573,7 @@ function defaultLitres() {
   return profileMaxLitres.value || Math.max(1, Math.round(netLitres.value * 0.2))
 }
 function normalizeLitres() {
-  const value = Math.round(Number(changeLitres.value) || 0)
+  const value = Number(changeLitres.value) || 0
   changeLitres.value = Math.min(Math.max(1, value), Math.max(1, netLitres.value))
 }
 
@@ -518,6 +582,7 @@ const simInput = computed(() => ({
   osmosis: osmosisValues.value,
   salt: saltValues.value || {},
   ideal: { ...DEFAULT_IDEALS, ...reportValues.value.ideals },
+  units: reportValues.value.units,
   percent: simPercent.value,
 }))
 const simulation = computed(() => simulateWaterChange({ ...simInput.value, count: changeCount.value }))
@@ -526,8 +591,11 @@ const curveMax = computed(() => Math.max(...curve.value.map((point) => point.dev
 const sensible = computed(() => sensibleCount(curve.value, 5))
 const curveHint = computed(() => {
   const gain = (n) => curve.value[n - 1].deviation - curve.value[n].deviation
+  if (sensible.value === 0) {
+    return 'Schon der erste Wechsel verbessert die Abweichung um weniger als 5 Punkte oder verschlechtert sie. Prüfen Sie die Einzelwerte.'
+  }
   if (sensible.value < changeCount.value) {
-    return `Schon <b>${sensible.value} Wechsel</b> ${sensible.value === 1 ? 'bringt' : 'bringen'} fast alles – jeder weitere verbessert um weniger als 5 Punkte.`
+    return `Ab <b>${sensible.value} ${sensible.value === 1 ? 'Wechsel' : 'Wechseln'}</b> bringt der nächste weniger als 5 Punkte Verbesserung oder verschlechtert die Abweichung. Prüfen Sie die Einzelwerte.`
   }
   if (sensible.value > changeCount.value) {
     return `Ein ${changeCount.value + 1}. Wechsel brächte noch <b>${formatNumber(gain(changeCount.value + 1), 1)} Punkte</b>.`
@@ -535,16 +603,18 @@ const curveHint = computed(() => {
   return `<b>${changeCount.value} Wechsel</b> ${changeCount.value === 1 ? 'ist' : 'sind'} ein gutes Verhältnis aus Wasser und Wirkung.`
 })
 const improvementShare = computed(() => (simulation.value.deviationBefore
-  ? formatNumber((simulation.value.improvement / simulation.value.deviationBefore) * 100, 0)
+  ? formatNumber(Math.abs(simulation.value.improvement / simulation.value.deviationBefore) * 100, 0)
   : '0'))
 
 const simulationReady = computed(() => (
   selectedProfile.value?.water_type === 'Meerwasser' && Boolean(simReport.value) && Boolean(saltValues.value)
-  && netLitres.value > 0 && simulation.value.rows.length > 0
+  && netLitres.value > 0 && Number.isFinite(netLitres.value)
+  && changeLitres.value > 0 && changeLitres.value <= netLitres.value && simulation.value.rows.length > 0
 ))
 const simulationUnavailable = computed(() => {
   if (selectedProfile.value?.water_type !== 'Meerwasser') return 'Der Wasserwechsel-Simulator rechnet mit Meerwasseraquarien. Wählen Sie oben ein Meerwasserbecken.'
-  if (!netLitres.value) return 'Für dieses Aquarium ist kein Nettovolumen hinterlegt. Ergänzen Sie es im Aquarium-Profil.'
+  if (!(netLitres.value > 0) || !Number.isFinite(netLitres.value)) return 'Für dieses Aquarium ist kein gültiges Nettovolumen hinterlegt. Ergänzen Sie es im Aquarium-Profil.'
+  if (!(changeLitres.value > 0) || changeLitres.value > netLitres.value) return 'Die Wassermenge je Wechsel muss größer als 0 sein und darf das Nettovolumen nicht überschreiten.'
   if (!simReport.value) return 'Für dieses Aquarium liegt noch kein abgeschlossener Laborbericht vor.'
   if (!saltValues.value) return 'Bitte eine Salzquelle mit Werten auswählen.'
   return 'Der Bericht enthält keines der 14 Elemente, die der Simulator braucht.'
@@ -552,19 +622,61 @@ const simulationUnavailable = computed(() => {
 
 const tableRows = computed(() => simulation.value.rows.map((row) => ({
   ...row,
+  simulated: true,
   label: ELEMENT_DEFINITION_MAP[row.key]?.label || row.key,
   symbol: ELEMENT_DEFINITION_MAP[row.key]?.symbol || '',
-  tone: compositionTone(row.pctAfter),
+  tone: row.pctAfter === null ? 'good' : compositionTone(row.pctAfter),
+  direction: row.pctAfter === null || compositionTone(row.pctAfter) === 'good' ? '' : row.pctAfter > 100 ? 'high' : 'low',
 })))
-const skippedLabels = computed(() => simulation.value.skipped.map((key) => ELEMENT_DEFINITION_MAP[key]?.label || key))
-
-// Die Spur zeigt 50–150 % vom Ideal; das grüne Band ist ±15 % wie in den Diagrammen des Berichts.
-const devPos = (pct) => Math.min(100, Math.max(0, pct - 50))
-const bandStyle = { left: `${devPos(100 - BALANCE_BAND)}%`, width: `${BALANCE_BAND * 2}%` }
-function moveStyle(row) {
-  const from = devPos(row.pctBefore)
-  const to = devPos(row.pctAfter)
-  return { left: `${Math.min(from, to)}%`, width: `${Math.abs(to - from)}%` }
+// Die übrigen Werte des Berichts: ohne Wert im Salz lässt sich ihr Verlauf nicht berechnen.
+const otherRows = computed(() => {
+  const simulated = new Set(tableRows.value.map((row) => row.key))
+  return (simReport.value?.parameters || [])
+    .filter((parameter) => parameter.key && !simulated.has(parameter.key))
+    .map((parameter) => ({
+      key: parameter.key,
+      simulated: false,
+      label: ELEMENT_DEFINITION_MAP[parameter.key]?.label || parameter.label || parameter.key,
+      symbol: ELEMENT_DEFINITION_MAP[parameter.key]?.symbol || '',
+      unit: parameter.unit || ELEMENT_DEFINITION_MAP[parameter.key]?.unit || '',
+      before: Number(parameter.value),
+      undetectable: parameter.resultStatus === 'below_detection' || !Number.isFinite(Number(parameter.value)),
+      reason: !(parameter.key in simInput.value.salt) ? 'kein Wert für das Salz' : 'kein Idealwert im Bericht',
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'de'))
+})
+const simQuery = ref('')
+const simFilter = ref('all')
+const SIM_FILTERS = {
+  all: { label: 'Alle', test: () => true },
+  off: { label: 'Außerhalb Ideal', test: (row) => row.simulated && row.tone !== 'good' },
+  scored: { label: 'Leitelemente', test: (row) => row.simulated && row.scored },
+  other: { label: 'Nicht berechnet', test: (row) => !row.simulated },
+}
+const allSimRows = computed(() => [...tableRows.value, ...otherRows.value])
+const simFilterOptions = computed(() => Object.entries(SIM_FILTERS)
+  .map(([key, filter]) => ({ key, label: filter.label, count: allSimRows.value.filter(filter.test).length }))
+  .filter((option) => option.key === 'all' || option.count))
+const visibleSimRows = computed(() => {
+  const query = simQuery.value.toLocaleLowerCase('de')
+  const test = SIM_FILTERS[simFilter.value]?.test || SIM_FILTERS.all.test
+  return allSimRows.value.filter((row) => test(row)
+    && (!query || `${row.label} ${row.symbol}`.toLocaleLowerCase('de').includes(query)))
+})
+const simGroups = computed(() => [
+  ...ANALYSIS_GROUPS,
+  { key: 'other', label: 'Weitere', color: '#94a3b8' },
+].map((group) => {
+  const rows = visibleSimRows.value.filter((row) => (
+    group.key === 'other'
+      ? !ANALYSIS_GROUPS.some((item) => item.key === ELEMENT_DEFINITION_MAP[row.key]?.groupKey)
+      : ELEMENT_DEFINITION_MAP[row.key]?.groupKey === group.key
+  ))
+  return { ...group, rows, off: rows.filter((row) => row.simulated && row.tone !== 'good').length }
+}).filter((group) => group.rows.length))
+function signedPercent(value) {
+  const rounded = Math.round(value)
+  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : '±'}${Math.abs(rounded)} %`
 }
 
 function formatValue(key, value) {
@@ -725,6 +837,7 @@ function syncSimulation() {
   const linked = selectedProfile.value?.osmosis_source_id
   osmosisProfileId.value = osmosisProfiles.value.some((profile) => profile.id === linked) ? linked : ''
   changeLitres.value = defaultLitres()
+  normalizeLitres()
 }
 
 watch(selectedProfileId, () => {
@@ -823,9 +936,11 @@ onMounted(async () => {
 
 /* ---------- Simulator ---------- */
 .sim { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 16px; align-items: start; }
-.sim-setup { position: sticky; top: calc(var(--topbar-height, 68px) + 16px); display: grid; gap: 4px; }
+.sim-setup { display: grid; gap: 4px; align-self: start; }
 .setup-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid #edf1f5; }
 .setup-step:first-of-type { border-top: 0; padding-top: 0; }
+.sim-tank { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; }
+.sim-tank-photo { width: 52px; height: 42px; border-radius: 10px; background: center / cover no-repeat; box-shadow: inset 0 0 0 1px rgba(10,27,67,0.08); }
 .step-no { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--teal-50); color: var(--brand-blue); font-size: 12px; font-weight: 800; }
 .step-body { display: grid; gap: 7px; min-width: 0; }
 .step-body > label { color: var(--text); font-size: 13px; font-weight: 700; }
@@ -846,6 +961,9 @@ onMounted(async () => {
 .litres-input span { color: var(--text-muted); font-size: 13px; font-weight: 700; }
 .litres-input b { padding: 7px 10px; border-radius: 10px; background: var(--teal-50); color: var(--brand-blue); font-size: 13px; font-variant-numeric: tabular-nums; }
 .litres-range { width: 100%; accent-color: var(--brand-blue); }
+.volume-units { display: flex; gap: 4px; }
+.volume-units button { padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.volume-units button[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--teal-50); color: var(--brand-blue); font-weight: 700; }
 .count-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .count-chips button { min-height: 36px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text); font-size: 14px; font-weight: 800; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
 .count-chips button:hover { border-color: rgba(0,114,206,0.4); }
@@ -901,18 +1019,29 @@ tr.critical .el i { background: #e85d4f; box-shadow: 0 0 0 3px rgba(232,93,79,0.
 .pill small { font-size: 10.5px; font-weight: 600; opacity: 0.72; }
 tr.watch .pill { background: linear-gradient(135deg, #fff8ea, #ffecc7); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.32); color: #92400e; }
 tr.critical .pill { background: linear-gradient(135deg, #fff1ef, #fdd8d3); box-shadow: inset 0 0 0 1px rgba(232,93,79,0.34); color: #a92e22; }
-.dev-col { width: 34%; min-width: 220px; }
-td.dev-col { display: flex; align-items: center; gap: 10px; }
-.dev-track { position: relative; flex: 1; height: 10px; border-radius: 999px; background: #eef2f6; }
-.dev-band { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: rgba(16,185,129,0.2); }
-.dev-mid { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1.5px; background: #9fb0c2; }
-.dev-move { position: absolute; top: 4px; height: 2px; background: #9fb0c2; }
-.dev-dot { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; transform: translate(-50%, -50%); }
-.dev-dot.before { border: 2px solid #9fb0c2; background: #fff; }
-.dev-dot.after { background: var(--brand-blue); box-shadow: 0 0 0 2px #fff; }
-tr.watch .dev-dot.after { background: #f59e0b; } tr.critical .dev-dot.after { background: #e85d4f; }
-.dev-num { flex: none; min-width: 76px; color: var(--text-muted); font-size: 12px; text-align: right; white-space: nowrap; }
+.dev-col { width: 34%; min-width: 240px; }
+.sim-gauge { width: 100%; padding-top: 34px; }
+.dev-num { display: none; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 .dev-num b { color: var(--text); }
+tr.unsimulated .el i { background: #cbd5e1; }
+tr.unsimulated .el b { color: var(--text-muted); }
+.sim-table tbody.sim-group tr.sim-group-head { border-top: 0; }
+.sim-group-head th { padding: 18px 10px 8px; }
+.sim-group:first-of-type .sim-group-head th { padding-top: 6px; }
+.sim-group-head span { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.sim-group-head i { width: 9px; height: 9px; border-radius: 50%; }
+.sim-group-head b { padding: 1px 7px; border-radius: 999px; background: #eef2f7; color: var(--text-muted); font-size: 10.5px; letter-spacing: 0; }
+.sim-group-head em { margin-left: auto; color: #b45309; font-size: 11px; font-style: normal; letter-spacing: 0; text-transform: none; }
+.unsim-note { color: var(--text-muted); font-size: 12px; }
+.sim-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sim-search { position: relative; flex: 1 1 200px; }
+.sim-search svg { position: absolute; top: 50%; left: 12px; width: 15px; height: 15px; transform: translateY(-50%); fill: none; stroke: var(--text-muted); stroke-width: 1.8; stroke-linecap: round; }
+.sim-search input { width: 100%; height: 38px; padding: 0 12px 0 34px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text); font-size: 13.5px; outline: 0; }
+.sim-search input:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 4px rgba(0,114,206,0.1); }
+.sim-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-chips button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.sim-chips button small { font-size: 11px; opacity: 0.7; }
+.sim-chips button[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--teal-50); color: var(--brand-blue); }
 .sim-skipped { margin: 12px 0 0; color: var(--text-muted); font-size: 12px; }
 .was { display: none; }
 
@@ -991,15 +1120,15 @@ tr.watch .dev-dot.after { background: #f59e0b; } tr.critical .dev-dot.after { ba
    Element, Wert nachher (jetzt darunter) und % vom Ideal, ohne Querscrollen */
 @media (max-width: 640px), (min-width: 981px) and (max-width: 1280px) {
   .sim-table table { min-width: 0; }
-  .sim-table .col-now, .sim-table .col-new, .sim-table .col-ideal, .dev-track { display: none; }
+  .sim-table .col-now, .sim-table .col-new, .sim-table .col-ideal, .sim-gauge { display: none; }
+  .dev-num { display: grid; gap: 2px; }
+  .dev-num small { font-size: 10.5px; }
   .sim-table tbody th, .sim-table td { padding: 8px 6px; }
   .el small { display: none; }
   .was { display: block; margin-top: 2px; color: var(--text-muted); font-size: 10.5px; }
   .dev-col { width: auto; min-width: 0; }
-  td.dev-col { display: table-cell; }
-  .dev-num { min-width: 0; }
   .sim-table thead .dev-col { font-size: 0; }
-  .sim-table thead .dev-col::after { content: '% vom Ideal'; font-size: 10px; }
+  .sim-table thead .dev-col::after { content: 'Vom Ideal'; font-size: 10px; }
 }
 @media (max-width: 640px) {
   .panel { padding: 18px; border-radius: 20px; }
