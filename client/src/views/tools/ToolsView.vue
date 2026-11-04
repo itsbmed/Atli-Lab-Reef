@@ -402,6 +402,7 @@
 </template>
 
 <script setup>
+import { publicUrl } from '@/services/publicUrl'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Line } from 'vue-chartjs'
@@ -447,11 +448,11 @@ const analysisOptions = computed(() => [...selectedProfileAnalyses.value].revers
 // Eigenes Foto des Beckens; ohne Foto das Themenbild mit der Tönung wie auf den Karten der Übersicht,
 // damit sich auch Becken ohne eigenes Foto im Kopf unterscheiden.
 const THEME_BACKGROUNDS = {
-  'reef-mixed': ['/tanks/reef-mixed.png', 'rgba(0,114,206,0.18)'],
-  'reef-sps': ['/tanks/reef-mixed.png', 'rgba(76,29,149,0.42)'],
-  'reef-nano': ['/tanks/reef-mixed.png', 'rgba(13,148,136,0.5)'],
-  freshwater: ['/tanks/freshwater.png', 'rgba(21,128,61,0.3)'],
-  osmosis: ['/tanks/osmosis.png', 'rgba(8,145,178,0.35)'],
+  'reef-mixed': [publicUrl('/tanks/reef-mixed.png'), 'rgba(0,114,206,0.18)'],
+  'reef-sps': [publicUrl('/tanks/reef-mixed.png'), 'rgba(76,29,149,0.42)'],
+  'reef-nano': [publicUrl('/tanks/reef-mixed.png'), 'rgba(13,148,136,0.5)'],
+  freshwater: [publicUrl('/tanks/freshwater.png'), 'rgba(21,128,61,0.3)'],
+  osmosis: [publicUrl('/tanks/osmosis.png'), 'rgba(8,145,178,0.35)'],
 }
 const heroBackground = computed(() => {
   const profile = selectedProfile.value

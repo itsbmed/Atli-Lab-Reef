@@ -92,6 +92,7 @@
 </template>
 
 <script setup>
+import { publicUrl } from '@/services/publicUrl'
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 import { computed } from 'vue'
 
@@ -106,19 +107,19 @@ const reportParams = [
 const statusLabel = { optimal: 'Optimal', low: 'Zu niedrig', watch: 'Beobachten', high: 'Kritisch' }
 
 const recommendations = [
-  { tag: 'Priorität', tone: 'warn', title: 'Karbonathärte anheben', text: 'KH liegt unter dem Zielbereich. Über 5 Tage langsam nachdosieren.', product: { name: 'ATI Elements · ALK/KH', img: '/ati/el-alk.png' } },
-  { tag: 'Beobachten', tone: 'watch', title: 'Jod im Blick behalten', text: 'Leicht erhöht. Wasserwechsel prüfen, in 2 Wochen erneut testen.', product: { name: 'ATI Elements · Jod', img: '/ati/el-i.png' } },
+  { tag: 'Priorität', tone: 'warn', title: 'Karbonathärte anheben', text: 'KH liegt unter dem Zielbereich. Über 5 Tage langsam nachdosieren.', product: { name: 'ATI Elements · ALK/KH', img: publicUrl('/ati/el-alk.png') } },
+  { tag: 'Beobachten', tone: 'watch', title: 'Jod im Blick behalten', text: 'Leicht erhöht. Wasserwechsel prüfen, in 2 Wochen erneut testen.', product: { name: 'ATI Elements · Jod', img: publicUrl('/ati/el-i.png') } },
   { tag: 'Stabil', tone: 'ok', title: 'Calcium & Magnesium', text: 'Beide Leitwerte stabil im optimalen Bereich. Dosierung beibehalten.', product: null },
 ]
 
 const elementStrip = [
-  { sym: 'Ca', name: 'Calcium', img: '/ati/el-ca.png' },
-  { sym: 'Mg', name: 'Magnesium', img: '/ati/el-mg.png' },
-  { sym: 'KH', name: 'Alkalinität', img: '/ati/el-alk.png' },
-  { sym: 'I', name: 'Jod', img: '/ati/el-i.png' },
-  { sym: 'Sr', name: 'Strontium', img: '/ati/el-sr.png' },
-  { sym: 'K', name: 'Kalium', img: '/ati/el-k.png' },
-  { sym: 'Fe', name: 'Eisen', img: '/ati/el-fe.png' },
+  { sym: 'Ca', name: 'Calcium', img: publicUrl('/ati/el-ca.png') },
+  { sym: 'Mg', name: 'Magnesium', img: publicUrl('/ati/el-mg.png') },
+  { sym: 'KH', name: 'Alkalinität', img: publicUrl('/ati/el-alk.png') },
+  { sym: 'I', name: 'Jod', img: publicUrl('/ati/el-i.png') },
+  { sym: 'Sr', name: 'Strontium', img: publicUrl('/ati/el-sr.png') },
+  { sym: 'K', name: 'Kalium', img: publicUrl('/ati/el-k.png') },
+  { sym: 'Fe', name: 'Eisen', img: publicUrl('/ati/el-fe.png') },
 ]
 const trendVals = [8.6, 8.1, 7.7, 7.9, 7.4, 7.2]
 const sparkPts = computed(() => {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AnalysisReason;
 use App\Enums\AnalysisStatus;
+use App\Recommendations\RecommendationEngine;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,19 @@ class Analysis extends Model
     protected $attributes = [
         'status' => 'registered',
     ];
+
+    /**
+     * Wechselt eine Analyse (oder ihre Probe) auf „abgeschlossen“, entstehen die Empfehlungen.
+     * Massen-Importe über den Query Builder lösen das nicht aus: dafür recommendations:generate.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Analysis $analysis) {
+            if ($analysis->status === AnalysisStatus::Completed && ($analysis->wasRecentlyCreated || $analysis->wasChanged('status'))) {
+                app(RecommendationEngine::class)->generateWhenCompleted($analysis);
+            }
+        });
+    }
 
     /**
      * @return array<string, string>
@@ -141,6 +155,14 @@ class Analysis extends Model
     public function addons(): HasMany
     {
         return $this->hasMany(AnalysisAddon::class);
+    }
+
+    /**
+     * @return HasMany<AnalysisRecommendation, $this>
+     */
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(AnalysisRecommendation::class)->orderBy('sort_order');
     }
 
     /**

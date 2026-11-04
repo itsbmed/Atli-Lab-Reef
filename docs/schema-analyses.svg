@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1330" height="810" viewBox="0 0 1330 810" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1330" height="1150" viewBox="0 0 1330 1150" font-family="Segoe UI, Helvetica, Arial, sans-serif">
 <style>.r{font:12px Consolas,"SF Mono",Menlo,monospace;fill:#0f172a}.k{font-size:10px;font-weight:600;fill:#64748b}.t{font-size:13px;font-weight:600;fill:#fff}.e{fill:none;stroke:#475569;stroke-width:1.4}.c{font-size:11px;fill:#334155}</style>
-<rect width="1330" height="810" fill="#ffffff"/>
-<text x="40" y="36" font-size="18" font-weight="700" fill="#0f172a">Analysen · DB-Schema</text>
+<rect width="1330" height="1150" fill="#ffffff"/>
+<text x="40" y="36" font-size="18" font-weight="700" fill="#0f172a">Analysen und Empfehlungen · DB-Schema</text>
 <polyline class="e" points="250,100 300,100"/>
 <text class="c" x="254" y="94" text-anchor="start">1</text>
 <text class="c" x="296" y="94" text-anchor="end">n</text>
@@ -68,6 +68,18 @@
 <polyline class="e" points="145,516 145,580"/>
 <text class="c" x="151" y="530" text-anchor="start">1</text>
 <text class="c" x="151" y="574" text-anchor="start">n</text>
+<polyline class="e" points="510,840 560,840"/>
+<text class="c" x="514" y="834" text-anchor="start">n</text>
+<text class="c" x="556" y="834" text-anchor="end">0..1</text>
+<polyline class="e" points="770,840 820,840"/>
+<text class="c" x="774" y="834" text-anchor="start">1</text>
+<text class="c" x="816" y="834" text-anchor="end">n</text>
+<polyline class="e" points="665,946 665,980"/>
+<text class="c" x="671" y="960" text-anchor="start">1</text>
+<text class="c" x="671" y="976" text-anchor="start">n</text>
+<polyline class="e" points="700,800 700,702"/>
+<text class="c" x="706" y="794" text-anchor="start">n</text>
+<text class="c" x="706" y="716" text-anchor="start">0..1</text>
 <path class="e" d="M510,425 H550 V455 H659 A6,6 0 0 1 671,455 H1120 V480"/>
 <text class="c" x="514" y="440" text-anchor="start">1</text>
 <text class="c" x="1114" y="474" text-anchor="end">n</text>
@@ -76,6 +88,16 @@
 <text class="c" x="1036" y="354">1</text>
 <path class="e" d="M510,385 H540 V410 H510"/>
 <text class="c" x="544" y="402" font-style="italic">parent_id</text>
+<line x1="40" y1="772" x2="1290" y2="772" stroke="#cbd5e1" stroke-dasharray="6 5"/>
+<text x="40" y="822" font-size="14" font-weight="700" fill="#0f172a">Empfehlungen</text>
+<text class="c" x="40" y="840">Entwurf, siehe</text>
+<text class="c" x="40" y="856">schema-recommendations.md</text>
+<path class="e" d="M300,440 H292 V654 A6,6 0 0 1 292,666 V734 A6,6 0 0 1 292,746 V870 H300"/>
+<text class="c" x="288" y="456" text-anchor="end">1</text>
+<text class="c" x="288" y="866" text-anchor="end">n</text>
+<path class="e" d="M1030,880 H1070 V530 H1061 A6,6 0 0 0 1049,530 H1030"/>
+<text class="c" x="1036" y="874">n</text>
+<text class="c" x="1036" y="546">0..1</text>
 <g>
 <rect x="40" y="60" width="210" height="92" rx="8" fill="#fff"/>
 <path d="M40,90 V68 a8,8 0 0 1 8,-8 H242 a8,8 0 0 1 8,8 V90 Z" fill="#0f766e"/>
@@ -261,14 +283,16 @@
 <text class="k" x="760" y="563" text-anchor="end">FK</text>
 </g>
 <g>
-<rect x="820" y="480" width="210" height="74" rx="8" fill="#fff"/>
+<rect x="820" y="480" width="210" height="92" rx="8" fill="#fff"/>
 <path d="M820,510 V488 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V510 Z" fill="#0f766e"/>
-<rect x="820" y="480" width="210" height="74" rx="8" fill="none" stroke="#94a3b8"/>
+<rect x="820" y="480" width="210" height="92" rx="8" fill="none" stroke="#94a3b8"/>
 <text class="t" x="832" y="500">products</text>
 <text class="r" x="832" y="527">id</text>
 <text class="k" x="1020" y="527" text-anchor="end">PK</text>
 <text class="r" x="832" y="545">key</text>
 <text class="k" x="1020" y="545" text-anchor="end">UQ</text>
+<text class="r" x="832" y="563">image, url, pack_sizes</text>
+<text class="k" x="1020" y="563" text-anchor="end">neu</text>
 </g>
 <g>
 <rect x="1080" y="480" width="210" height="92" rx="8" fill="#fff"/>
@@ -281,11 +305,71 @@
 <text class="k" x="1280" y="545" text-anchor="end">PK FK</text>
 <text class="r" x="1092" y="563">score</text>
 </g>
-<rect x="300" y="774" width="14" height="14" rx="3" fill="#0f766e"/>
-<text class="c" x="322" y="785">Katalog (Stammdaten, Seeder)</text>
-<rect x="530" y="774" width="14" height="14" rx="3" fill="#1d4ed8"/>
-<text class="c" x="552" y="785">Bewegungsdaten</text>
-<rect x="760" y="774" width="14" height="14" rx="3" fill="#64748b"/>
-<text class="c" x="782" y="785">bestehende Tabellen</text>
-<text class="c" x="1290" y="785" text-anchor="end">PK Primärschlüssel · FK Fremdschlüssel · UQ eindeutig</text>
+<g>
+<rect x="300" y="800" width="210" height="146" rx="8" fill="#fff"/>
+<path d="M300,830 V808 a8,8 0 0 1 8,-8 H502 a8,8 0 0 1 8,8 V830 Z" fill="#1d4ed8"/>
+<rect x="300" y="800" width="210" height="146" rx="8" fill="none" stroke="#94a3b8" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text class="t" x="312" y="820">analysis_recommendations</text>
+<text class="r" x="312" y="847">id</text>
+<text class="k" x="500" y="847" text-anchor="end">PK</text>
+<text class="r" x="312" y="865">analysis_id</text>
+<text class="k" x="500" y="865" text-anchor="end">FK</text>
+<text class="r" x="312" y="883">rule_id</text>
+<text class="k" x="500" y="883" text-anchor="end">FK</text>
+<text class="r" x="312" y="901">content, inputs</text>
+<text class="r" x="312" y="919">is_edited</text>
+<text class="r" x="312" y="937">completed_at</text>
+</g>
+<g>
+<rect x="560" y="800" width="210" height="146" rx="8" fill="#fff"/>
+<path d="M560,830 V808 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V830 Z" fill="#0f766e"/>
+<rect x="560" y="800" width="210" height="146" rx="8" fill="none" stroke="#94a3b8" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text class="t" x="572" y="820">recommendation_rules</text>
+<text class="r" x="572" y="847">id</text>
+<text class="k" x="760" y="847" text-anchor="end">PK</text>
+<text class="r" x="572" y="865">key</text>
+<text class="k" x="760" y="865" text-anchor="end">UQ</text>
+<text class="r" x="572" y="883">evaluation_scale_id</text>
+<text class="k" x="760" y="883" text-anchor="end">FK</text>
+<text class="r" x="572" y="901">scope_group_id</text>
+<text class="k" x="760" y="901" text-anchor="end">FK</text>
+<text class="r" x="572" y="919">element_condition</text>
+<text class="r" x="572" y="937">condition, summary</text>
+</g>
+<g>
+<rect x="820" y="800" width="210" height="128" rx="8" fill="#fff"/>
+<path d="M820,830 V808 a8,8 0 0 1 8,-8 H1022 a8,8 0 0 1 8,8 V830 Z" fill="#0f766e"/>
+<rect x="820" y="800" width="210" height="128" rx="8" fill="none" stroke="#94a3b8" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text class="t" x="832" y="820">recommendation_rule_blocks</text>
+<text class="r" x="832" y="847">id</text>
+<text class="k" x="1020" y="847" text-anchor="end">PK</text>
+<text class="r" x="832" y="865">rule_id</text>
+<text class="k" x="1020" y="865" text-anchor="end">FK</text>
+<text class="r" x="832" y="883">type</text>
+<text class="r" x="832" y="901">condition, text</text>
+<text class="r" x="832" y="919">product_id</text>
+<text class="k" x="1020" y="919" text-anchor="end">FK</text>
+</g>
+<g>
+<rect x="560" y="980" width="210" height="110" rx="8" fill="#fff"/>
+<path d="M560,1010 V988 a8,8 0 0 1 8,-8 H762 a8,8 0 0 1 8,8 V1010 Z" fill="#0f766e"/>
+<rect x="560" y="980" width="210" height="110" rx="8" fill="none" stroke="#94a3b8" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text class="t" x="572" y="1000">recommendation_calculations</text>
+<text class="r" x="572" y="1027">id</text>
+<text class="k" x="760" y="1027" text-anchor="end">PK</text>
+<text class="r" x="572" y="1045">rule_id</text>
+<text class="k" x="760" y="1045" text-anchor="end">FK</text>
+<text class="r" x="572" y="1063">name</text>
+<text class="k" x="760" y="1063" text-anchor="end">UQ</text>
+<text class="r" x="572" y="1081">expression</text>
+</g>
+<rect x="40" y="1114" width="14" height="14" rx="3" fill="#0f766e"/>
+<text class="c" x="62" y="1125">Katalog (Stammdaten, Seeder)</text>
+<rect x="270" y="1114" width="14" height="14" rx="3" fill="#1d4ed8"/>
+<text class="c" x="292" y="1125">Bewegungsdaten</text>
+<rect x="500" y="1114" width="14" height="14" rx="3" fill="#64748b"/>
+<text class="c" x="522" y="1125">bestehende Tabellen</text>
+<rect x="730" y="1114" width="14" height="14" rx="3" fill="none" stroke="#94a3b8" stroke-dasharray="3 2"/>
+<text class="c" x="752" y="1125">Entwurf</text>
+<text class="c" x="1290" y="1125" text-anchor="end">PK Primärschlüssel · FK Fremdschlüssel · UQ eindeutig</text>
 </svg>

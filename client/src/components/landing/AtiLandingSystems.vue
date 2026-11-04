@@ -24,10 +24,11 @@
 </template>
 
 <script setup>
+import { publicUrl } from '@/services/publicUrl'
 const systems = [
-  { code: 'SPS / LPS', title: 'Riffaquarium', img: '/tanks/osmosis.png', text: 'Enge Zielbereiche für Calcium, KH, Magnesium und Spurenelemente – die Basis für stabiles Wachstum.' },
-  { code: 'MIXED REEF', title: 'Mischriff', img: '/tanks/reef-mixed.png', text: 'Ausgewogene Empfehlungen für gemischten Besatz aus Weich- und Steinkorallen.' },
-  { code: 'SÜSSWASSER', title: 'Aquascape & Pflanzen', img: '/tanks/freshwater.png', text: 'Nährstoffe und Spurenelemente im Blick für sattes Pflanzenwachstum und gesunde Fische.' },
+  { code: 'SPS / LPS', title: 'Riffaquarium', img: publicUrl('/tanks/osmosis.png'), text: 'Enge Zielbereiche für Calcium, KH, Magnesium und Spurenelemente – die Basis für stabiles Wachstum.' },
+  { code: 'MIXED REEF', title: 'Mischriff', img: publicUrl('/tanks/reef-mixed.png'), text: 'Ausgewogene Empfehlungen für gemischten Besatz aus Weich- und Steinkorallen.' },
+  { code: 'SÜSSWASSER', title: 'Aquascape & Pflanzen', img: publicUrl('/tanks/freshwater.png'), text: 'Nährstoffe und Spurenelemente im Blick für sattes Pflanzenwachstum und gesunde Fische.' },
 ]
 </script>
 

@@ -2,6 +2,7 @@
 
 Zielschema für Analysen, Barcodes und Messwerte im Laravel-Backend sowie die Übernahme aus der alten Datenbank (`legacy`, `ati-2025-07-24`).
 Umgesetzt in `backend/database/migrations/2026_11_03_1000*`, Stammdaten in `backend/database/seeders/AnalysisCatalogSeeder.php`, Übernahme in `backend/app/Console/Commands/ImportLegacy*.php` (siehe [Ablauf](#ablauf)).
+Empfehlungen und Formeln: [schema-recommendations.md](schema-recommendations.md).
 
 ## Überblick
 
@@ -228,15 +229,18 @@ PK `(analysis_id, element_group_id)`, `score` tinyint (0–100). `analysis_id` F
 
 ### Ablauf
 
-Alle Schritte sind wiederholbar und haben `--dry-run`. Die Reihenfolge ist wichtig, weil jeder Schritt die Zuordnungen des vorherigen braucht.
+Alle Schritte sind wiederholbar; die `legacy:*`-Befehle haben `--dry-run`. Die Reihenfolge ist wichtig, weil jeder Schritt die Zuordnungen des vorherigen braucht.
 
 ```sh
 php artisan db:seed --class=AnalysisCatalogSeeder   # Gruppen, Elemente, Pakete, Methoden (läuft auch mit migrate --seed)
+php artisan db:seed --class=RecommendationRuleSeeder # Empfehlungsregeln V2.2 (läuft auch mit migrate --seed)
 php artisan legacy:import-catalog                   # Produkte, Grenzwerte ati-standard und nyos
 php artisan legacy:import-users                     # Konten; für Testdaten z. B. --sample=20, --id=…, --email=…
 php artisan legacy:import-aquariums                 # Becken der übernommenen Konten
 php artisan legacy:import-vouchers                  # alle Barcodes (~300k)
 php artisan legacy:import-analyses                  # Analysen, Messwerte, Dosierungen, Gruppen-Scores der übernommenen Becken
+php artisan legacy:import-recommendations           # alte Empfehlungstexte als inaktive Regeln (nur Deutsch)
+php artisan recommendations:generate                # Empfehlungen der abgeschlossenen Analysen erzeugen (Import löst keine Modell-Events aus)
 php artisan legacy:anonymize                        # nur Test-/Entwicklungsdaten; nach jedem erneuten Import wiederholen
 ```
 
@@ -288,6 +292,8 @@ Grenzwerte der Skala `ati-standard` aus `elements`, passend zur Abbildung der St
 
 Negative Untergrenzen (z. B. −40 bei Schadstoffen) bedeuten „keine Untergrenze“ und werden zu null. Die NYOS-Werte (`ref_value_nyos`, `ref_value_low_nyos`, `ref_value_high_nyos`) werden zu `target`, `min`, `max`. Die alte Datenbank kennt nur Grenzwerte für Meerwasser; die übrigen Wasserarten kommen aus dem Seeder.
 
-Nicht übernommen: `kh_value`, `nitrate_value`, `fluorite_value` (Kopien der Messwerte), `ip`, `subadmin_userid`, `units`, `elements_action`, `elements_prios`. Die Tabellen `analysis_charts` und `comments` kommen mit Chronik und Timeline in einem späteren Schritt.
+`elements_action` übernimmt `legacy:import-recommendations`, siehe [schema-recommendations.md](schema-recommendations.md#aus-der-alten-datenbank).
+
+Nicht übernommen: `kh_value`, `nitrate_value`, `fluorite_value` (Kopien der Messwerte), `ip`, `subadmin_userid`, `units`, `elements_prios`. Die Tabellen `analysis_charts` und `comments` kommen mit Chronik und Timeline in einem späteren Schritt.
 
 Mengen (alte DB, alle Konten): 334k Analysen, 14,7 Mio. Messwerte, 1,3 Mio. Gruppen-Scores, 302k Voucher.

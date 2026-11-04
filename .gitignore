@@ -22,3 +22,6 @@ npm-debug.log*
 
 # Local reference project
 ati-lab/
+
+# Server-Archive (deploy/build-release.ps1)
+releases/

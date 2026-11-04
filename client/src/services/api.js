@@ -3,7 +3,8 @@
 
 import { activationToApi, analysisFromApi } from '@/services/analysisFromApi'
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// Ohne VITE_API_URL liegt die API unter dem Basispfad des Builds: /api lokal, /lab-test/api auf dem Testserver.
+const BASE_URL = import.meta.env.VITE_API_URL || `${import.meta.env.BASE_URL || '/'}api`
 
 // Login über das Laravel-Backend statt über den lokalen Test-Speicher.
 export const useBackendAuth = import.meta.env.VITE_AUTH_BACKEND === 'true'

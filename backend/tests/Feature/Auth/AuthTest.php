@@ -145,6 +145,14 @@ class AuthTest extends TestCase
             ->assertJsonPath('error', 'Nicht angemeldet.');
     }
 
+    public function test_api_answers_json_without_accept_header(): void
+    {
+        // Browser-Aufruf (Accept: text/html): kein Redirect auf eine Login-Route, sondern 401 als JSON.
+        $this->get('/api/auth/me', ['Accept' => 'text/html'])
+            ->assertUnauthorized()
+            ->assertJsonPath('error', 'Nicht angemeldet.');
+    }
+
     public function test_logout_revokes_the_current_token(): void
     {
         $user = User::factory()->create();

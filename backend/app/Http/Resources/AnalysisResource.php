@@ -3,7 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Analysis;
+use App\Models\AnalysisRecommendation;
 use App\Models\AnalysisResult;
+use App\Recommendations\RecommendationEngine;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -49,6 +51,19 @@ class AnalysisResource extends JsonResource
             'osmoseAquariumId' => $this->whenLoaded('children', fn () => $this->children->firstWhere('method.key', 'osmose')?->aquarium_id ?? ''),
             'groupScores' => $this->whenLoaded('groupScores', fn () => (object) $this->groupScores->mapWithKeys(fn ($score) => [$score->group->key => $score->score])->all()),
             'parameters' => $this->whenLoaded('results', fn () => $this->parameters()),
+            // Ausgewertete Empfehlungen in der Sprache des Nutzers (Fallback en, dann de)
+            'recommendations' => $this->whenLoaded('recommendations', fn () => $this->recommendations->map(fn (AnalysisRecommendation $card) => [
+                'id' => $card->id,
+                'key' => $card->rule_key,
+                'tone' => $card->tone,
+                'priority' => $card->priority,
+                'recheckDays' => $card->recheck_days,
+                'elements' => $card->elements,
+                ...self::localized($card->content, $request->user()?->language),
+                'inputs' => $card->inputs,
+                'isEdited' => $card->is_edited,
+                'completedAt' => $card->completed_at?->toJSON(),
+            ])->values()),
             // Mitgeschickte Osmose-/Meersalz-Proben mit eigenen Messwerten
             'samples' => self::collection($this->whenLoaded('children')),
             'createdAt' => $this->created_at?->toJSON(),
@@ -63,6 +78,21 @@ class AnalysisResource extends JsonResource
      *
      * @return list<array<string, mixed>>
      */
+    /**
+     * @param  array<string, array<string, mixed>>  $content
+     * @return array<string, mixed>
+     */
+    private static function localized(array $content, ?string $language): array
+    {
+        foreach ([$language, 'en', RecommendationEngine::REQUIRED_LANGUAGE] as $candidate) {
+            if ($candidate && isset($content[$candidate])) {
+                return $content[$candidate];
+            }
+        }
+
+        return reset($content) ?: [];
+    }
+
     private function parameters(): array
     {
         $methodElements = $this->method?->elements->keyBy('id');

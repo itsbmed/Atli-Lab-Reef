@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(AnalysisCatalogSeeder::class);
+        $this->call([AnalysisCatalogSeeder::class, RecommendationRuleSeeder::class]);
 
         if (app()->environment('local', 'testing')) {
             $this->call([DemoUserSeeder::class, DemoAquariumSeeder::class]);

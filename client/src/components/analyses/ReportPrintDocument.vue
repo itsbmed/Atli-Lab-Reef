@@ -245,6 +245,7 @@
 </template>
 
 <script setup>
+import { absolutePublicUrl, publicUrl } from '@/services/publicUrl'
 import { computed, onMounted, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
@@ -297,7 +298,7 @@ const contents = computed(() => [
 ].filter(Boolean))
 
 // Deckblatt
-const heroImage = computed(() => profile.value?.image || '/reef-tank.webp')
+const heroImage = computed(() => profile.value?.image || publicUrl('/reef-tank.webp'))
 const heroBackground = computed(() => `url(${JSON.stringify(heroImage.value)})`)
 const heroLine = computed(() => [
   props.analysis.reasonLabel,
@@ -346,7 +347,7 @@ const topIssues = computed(() => {
 })
 
 // Logo absolut, damit es auch in einem Druckfenster ohne eigene Basis-URL lädt.
-const logoUrl = typeof window === 'undefined' ? '/ati-logo.png' : `${window.location.origin}/ati-logo.png`
+const logoUrl = absolutePublicUrl('/ati-logo.png')
 const logoReady = ref(false)
 const heroReady = ref(false)
 onMounted(() => {

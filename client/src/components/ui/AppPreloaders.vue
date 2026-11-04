@@ -54,6 +54,7 @@
 </template>
 
 <script setup>
+import { publicUrl } from '@/services/publicUrl'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { APP_PRELOADER_EVENT } from '@/services/appPreloader'
 import { mountHeroWaterEffect } from '@/services/heroWaterEffect'
@@ -137,7 +138,7 @@ async function mountLoaderWaterEffect() {
   if (!showFirstVisit.value || !loaderFrame.value) return
   destroyWaterEffect()
   waterTexture = new Image()
-  waterTexture.src = '/reeftech-pattern.jpg'
+  waterTexture.src = publicUrl('/reeftech-pattern.jpg')
   try {
     await waterTexture.decode()
   } catch {

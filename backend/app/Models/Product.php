@@ -16,6 +16,8 @@ class Product extends Model
         return [
             'name' => 'array',
             'max_dose_per_day' => 'float',
+            'url' => 'array',
+            'pack_sizes' => 'array',
         ];
     }
 }

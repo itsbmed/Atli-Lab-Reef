@@ -22,7 +22,7 @@ class AnalysisController extends Controller
     /** Für die Detailansicht, auch für mitgeschickte Proben. */
     private const DETAIL_RELATIONS = [
         'voucher', 'package', 'method.elements', 'aquarium:id,water_type', 'addons',
-        'results.element.group', 'dosings.product', 'groupScores.group',
+        'results.element.group', 'dosings.product', 'groupScores.group', 'recommendations',
     ];
 
     /**

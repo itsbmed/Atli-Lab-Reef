@@ -84,6 +84,7 @@
 </template>
 
 <script setup>
+import { absolutePublicUrl } from '@/services/publicUrl'
 import { computed, reactive, ref } from 'vue'
 import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { recommendedDosingProducts } from '@/services/dosingConfig'
@@ -106,10 +107,7 @@ const error = ref('')
 const number = formatMl
 const doneCount = row => row.amounts.filter((amount, index) => amount && ticked[`${row.key}-${index}`]).length
 // Das Druckfenster hat keine eigene Basis-URL, der Pfad muss absolut sein.
-// Beim Rendern ohne Browser bleibt der relative Pfad stehen.
-const logoUrl = computed(() => (typeof window === 'undefined'
-  ? '/ati-logo.png'
-  : `${window.location.origin}/ati-logo.png`))
+const logoUrl = computed(() => absolutePublicUrl('/ati-logo.png'))
 const printDate = computed(() => `Erstellt am ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`)
 function printPlan() {
   error.value = ''

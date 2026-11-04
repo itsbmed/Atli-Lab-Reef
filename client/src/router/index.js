@@ -28,7 +28,8 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Basispfad des Builds, z. B. /lab-test/ auf dem Testserver (vite build --base=/lab-test/).
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 

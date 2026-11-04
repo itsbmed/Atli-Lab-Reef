@@ -37,19 +37,20 @@
 </template>
 
 <script setup>
+import { publicUrl } from '@/services/publicUrl'
 const tiers = [
   {
-    name: 'Standard', img: '/ati/kit-standard.png', sens: 'bis 25× empfindlicher als andere ICP',
+    name: 'Standard', img: publicUrl('/ati/kit-standard.png'), sens: 'bis 25× empfindlicher als andere ICP',
     desc: 'Der solide Einstieg für die wichtigsten Wasserwerte.',
     feats: ['Salinität & Hauptelemente', 'Phosphat & Nitrat', 'Digitaler Bericht'], featured: false,
   },
   {
-    name: 'Pro', img: '/ati/kit-pro.png', sens: 'erweiterte Spurenelement-Analyse',
+    name: 'Pro', img: publicUrl('/ati/kit-pro.png'), sens: 'erweiterte Spurenelement-Analyse',
     desc: 'Mehr Spurenelemente und Schadstoffe für anspruchsvolle Riffe.',
     feats: ['Alles aus Standard', 'UV5 Spuren & Schadstoffe', 'Zielbereiche je Besatz'], featured: true,
   },
   {
-    name: 'Ultimate MS', img: '/ati/kit-ultimate.png', sens: 'bis 10.000× empfindlicher (MS)',
+    name: 'Ultimate MS', img: publicUrl('/ati/kit-ultimate.png'), sens: 'bis 10.000× empfindlicher (MS)',
     desc: 'Maximale Tiefe per Massenspektrometrie für jede Auffälligkeit.',
     feats: ['Alles aus Pro', 'MS-Spuren & Schadstoffe', 'Feinste Nachweisgrenzen'], featured: false,
   },
