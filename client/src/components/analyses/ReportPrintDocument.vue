@@ -58,7 +58,7 @@
         <div class="rp-panel">
           <span class="rp-eyebrow">In diesem Bericht</span>
           <ol class="rp-contents">
-            <li v-for="(item, index) in contents" :key="item"><b>{{ String(index + 1).padStart(2, '0') }}</b>{{ item }}</li>
+            <li v-for="item in contents" :key="item.key"><b>{{ number(item.key) }}</b>{{ item.label }}</li>
           </ol>
         </div>
       </div>
@@ -79,8 +79,8 @@
     <!-- Messwerte: die Tabellenansicht der Website, gleiche Spaltenaufteilung -->
     <section v-if="settings.sections.values && valueColumns.length" class="rp-section">
       <header class="rp-head">
-        <span class="rp-eyebrow">Messwerte · {{ settings.values.scope === 'issues' ? 'nur auffällige Werte' : 'alle Werte' }}</span>
-        <h2>Alle Werte im Überblick</h2>
+        <b class="rp-num">{{ number('values') }}</b>
+        <div><h2>Messwerte</h2><p>{{ settings.values.scope === 'issues' ? 'Nur die auffälligen Werte' : 'Alle Werte' }} mit Zielbereich, nach Gruppen</p></div>
       </header>
       <div class="compact-values">
         <div v-for="(column, index) in valueColumns" :key="index" class="compact-column">
@@ -116,8 +116,8 @@
     <!-- Osmosewasser: ebenfalls die Tabellenansicht der Website -->
     <section v-if="settings.sections.osmosis && osmosisColumns.length" class="rp-section">
       <header class="rp-head">
-        <span class="rp-eyebrow">Osmosewasser · {{ settings.osmosis.scope === 'found' ? 'nur nachweisbare Werte' : 'alle Werte' }}</span>
-        <h2>Reinheit des Osmosewassers</h2>
+        <b class="rp-num">{{ number('osmosis') }}</b>
+        <div><h2>Osmosewasser</h2><p>Reinheit der Osmoseprobe · {{ settings.osmosis.scope === 'found' ? 'nur nachweisbare Elemente' : 'alle Elemente' }}</p></div>
       </header>
       <div class="compact-values">
         <div v-for="(column, index) in osmosisColumns" :key="index" class="compact-column">
@@ -153,19 +153,19 @@
     <!-- Diagramme -->
     <section v-if="settings.sections.charts" class="rp-section rp-charts">
       <header class="rp-head">
-        <span class="rp-eyebrow">Diagramme</span>
-        <h2>Zusammensetzung &amp; Verhältnisse</h2>
+        <b class="rp-num">{{ number('charts') }}</b>
+        <div><h2>Zusammensetzung &amp; Verhältnisse</h2><p>Wie gut die Elemente zueinander und zu Ihrer Salinität passen</p></div>
       </header>
       <CompositionChart v-if="settings.charts.composition && balance.composition.length" :rows="balance.composition" :salinity="salinity" :unit="compositionUnit" />
-      <PairGauges v-if="settings.charts.ratios && balance.ratios.rows.length" eyebrow="Verhältnisse" title="Elementverhältnisse" :rows="balance.ratios.rows" noun="Verhältnissen" hint="Ein Paar ist ausgewogen, wenn beide Elemente im gleichen Verhältnis zu ihrem Sollwert stehen." />
-      <PairGauges v-if="settings.charts.growth && balance.growth.rows.length" eyebrow="Wachstum" title="Wachstumsfaktoren" :rows="balance.growth.rows" noun="Wachstumsfaktoren" hint="Zeigt, ob die wichtigsten Wachstumsfaktoren im Gleichgewicht stehen." />
+      <PairGauges v-if="settings.charts.ratios && balance.ratios.rows.length" class="rp-ratios" eyebrow="Verhältnisse" title="Elementverhältnisse" :rows="balance.ratios.rows" noun="Verhältnissen" hint="Ein Paar ist ausgewogen, wenn beide Elemente im gleichen Verhältnis zu ihrem Sollwert stehen." />
+      <PairGauges v-if="settings.charts.growth && balance.growth.rows.length" class="rp-growth" eyebrow="Wachstum" title="Wachstumsfaktoren" :rows="balance.growth.rows" noun="Wachstumsfaktoren" hint="Zeigt, ob die wichtigsten Wachstumsfaktoren im Gleichgewicht stehen." />
     </section>
 
     <!-- Empfehlungen -->
     <section v-if="settings.sections.recommendations && recommendations.length" class="rp-section">
       <header class="rp-head">
-        <span class="rp-eyebrow">Empfehlungen · {{ recommendations.length }} {{ recommendations.length === 1 ? 'Maßnahme' : 'Maßnahmen' }}</span>
-        <h2>Was jetzt zu tun ist</h2>
+        <b class="rp-num">{{ number('recommendations') }}</b>
+        <div><h2>Empfehlungen</h2><p>{{ recommendations.length }} {{ recommendations.length === 1 ? 'Maßnahme' : 'Maßnahmen' }}, nach Priorität – zum Abhaken</p></div>
       </header>
       <article v-for="item in recommendations" :key="item.key" :class="['rp-action', item.tone]">
         <header>
@@ -194,11 +194,10 @@
 
     <!-- Dosierungsplan: dasselbe Blatt wie „Drucken / PDF“ im Dosierungsplan -->
     <section v-if="settings.sections.dosing && schedule.days" class="rp-section rp-dose-sheet">
-      <div class="print-heading">
-        <b>ATI · REEFING MADE SIMPLE</b>
-        <h1>Dosierungsplan</h1>
-        <p>{{ [analysis.aquariumName, analysis.reportNumber, volume ? `${volume.toLocaleString('de-DE')} l netto` : ''].filter(Boolean).join(' · ') }}</p>
-      </div>
+      <header class="rp-head">
+        <b class="rp-num">{{ number('dosing') }}</b>
+        <div><h2>Dosierungsplan</h2><p>{{ ['Tag für Tag', analysis.aquariumName, volume ? `${volume.toLocaleString('de-DE')} l netto` : ''].filter(Boolean).join(' · ') }}</p></div>
+      </header>
       <div class="dosing-grid" :style="doseGridStyle">
         <div class="dosing-head">Element</div>
         <div v-for="day in schedule.days" :key="`head-${day}`" class="dosing-head">Tag {{ day }}</div>
@@ -222,8 +221,8 @@
     <!-- Produkte mit QR-Code -->
     <section v-if="settings.sections.products && products.length" class="rp-section">
       <header class="rp-head">
-        <span class="rp-eyebrow">Produkte · scannen und direkt im Shop öffnen</span>
-        <h2>Ihre Produkte</h2>
+        <b class="rp-num">{{ number('products') }}</b>
+        <div><h2>Produkte</h2><p>QR-Code scannen und das Produkt direkt im Shop öffnen</p></div>
       </header>
       <div class="rp-product-grid">
         <article v-for="product in products" :key="product.name" class="rp-product">
@@ -237,15 +236,11 @@
       </div>
     </section>
 
-    <footer class="rp-foot">
-      <span><b>ATI Aquaristik</b> · lab.atiaquaristik.com</span>
-      <span>{{ analysis.aquariumName }} · Bericht {{ analysis.reportNumber }}</span>
-    </footer>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import PairGauges from '@/components/analyses/PairGauges.vue'
@@ -290,13 +285,17 @@ const schedule = computed(() => doseSchedule(props.dosingItems))
 const doseGridStyle = computed(() => ({ gridTemplateColumns: `minmax(140px, 1.6fr) repeat(${schedule.value.days}, minmax(44px, 1fr)) minmax(70px, 0.9fr)` }))
 const products = computed(() => printProducts(recommendations.value))
 const contents = computed(() => [
-  props.settings.sections.values && valueGroups.value.length && 'Messwerte',
-  props.settings.sections.osmosis && osmosisGroups.value.length && 'Osmosewasser',
-  props.settings.sections.charts && 'Zusammensetzung & Verhältnisse',
-  props.settings.sections.recommendations && recommendations.value.length && 'Empfehlungen',
-  props.settings.sections.dosing && schedule.value.days && 'Dosierungsplan',
-  props.settings.sections.products && products.value.length && 'Produkte mit QR-Code',
+  props.settings.sections.values && valueGroups.value.length && { key: 'values', label: 'Messwerte' },
+  props.settings.sections.osmosis && osmosisGroups.value.length && { key: 'osmosis', label: 'Osmosewasser' },
+  props.settings.sections.charts && { key: 'charts', label: 'Zusammensetzung & Verhältnisse' },
+  props.settings.sections.recommendations && recommendations.value.length && { key: 'recommendations', label: 'Empfehlungen' },
+  props.settings.sections.dosing && schedule.value.days && { key: 'dosing', label: 'Dosierungsplan' },
+  props.settings.sections.products && products.value.length && { key: 'products', label: 'Produkte mit QR-Code' },
 ].filter(Boolean))
+// Jeder Abschnitt trägt dieselbe Nummer wie im Inhaltsverzeichnis auf dem Deckblatt.
+function number(key) {
+  return String(contents.value.findIndex((item) => item.key === key) + 1).padStart(2, '0')
+}
 
 // Deckblatt
 const heroImage = computed(() => profile.value?.image || '/reef-tank.webp')
@@ -362,14 +361,42 @@ const qrCodes = ref({})
 const qrReady = ref(false)
 async function buildQrCodes() {
   qrReady.value = false
-  const entries = await Promise.all(products.value.filter((product) => product.url).map(async (product) => {
-    try { return [product.url, await QRCode.toString(product.url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0a1b43', light: '#0000' } })] } catch { return [product.url, ''] }
+  const entries = await Promise.all([reportUrl, ...products.value.map((product) => product.url)].filter(Boolean).map(async (url) => {
+    try { return [url, await QRCode.toString(url, { type: 'svg', margin: 0, width: 44, errorCorrectionLevel: 'M', color: { dark: '#0a1b43', light: '#0000' } })] } catch { return [url, ''] }
   }))
   qrCodes.value = Object.fromEntries(entries)
   qrReady.value = true
 }
 watch(products, buildQrCodes)
 onMounted(buildQrCodes)
+
+// Fußzeile auf jeder Seite: Aquarium, Analyse, Seitenzahl und ein QR-Code zum Bericht online.
+// Chrome setzt sie in die Randfelder von @page; die Seitenränder legt ReportView fest.
+const reportUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/analyses/${encodeURIComponent(props.analysis.id)}`
+const footerCss = computed(() => {
+  const lines = [
+    props.analysis.aquariumName,
+    [`Analyse-Nr. ${props.analysis.reportNumber || props.analysis.id}`, formatDate(props.analysis.completedAt || props.analysis.createdAt)].filter(Boolean).join(' · '),
+  ].filter(Boolean)
+  const qr = qrCodes.value[reportUrl]
+  const box = 'padding-top: 3mm; border-top: 0.75pt solid #0072ce; color: #3d4f69; font: 7.5pt/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; vertical-align: top; white-space: pre;'
+  return `@page {
+    @bottom-left { content: ${cssString(lines.join('\n'))}; ${box} }
+    @bottom-center { content: "Seite " counter(page) " von " counter(pages); ${box} }
+    @bottom-right { content: ${qr ? `"Bericht online\\A" url("data:image/svg+xml,${encodeURIComponent(qr)}")` : '""'}; text-align: right; ${box} }
+  }`
+})
+function cssString(text) {
+  return `"${String(text).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\A ')}"`
+}
+let footerStyle = null
+onMounted(() => {
+  footerStyle = document.createElement('style')
+  footerStyle.textContent = footerCss.value
+  document.head.appendChild(footerStyle)
+})
+watch(footerCss, (css) => { if (footerStyle) footerStyle.textContent = css })
+onBeforeUnmount(() => footerStyle?.remove())
 
 // Fertig zum Drucken, sobald Logo, Titelbild und QR-Codes da sind – spätestens nach 2 s, damit der Druck nie hängt.
 let signalled = false
@@ -405,20 +432,24 @@ function formatDate(date) {
 <style scoped>
 .rp-root { color: #14213d; font: 9.5pt/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .rp-bw { filter: grayscale(1); }
-/* Seiten füllen: das Deckblatt steht allein, danach fließen die Abschnitte weiter. Nur Karten, Gruppen und
-   Diagramme werden nicht geteilt; eine Überschrift bleibt bei ihrem Inhalt. */
+/* Das Deckblatt steht allein, und jeder Abschnitt beginnt auf einer neuen Seite – so bleiben die Themen
+   klar getrennt. Karten, Gruppen und Diagramme werden nicht geteilt; eine Überschrift bleibt bei ihrem Inhalt. */
 .rp-cover { break-after: page; }
-.rp-section + .rp-section { margin-top: 26px; }
-.rp-head, .print-heading { break-inside: avoid; break-after: avoid; }
+.rp-section { break-before: page; }
+.rp-head { break-inside: avoid; break-after: avoid; }
 .compact-group, .dosing-grid, .rp-legend, .plan-footer { break-inside: avoid; }
 h3 { margin: 0; font-size: 11pt; }
 .rp-eyebrow { display: block; color: #004f93; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
-.rp-head { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #0072ce; }
-.rp-head h2 { margin: 3px 0 0; color: #14213d; font-size: 19pt; font-weight: 700; letter-spacing: -0.02em; }
+/* Abschnittskopf: Nummer wie im Inhaltsverzeichnis, Titel und eine Zeile, worum es geht */
+.rp-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1.5px solid #0072ce; }
+.rp-num { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #0072ce; color: #fff; font-size: 12pt; font-weight: 800; }
+.rp-head h2 { margin: 0; color: #14213d; font: 700 20pt/1.15 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; letter-spacing: -0.02em; }
+.rp-head p { margin: 3px 0 0; color: #5b6b82; font: 9.5pt/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
 /* ── Deckblatt ── */
-.rp-cover { display: flex; flex-direction: column; gap: 14px; height: 266mm; overflow: hidden; }
-.rp-landscape .rp-cover { height: 180mm; gap: 8px; }
+/* Seitenhöhe ohne Ränder (oben 12 mm, unten 24 mm für die Fußzeile) */
+.rp-cover { display: flex; flex-direction: column; gap: 14px; height: 259mm; overflow: hidden; }
+.rp-landscape .rp-cover { height: 172mm; gap: 8px; }
 .rp-brand { display: flex; align-items: center; justify-content: space-between; }
 .rp-brand img { height: 34px; }
 .rp-brand span { display: grid; text-align: right; }
@@ -485,12 +516,12 @@ h3 { margin: 0; font-size: 11pt; }
 .print-brand-col b { color: #526780; font-weight: normal; }
 
 /* ── Messwerte & Osmose: Tabellenansicht der Website ── */
-.compact-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; }
-.compact-column { display: grid; gap: 12px; min-width: 0; }
-.compact-group { overflow: hidden; border: 1px solid rgba(10,27,67,0.12); border-radius: 14px; background: #fff; }
-.compact-group-head { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid rgba(10,27,67,0.12); background: #f8fbfe; }
+.compact-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.compact-column { display: grid; gap: 16px; min-width: 0; }
+.compact-group { overflow: hidden; border: 1px solid #dde5ee; border-radius: 12px; background: #fff; }
+.compact-group-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-bottom: 1px solid #dde5ee; background: #f7f9fc; }
 .compact-group-head strong { color: #14213d; font-size: 8.5pt; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-.compact-group-head > b { padding: 1px 7px; border-radius: 999px; background: #eef3f8; color: #5b6b82; font-size: 7.5pt; font-weight: 600; }
+.compact-group-head > b { color: #5b6b82; font-size: 7.5pt; font-weight: 600; }
 .compact-group-head > em { margin-left: auto; color: #9a4d0a; font-size: 7.5pt; font-style: normal; font-weight: 600; white-space: nowrap; }
 .element-section-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--group-accent, #0072ce); }
 .group-basis { --group-accent: #1686d9; }
@@ -502,24 +533,23 @@ h3 { margin: 0; font-size: 11pt; }
 .compact-table thead th { padding: 5px 12px 3px; color: #5b6b82; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.08em; text-align: left; text-transform: uppercase; }
 .compact-table .num { text-align: right; }
 .compact-table tbody tr { border-top: 1px solid #edf1f5; break-inside: avoid; }
-.compact-table tbody th, .compact-table td { padding: 3px 12px; vertical-align: middle; }
+.compact-table tbody th, .compact-table td { padding: 4px 12px; vertical-align: middle; }
 .compact-table tbody th { width: 100%; max-width: 0; font-weight: 600; text-align: left; }
 .compact-element { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
 .compact-dot { flex: none; align-self: center; width: 7px; height: 7px; border-radius: 50%; background: #10b981; }
-tr.watch .compact-dot { background: #f59e0b; box-shadow: 0 0 0 2.5px rgba(245,158,11,0.16); }
-tr.critical .compact-dot { background: #e85d4f; box-shadow: 0 0 0 2.5px rgba(232,93,79,0.16); }
+tr.watch .compact-dot { background: #f59e0b; }
+tr.critical .compact-dot { background: #e85d4f; }
 .compact-name { overflow: hidden; color: #14213d; font-size: 8.5pt; text-overflow: ellipsis; white-space: nowrap; }
 .compact-symbol { color: #5b6b82; font-size: 7pt; font-weight: 600; }
 .compact-table td { white-space: nowrap; }
-.compact-pill { display: inline-flex; align-items: baseline; gap: 3px; padding: 1.5px 7px; border-radius: 7px; background: linear-gradient(135deg, #f3fcf8, #e3f7ee); box-shadow: inset 0 0 0 1px rgba(16,185,129,0.16); color: #0f6b4c; }
+/* Flach: nur Werte außerhalb des Ziels bekommen eine helle Fläche */
+.compact-pill { display: inline-flex; align-items: baseline; gap: 3px; padding: 1.5px 7px; border-radius: 6px; color: #0f6b4c; }
 .compact-pill b { color: inherit; font-size: 8.5pt; font-weight: 700; }
 .compact-pill small { color: inherit; font-size: 6.5pt; font-weight: 600; opacity: 0.72; }
-tr.watch .compact-pill { background: linear-gradient(135deg, #fff8ea, #ffecc7); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.32); color: #92400e; }
-tr.critical .compact-pill { background: linear-gradient(135deg, #fff1ef, #fdd8d3); box-shadow: inset 0 0 0 1px rgba(232,93,79,0.34); color: #a92e22; }
-.compact-table:not(.osmosis) tr.undetected.good .compact-pill { background: #f2f5f9; box-shadow: inset 0 0 0 1px #e3e9f0; color: #94a3b8; }
+tr.watch .compact-pill { background: #fff3da; color: #92400e; }
+tr.critical .compact-pill { background: #fde4e0; color: #a92e22; }
+.compact-table:not(.osmosis) tr.undetected.good .compact-pill { color: #94a3b8; }
 tr.undetected .compact-pill b { font-weight: 600; }
-tr.critical > th { background: linear-gradient(90deg, rgba(232,93,79,0.07), transparent 70%); }
-tr.watch > th { background: linear-gradient(90deg, rgba(245,158,11,0.06), transparent 70%); }
 .compact-target { color: #5b6b82; font-size: 7.5pt; }
 .compact-status { color: #047857; font-weight: 700; }
 tr.critical .compact-status { color: #b53a2e; }
@@ -529,7 +559,7 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-landscape .compact-group-head { padding-block: 5px; }
 .rp-landscape .compact-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rp-landscape .compact-values, .rp-landscape .compact-column { gap: 8px; }
-.rp-legend { margin: 10px 0 0; color: #5b6b82; font-size: 7.5pt; }
+.rp-legend { margin: 16px 0 0; color: #5b6b82; font-size: 8pt; }
 .rp-legend i { display: inline-block; width: 7px; height: 7px; margin: 0 4px 0 10px; border-radius: 50%; background: #10b981; }
 .rp-legend i:first-child { margin-left: 0; }
 .rp-legend i.watch { background: #f59e0b; }
@@ -537,17 +567,11 @@ tr.critical .compact-status { color: #b53a2e; }
 
 /* ── Diagramme: Bildschirm-Komponenten, im Druck ohne Schatten und Animation ── */
 .rp-charts { display: block; }
-.rp-charts > * + * { margin-top: 14px; }
 .rp-charts :deep(*) { animation: none !important; transition: none !important; box-shadow: none !important; }
 .rp-charts > * { min-width: 0; break-inside: avoid; }
 /* Lange Paar-Anzeigen dürfen zwischen zwei Zeilen umbrechen, damit keine halbe Seite leer bleibt */
 .rp-charts > .pg { display: block; container-type: normal; break-inside: auto; }
-.rp-charts > .pg { padding: 14px 18px; }
-.rp-charts > .pg > * + * { margin-top: 10px; }
-.rp-charts :deep(.pg-row) { padding-block: 9px; }
-.rp-charts :deep(.pg-head h3) { font-size: 16px; }
 .rp-charts :deep(.pg-rows) { display: block; }
-.rp-charts :deep(.pg-row + .pg-row) { margin-top: 7px; }
 .rp-charts :deep(.pg-row) { break-inside: avoid; }
 .rp-charts :deep(.pg-head) { break-inside: avoid; break-after: avoid; }
 /* Bedienelemente gehören nicht aufs Papier */
@@ -556,25 +580,64 @@ tr.critical .compact-status { color: #b53a2e; }
 /* Skalenbeschriftung der Paar-Anzeigen bleibt in ihrer Karte */
 .rp-charts :deep(.tg-scale) { overflow: hidden; }
 .rp-charts > .cmp { display: block; container-type: normal; }
-.rp-charts > .cmp > * + * { margin-top: 14px; }
 /* Im Druck nur die Lesehilfe, ohne die versteckte Detailansicht; der Kasten bleibt als Ganzes zusammen */
 .rp-charts :deep(.cmp-readout > .hidden) { display: none; }
 .rp-charts :deep(.cmp-readout) { break-inside: avoid; }
-.rp-landscape .rp-charts :deep(.cmp-stage) { height: 150px; }
-.rp-landscape .rp-charts > .cmp { padding-block: 16px; }
-.rp-landscape .rp-charts > .cmp > * + * { margin-top: 8px; }
+/* Alle Diagramme auf eine Seite: flachere Säulen, die Lesehilfe neben der Skizze, schmalere Paar-Zeilen */
+.rp-charts > .cmp, .rp-charts > .pg { padding: 12px 16px; }
+.rp-charts > * + * { margin-top: 12px; }
+.rp-charts > .cmp > * + * { margin-top: 8px; }
+.rp-charts > .pg > * + * { margin-top: 8px; }
+.rp-charts :deep(.cmp-head h3), .rp-charts :deep(.pg-head h3) { font-size: 14px; }
+.rp-charts :deep(.cmp-verdict), .rp-charts :deep(.pg-head p) { margin-top: 2px; font-size: 10.5px; }
+.rp-charts :deep(.cmp-stage) { height: 185px; padding-block: 12px 6px; }
+.rp-charts :deep(.cmp-xaxis span) { font-size: 10px; }
+.rp-charts :deep(.cmp-readout) { padding: 8px; }
+.rp-charts :deep(.cmp-guide) { gap: 6px; }
+.rp-charts :deep(.cmp-guide-head > strong) { font-size: 10.5px; }
+.rp-charts :deep(.cmp-steps) { gap: 6px; }
+.rp-charts :deep(.cmp-step) { grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 7px; }
+.rp-charts :deep(.cmp-step-copy strong) { gap: 5px; font-size: 10px; }
+.rp-charts :deep(.cmp-step-copy strong i) { width: 14px; height: 14px; font-size: 8.5px; }
+.rp-charts :deep(.cmp-step-copy small) { font-size: 8.5px; line-height: 1.35; }
+.rp-charts :deep(.pg-row) { padding: 4px 12px; }
+.rp-charts :deep(.pg-row + .pg-row) { margin-top: 5px; }
+.rp-charts :deep(.pg-hint) { margin-top: 1px; font-size: 10px; }
+.rp-charts :deep(.pg-symbol) { min-height: 32px; border-radius: 9px; font-size: 10px; }
+.rp-charts :deep(.pg-name) { gap: 2px; }
+.rp-charts :deep(.pg-name strong) { font-size: 11.5px; line-height: 1.25; }
+.rp-charts :deep(.pg-meta small) { font-size: 9.5px; }
+.rp-charts :deep(.pg-chip) { padding: 1px 6px; font-size: 9px; }
+.rp-charts :deep(.tg) { padding-top: 24px; }
+.rp-charts :deep(.tg-bubble) { padding: 2px 7px; font-size: 10.5px; }
+.rp-charts :deep(.tg-scale) { height: 11px; margin-top: 4px; }
+.rp-charts :deep(.tg-scale small) { font-size: 8.5px; }
+/* Querformat: links Zusammensetzung und Wachstum, rechts die Verhältnisse */
+.rp-landscape .rp-charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-flow: row dense; align-items: start; gap: 12px 14px; }
+.rp-landscape .rp-charts > .rp-head { grid-column: 1 / -1; }
+.rp-landscape .rp-charts > * + * { margin-top: 0; }
+.rp-landscape .rp-charts > .cmp, .rp-landscape .rp-charts > .rp-growth { grid-column: 1; }
+.rp-landscape .rp-charts > .rp-ratios { grid-column: 2; grid-row: span 2; }
+.rp-landscape .rp-charts > .rp-head { margin-bottom: 4px; }
+.rp-landscape .rp-charts :deep(.cmp-stage) { height: 110px; padding-top: 10px; }
+.rp-landscape .rp-charts :deep(.cmp-guide-head), .rp-landscape .rp-charts :deep(.pg-hint) { display: none; }
+/* Wenig Höhe: die Lesehilfe nur als drei kurze Textspalten */
+.rp-landscape .rp-charts :deep(.cmp-art) { display: none; }
+.rp-landscape .rp-charts :deep(.cmp-step) { grid-template-columns: minmax(0, 1fr); padding: 4px 6px; }
+.rp-landscape .rp-charts :deep(.cmp-step-copy small) { font-size: 7.5px; }
+.rp-landscape .rp-charts :deep(.pg-row) { grid-template-columns: 44px minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 10px; }
 
 /* ── Empfehlungen ── */
-.rp-action { margin-bottom: 10px; padding: 11px 14px; border: 1px solid rgba(10,27,67,0.12); border-left: 4px solid #10b981; border-radius: 12px; break-inside: avoid; }
+.rp-action { margin-bottom: 16px; padding: 14px 16px; border: 1px solid #dde5ee; border-left: 4px solid #10b981; border-radius: 12px; break-inside: avoid; }
 .rp-action.watch { border-left-color: #f59e0b; }
 .rp-action.critical { border-left-color: #e85d4f; }
 .rp-action header { display: flex; gap: 10px; align-items: flex-start; }
 .rp-action header small { color: #5b6b82; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 .rp-check { flex: none; display: grid; place-items: center; width: 14px; height: 14px; margin-top: 2px; border: 1.5px solid #b8c9dd; border-radius: 4px; color: #0f9f8f; font-size: 9pt; font-weight: 800; }
-.rp-action p { margin: 5px 0 0; }
-.rp-options { margin-top: 6px; padding: 6px 9px; border-radius: 8px; background: #f5f8fb; }
+.rp-action p { margin: 7px 0 0; }
+.rp-options { margin-top: 8px; padding-left: 10px; border-left: 2px solid #dde5ee; }
 .rp-options p { margin: 2px 0; }
-.rp-detail { margin-top: 7px; }
+.rp-detail { margin-top: 10px; }
 .rp-detail .rp-eyebrow { margin-bottom: 3px; }
 .rp-detail ul.rp-supply { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 .rp-detail .rp-supply li { align-items: center; justify-content: flex-start; gap: 7px; padding: 4px 7px; border: 1px solid #cfe4f3; border-radius: 6px; }
@@ -591,11 +654,8 @@ tr.critical .compact-status { color: #b53a2e; }
 
 /* ── Dosierungsplan: Gestaltung wie das Druckblatt des Dosierungsplans (DosingCalendar) ── */
 .rp-dose-sheet { color: #0a1b43; font: 10px Arial, sans-serif; }
-.rp-dose-sheet h1 { margin: 8px 0; font-size: 28px; }
-.rp-dose-sheet p { margin: 0; line-height: 1.5; }
-.print-heading { padding: 0 0 12px; border-bottom: 3px solid #0072ce; }
-.print-heading b { color: #0072ce; letter-spacing: 2px; }
-.dosing-grid { display: grid; margin: 14px 0; overflow: hidden; border: 1px solid #cbd9e7; border-radius: 8px; }
+.rp-dose-sheet .plan-footer { margin: 0; line-height: 1.5; }
+.dosing-grid { display: grid; margin: 0 0 16px; overflow: hidden; border: 1px solid #cbd9e7; border-radius: 8px; }
 .dosing-head, .dosing-element, .dose-cell { display: flex; align-items: center; justify-content: center; min-height: 42px; padding: 5px; border-right: 1px solid #cbd9e7; border-bottom: 1px solid #cbd9e7; }
 .dosing-head { background: #eef7ff; color: #0072ce; font-size: 8px; text-transform: uppercase; }
 .dosing-element { flex-direction: column; align-items: flex-start; padding: 7px 9px; font-weight: bold; }
@@ -609,13 +669,12 @@ tr.critical .compact-status { color: #b53a2e; }
 .plan-footer { padding-top: 10px; border-top: 1px solid #cbd9e7; color: #526780; font-size: 9px; }
 
 /* ── Produkte ── */
-.rp-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rp-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .rp-landscape .rp-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.rp-product { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(10,27,67,0.12); border-radius: 14px; break-inside: avoid; }
+.rp-product { display: flex; gap: 14px; align-items: center; padding: 14px; border: 1px solid #dde5ee; border-radius: 12px; break-inside: avoid; }
 .rp-qr { flex: none; width: 76px; height: 76px; }
 .rp-qr :deep(svg) { display: block; width: 100%; height: 100%; }
 .rp-product p { margin: 3px 0; color: #475569; font-size: 8.5pt; }
 .rp-product small { color: #5b6b82; font-size: 7.5pt; }
 
-.rp-foot { display: flex; justify-content: space-between; gap: 16px; margin-top: 22px; padding-top: 8px; border-top: 1.5px solid #0072ce; color: #5b6b82; font-size: 7.5pt; break-inside: avoid; }
 </style>

@@ -1159,7 +1159,7 @@ function onPdfCreate({ settings }) {
   savePrintJob(localStorage, analysis.value.id, settings)
   // Papierformat gilt nur für @page – das lässt sich nicht im Komponenten-CSS binden.
   pageStyle = document.createElement('style')
-  pageStyle.textContent = `@page { size: A4 ${settings.format.orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 12mm 12mm 14mm; }`
+  pageStyle.textContent = `@page { size: A4 ${settings.format.orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 12mm 12mm 24mm; }`
   document.head.appendChild(pageStyle)
   document.documentElement.classList.add('rp-printing')
   printSettings.value = settings
