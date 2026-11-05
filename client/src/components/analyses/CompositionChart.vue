@@ -94,9 +94,9 @@ const dotsGuide = computed(() => ({
 const columnsGuide = computed(() => ({
   hint: 'Säule antippen für Messwert und Soll',
   steps: [
-    { art: 'cols-base', title: 'Die Nulllinie', text: `Hier liegt der Sollwert – die Menge, die bei ${salinityText.value} zu erwarten ist.` },
-    { art: 'cols-band', title: 'Das grüne Band', text: `Innerhalb von ±${BALANCE_BAND} % ist alles ausgewogen – die Säule ist grün. Bis ±${BALANCE_BAND * 2} % wird sie gelb, darüber rot.` },
-    { art: 'cols-offset', title: 'Nach oben oder unten', text: 'Nach oben heißt zu viel, nach unten zu wenig. Je länger die Säule, desto größer die Abweichung.' },
+    { art: 'cols-base', title: 'Die Nulllinie ist Ihr Soll', text: `0 % heißt: genau die Menge, die bei ${salinityText.value} zu erwarten ist. Je näher eine Säule an der Linie bleibt, desto besser.` },
+    { art: 'cols-band', title: 'Das grüne Band', text: `Bis ±${BALANCE_BAND} % ist alles ausgewogen – die Säule ist grün. Bis ±${BALANCE_BAND * 2} % (gestrichelte Linie) wird sie gelb, darüber rot.` },
+    { art: 'cols-offset', title: 'Nach oben oder unten', text: 'Nach oben heißt zu viel, nach unten zu wenig. Die Zahl an der Säule ist die Abweichung vom Soll – je länger, desto größer.' },
   ],
 }))
 </script>
