@@ -70,11 +70,11 @@
     <div v-else class="cmp-plot">
       <div class="cmp-stage">
         <div class="cmp-yaxis" aria-hidden="true">
-          <em v-for="tick in columns.ticks" :key="tick" :style="{ bottom: `${50 + (tick / columns.scale) * 50}%` }">{{ tick > 0 ? '+' : tick < 0 ? '−' : '' }}{{ Math.abs(tick) }} %</em>
+          <em v-for="tick in columns.ticks" :key="tick" :class="{ base: tick === 0 }" :style="{ bottom: `${columnPos(tick)}%` }">{{ tick > 0 ? '+' : tick < 0 ? '−' : '' }}{{ Math.abs(tick) }} %</em>
         </div>
         <div class="cmp-area">
-          <i v-for="tick in columns.ticks" :key="tick" :class="['cmp-hline', { base: tick === 0 }]" :style="{ bottom: `${50 + (tick / columns.scale) * 50}%` }" aria-hidden="true"></i>
-          <span class="cmp-band" :style="{ bottom: `${50 - Math.min(1, band / columns.scale) * 50}%`, height: `${Math.min(1, band / columns.scale) * 100}%` }" aria-hidden="true"></span>
+          <i v-for="tick in columns.ticks" :key="tick" :class="['cmp-hline', { base: tick === 0, limit: Math.abs(tick) === band * 2 }]" :style="{ bottom: `${columnPos(tick)}%` }" aria-hidden="true"></i>
+          <span class="cmp-band" :style="{ bottom: `${columnPos(-Math.min(band, columns.below))}%`, height: `${columnPos(Math.min(band, columns.above)) - columnPos(-Math.min(band, columns.below))}%` }" aria-hidden="true"></span>
           <div class="cmp-cols">
             <button
               v-for="item in columns.items"
@@ -84,7 +84,7 @@
               :aria-label="item.detail"
               @pointerenter="active = item.key" @pointerleave="active = ''" @focus="active = item.key" @blur="active = ''"
             >
-              <span :class="['cmp-column', item.percent < 0 ? 'neg' : 'pos', { clamped: item.clamped }]" :style="{ height: `${Math.max(item.extent * 50, 0.6)}%` }">
+              <span :class="['cmp-column', item.percent < 0 ? 'neg' : 'pos', { clamped: item.clamped }]" :style="item.percent < 0 ? { top: `${100 - columnPos(0)}%`, height: `max(${item.extent}%, 3px)` } : { bottom: `${columnPos(0)}%`, height: `max(${item.extent}%, 3px)` }">
                 <em :class="['cmp-column-label', { quiet: Math.abs(item.percent) <= band && active !== item.key }]">{{ formatPercent(item.percent) }}</em>
               </span>
             </button>
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="cmp-xaxis" aria-hidden="true"><span v-for="item in columns.items" :key="item.key" :class="{ derived: item.derived }">{{ item.axis }}</span></div>
-      <p v-if="columns.items.some((item) => item.clamped)" class="cmp-note">Säulen über ±{{ columns.scale }} % sind gekappt und schraffiert – die echte Abweichung steht daran.</p>
+      <p v-if="columns.items.some((item) => item.clamped)" class="cmp-note">Säulen über ±{{ columnSteps.at(-1) }} % sind gekappt und schraffiert – die echte Abweichung steht daran.</p>
     </div>
 
     <!-- Lesehilfe; beim Zeigen auf einen Eintrag stehen an ihrer Stelle dessen Details.
@@ -133,26 +133,31 @@
                 <path class="mark watch" :d="diamond(172, 51)" />
               </template>
               <!-- Säulen -->
+              <!-- Säulen: wie im Diagramm, die Nulllinie bei y = 30, ±15 % sind 10 Einheiten -->
               <template v-else-if="step.art === 'cols-base'">
-                <path class="grid" d="M28 14h176M28 46h176" />
-                <rect v-for="[x, h] in [[62, 3], [102, -2], [142, 2], [182, -3]]" :key="x" class="col good" :x="x - 9" :y="h > 0 ? 30 - h : 30" width="18" :height="Math.abs(h)" rx="1" />
-                <path class="base" d="M28 30h176" />
-                <text x="14" y="33">0</text>
-              </template>
-              <template v-else-if="step.art === 'cols-offset'">
-                <rect class="col watch" x="70" y="8" width="20" height="22" rx="2" />
-                <rect class="col watch" x="130" y="30" width="20" height="24" rx="2" />
-                <path class="base" d="M28 30h176" />
-                <text x="14" y="33">0</text>
-                <text class="tag" x="96" y="15">zu viel</text>
-                <text class="tag" x="156" y="50">zu wenig</text>
+                <rect class="band soft" x="34" y="20" width="170" height="20" />
+                <path v-for="[x, p] in [[62, 4], [98, -3], [134, 2]]" :key="x" class="col good" :d="column(x, p)" />
+                <path class="base soll" d="M34 30h170" />
+                <text x="2" y="33">0 %</text>
+                <text class="soll" x="164" y="26">= Soll</text>
               </template>
               <template v-else-if="step.art === 'cols-band'">
-                <rect class="band" x="28" y="20" width="176" height="20" />
-                <rect v-for="[x, h] in [[60, 6], [96, -5], [132, 4]]" :key="x" class="col good" :x="x - 9" :y="h > 0 ? 30 - h : 30" width="18" :height="Math.abs(h)" rx="1" />
-                <rect class="col watch" x="160" y="30" width="18" height="26" rx="1" />
-                <path class="base" d="M28 30h176" />
-                <text x="14" y="33">0</text>
+                <rect class="band" x="34" y="20" width="170" height="20" />
+                <path class="limit" d="M34 10h170M34 50h170" />
+                <path v-for="[x, p, tone] in [[56, 9, 'good'], [86, -7, 'good'], [116, 22, 'watch'], [146, -24, 'watch'], [176, 40, 'critical']]" :key="x" :class="['col', tone]" :d="column(x, p)" />
+                <path class="base" d="M34 30h170" />
+                <text x="2" y="33">0 %</text>
+              </template>
+              <template v-else-if="step.art === 'cols-offset'">
+                <rect class="band soft" x="34" y="20" width="170" height="20" />
+                <path class="col watch" :d="column(74, 24)" />
+                <path class="col critical" :d="column(134, -40)" />
+                <path class="base" d="M34 30h170" />
+                <text x="2" y="33">0 %</text>
+                <text class="tag" x="88" y="16">↑ zu viel</text>
+                <text class="val" x="88" y="25">+24 %</text>
+                <text class="tag" x="148" y="44">↓ zu wenig</text>
+                <text class="val" x="148" y="53">−40 %</text>
               </template>
             </svg>
             <span class="cmp-step-copy">
@@ -206,7 +211,8 @@ const props = defineProps({
 })
 
 const MODES = [{ key: 'columns', label: 'Säulen' }, { key: 'dots', label: 'Punkte' }]
-const PERCENT_SCALES = [5, 10, 20, 30, 50]
+// Säulen-Achse in Schritten des grünen Bands; oben und unten je nur so weit, wie die Werte reichen.
+const columnSteps = computed(() => [1, 2, 3, 4].map((step) => step * props.band))
 
 const mode = ref('columns')
 const sort = ref('given')
@@ -227,12 +233,19 @@ const points = computed(() => props.items.map((item) => {
 
 const columns = computed(() => {
   const withPercent = props.items.map((item) => ({ ...item, percent: item.index - 100 }))
-  const largest = Math.max(0, ...withPercent.map((item) => Math.abs(item.percent)))
-  const scale = PERCENT_SCALES.find((step) => step >= largest) || PERCENT_SCALES.at(-1)
-  const items = withPercent.map((item) => ({ ...item, extent: Math.min(1, Math.abs(item.percent) / scale), clamped: Math.abs(item.percent) > scale }))
+  const reach = (values) => columnSteps.value.find((step) => step >= Math.max(props.band, ...values)) || columnSteps.value.at(-1)
+  const above = reach(withPercent.map((item) => item.percent))
+  const below = reach(withPercent.map((item) => -item.percent))
+  const span = above + below
+  const items = withPercent.map((item) => {
+    const limit = item.percent < 0 ? below : above
+    return { ...item, extent: (Math.min(Math.abs(item.percent), limit) / span) * 100, clamped: Math.abs(item.percent) > limit }
+  })
   if (sort.value === 'deviation') items.sort((a, b) => Math.abs(b.percent) - Math.abs(a.percent))
-  return { scale, ticks: [-scale, -scale / 2, 0, scale / 2, scale], items }
+  const ticks = [...columnSteps.value.filter((step) => step <= below).map((step) => -step).reverse(), 0, ...columnSteps.value.filter((step) => step <= above)]
+  return { above, below, ticks, items }
 })
+const columnPos = (value) => ((value + columns.value.below) / (columns.value.above + columns.value.below)) * 100
 
 const activeItem = computed(() => props.items.find((item) => item.key === active.value) || null)
 const guide = computed(() => (mode.value === 'dots' ? props.dotsGuide : props.columnsGuide))
@@ -240,6 +253,14 @@ const guide = computed(() => (mode.value === 'dots' ? props.dotsGuide : props.co
 // Raute wie die Punkte im Diagramm, für die Skizzen der Lesehilfe.
 function diamond(x, y, r = 7) {
   return `M${x} ${y - r}L${x + r} ${y}L${x} ${y + r}L${x - r} ${y}Z`
+}
+
+// Säule wie im Diagramm, nur das freie Ende gerundet; über ±40 % gekappt.
+function column(x, percent, width = 16) {
+  const h = Math.max(Math.min(Math.abs(percent) * (10 / 15), 27), 3)
+  const [l, r, s] = [x - width / 2, x + width / 2, percent < 0 ? 1 : -1]
+  const end = 30 + s * h
+  return `M${l} 30V${end - s * 2}Q${l} ${end} ${l + 2} ${end}H${r - 2}Q${r} ${end} ${r} ${end - s * 2}V30Z`
 }
 
 function formatIndex(value) {
@@ -301,6 +322,12 @@ function formatPercent(value) {
 .cmp-art .mark { stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgba(10,27,67,0.22)); }
 .cmp-art .mark.good, .cmp-art .col.good { fill: var(--good); }
 .cmp-art .mark.watch, .cmp-art .col.watch { fill: var(--watch); }
+.cmp-art .col.critical { fill: var(--critical); }
+.cmp-art .band.soft { fill: rgba(27,175,122,0.08); stroke: none; }
+.cmp-art .limit { stroke: #e7c98a; stroke-width: 1; stroke-dasharray: 3 3; }
+.cmp-art .base.soll { stroke: var(--brand-blue); stroke-width: 2; opacity: 1; }
+.cmp-art text.soll { fill: var(--brand-blue); font-weight: 800; }
+.cmp-art text.val { fill: #7d8b99; font-size: 8.5px; }
 .cmp-art text { fill: #7d8b99; font-size: 9px; font-weight: 700; }
 .cmp-art text.tag { fill: #9a4d0a; font-size: 9px; }
 .cmp-step-copy { display: grid; gap: 4px; padding: 0 2px; }
@@ -326,12 +353,14 @@ function formatPercent(value) {
 
 /* Kundenansichten: Spalten je Element über einer gemeinsamen y-Achse */
 .cmp-plot { display: grid; gap: 6px; min-width: 0; }
-.cmp-stage { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; height: 300px; }
+.cmp-stage { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; height: 300px; padding: 16px 0 10px; }
 .cmp-yaxis { position: relative; }
 .cmp-yaxis em { position: absolute; right: 0; color: var(--text-muted); font-size: 10.5px; font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; transform: translateY(50%); }
 .cmp-area { position: relative; border-left: 1px solid #cfd8e2; border-bottom: 1px solid #cfd8e2; }
 .cmp-hline { position: absolute; right: 0; left: 0; height: 0; border-top: 1px solid #edf1f5; }
 .cmp-hline.base { border-top: 1.5px solid #9fb0c2; }
+.cmp-hline.limit { border-top: 1px dashed #e7c98a; }
+.cmp-yaxis em.base { color: var(--text); font-weight: 800; }
 .cmp-band { position: absolute; right: 0; left: 0; background: rgba(27,175,122,0.10); box-shadow: inset 0 1px 0 rgba(27,175,122,0.35), inset 0 -1px 0 rgba(27,175,122,0.35); }
 .cmp-cols { position: absolute; inset: 0; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
 .cmp-col { position: relative; padding: 0; border: 0; background: transparent; cursor: pointer; }
@@ -348,9 +377,9 @@ function formatPercent(value) {
 .cmp-col.derived.critical .cmp-dot { border-color: var(--critical); }
 .cmp-dot-label { position: absolute; bottom: 12px; left: 0; color: var(--text); font-size: 10.5px; font-style: normal; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
 .cmp-point.clamped.up .cmp-dot-label { bottom: auto; top: 12px; }
-.cmp-column { position: absolute; left: 22%; right: 22%; background: var(--good); transition: height .4s cubic-bezier(.22,.8,.3,1); }
-.cmp-column.pos { bottom: 50%; border-radius: 4px 4px 0 0; }
-.cmp-column.neg { top: 50%; border-radius: 0 0 4px 4px; }
+.cmp-column { position: absolute; left: 50%; width: min(56%, 56px); transform: translateX(-50%); background: var(--good); transition: height .4s cubic-bezier(.22,.8,.3,1); }
+.cmp-column.pos { border-radius: 4px 4px 0 0; }
+.cmp-column.neg { border-radius: 0 0 4px 4px; }
 .cmp-col.watch .cmp-column { background: var(--watch); }
 .cmp-col.critical .cmp-column { background: var(--critical); }
 .cmp-col.derived .cmp-column { opacity: .55; }
