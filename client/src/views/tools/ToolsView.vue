@@ -142,11 +142,11 @@
                 <button type="button" :aria-pressed="volumeUnit === 'gal'" @click="volumeUnit = 'gal'">US-Gallonen</button>
               </div>
               <div class="litres-input">
-                <input id="sim-litres" v-model.number="displayChangeVolume" type="number" :min="1 / litresPerUnit" :max="(netLitres || 1) / litresPerUnit" step="any" @change="normalizeLitres" />
+                <input id="sim-litres" v-model.number="displayChangeVolume" type="number" :min="volumeUnit === 'gal' ? volumeStep : 1" :max="(netLitres || 1) / litresPerUnit" :step="volumeUnit === 'gal' ? volumeStep : 'any'" @change="normalizeLitres" />
                 <span>{{ volumeUnit }}</span>
                 <b>{{ formatNumber(simPercent, 1) }} %</b>
               </div>
-              <input v-model.number="displayChangeVolume" class="litres-range" type="range" :min="1 / litresPerUnit" :max="Math.max(1, Math.round(netLitres * 0.6)) / litresPerUnit" :step="volumeUnit === 'l' ? 1 : 0.1" :aria-label="`Wasser je Wechsel in ${volumeUnit === 'l' ? 'Litern' : 'US-Gallonen'}`" />
+              <input :key="volumeUnit" v-model.number="displayChangeVolume" class="litres-range" type="range" :min="volumeUnit === 'gal' ? volumeStep : 1" :max="Math.max(1, Math.round(netLitres * 0.6)) / litresPerUnit" :step="volumeStep" :aria-label="`Wasser je Wechsel in ${volumeUnit === 'l' ? 'Litern' : 'US-Gallonen'}`" />
               <small v-if="profileMaxLitres">Höchstmenge laut Profil: <b>{{ formatVolume(profileMaxLitres) }}</b> · <button type="button" class="link" @click="changeLitres = profileMaxLitres; normalizeLitres()">übernehmen</button></small>
               <small v-else>Im Profil ist keine Höchstmenge hinterlegt. <RouterLink :to="`/aquariums/${selectedProfileId}`">Im Aquarium ergänzen</RouterLink></small>
             </div>
@@ -524,12 +524,20 @@ const changeCount = ref(2)
 // Keep the canonical amount in litres so switching display units never changes a simulation.
 const volumeUnit = ref('l')
 const litresPerUnit = computed(() => volumeUnit.value === 'gal' ? 3.785411784 : 1)
+// Gallonen in halben Schritten (32 · 32,5 · 33); die Menge in Litern folgt genau diesem Wert.
+const volumeStep = computed(() => volumeUnit.value === 'gal' ? 0.5 : 1)
+const snapToStep = (value) => Math.round(value / volumeStep.value) * volumeStep.value
 const displayChangeVolume = computed({
   get: () => Number((changeLitres.value / litresPerUnit.value).toFixed(3)),
-  set: (value) => { changeLitres.value = Number(value) * litresPerUnit.value },
+  set: (value) => { changeLitres.value = (volumeUnit.value === 'gal' ? snapToStep(Number(value)) : Number(value)) * litresPerUnit.value },
+})
+// Beim Wechsel der Einheit auf deren Raster: halbe Gallonen bzw. ganze Liter.
+watch(volumeUnit, (unit) => {
+  if (unit === 'l') changeLitres.value = Math.round(changeLitres.value)
+  normalizeLitres()
 })
 function formatVolume(litres) {
-  return `${formatNumber(litres / litresPerUnit.value, volumeUnit.value === 'gal' ? 2 : 1)} ${volumeUnit.value}`
+  return `${formatNumber(litres / litresPerUnit.value, 1)} ${volumeUnit.value}`
 }
 
 const simReport = computed(() => selectedProfileAnalyses.value.find((analysis) => analysis.id === simReportId.value) || latestAnalysis.value)
@@ -573,7 +581,14 @@ function defaultLitres() {
 }
 function normalizeLitres() {
   const value = Number(changeLitres.value) || 0
-  changeLitres.value = Math.min(Math.max(1, value), Math.max(1, netLitres.value))
+  const litres = Math.min(Math.max(1, value), Math.max(1, netLitres.value))
+  if (volumeUnit.value !== 'gal') {
+    changeLitres.value = litres
+    return
+  }
+  // Auf halbe Gallonen, ohne das Nettovolumen zu überschreiten.
+  const gallons = Math.max(volumeStep.value, snapToStep(litres / litresPerUnit.value))
+  changeLitres.value = Math.min(gallons, Math.floor(netLitres.value / litresPerUnit.value / volumeStep.value) * volumeStep.value || gallons) * litresPerUnit.value
 }
 
 const simInput = computed(() => ({
