@@ -404,8 +404,10 @@ const targetValues = computed(() => {
     { name: 'Phosphat', range: '0.01-0.1 mg/L', note: 'Nährstoffkontrolle' },
   ]
 })
+// Nur fertige Berichte mit echter Bewertung – eine Probe im Labor hat noch keinen Score (auch nicht 0).
+const hasScore = (a) => a.score !== null && a.score !== undefined && a.score !== '' && Number.isFinite(Number(a.score))
 const chartAnalyses = computed(() => {
-  const scored = profileAnalyses.value.filter((a) => a.score !== null && a.score !== undefined)
+  const scored = profileAnalyses.value.filter((a) => hasScore(a) && (!a.status || a.status === 'completed'))
   if (scored.length) return scored
   return [
     { createdAt: new Date(Date.now() - 1000 * 86400 * 60).toISOString(), score: 82 },
@@ -413,30 +415,39 @@ const chartAnalyses = computed(() => {
     { createdAt: new Date(Date.now() - 1000 * 86400 * 12).toISOString(), score: latestScore.value || 90 },
   ]
 })
+// Älteste links, neueste rechts.
+const chartPoints = computed(() => [...chartAnalyses.value].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)))
 const scoreChartData = computed(() => ({
-  labels: [...chartAnalyses.value].reverse().map(a => new Date(a.createdAt).toLocaleDateString('de-DE', { month: 'short', day: '2-digit' })),
+  labels: chartPoints.value.map(a => new Date(a.createdAt).toLocaleDateString('de-DE', { month: 'short', day: '2-digit' })),
   datasets: [{
-    data: [...chartAnalyses.value].reverse().map(a => a.score),
+    data: chartPoints.value.map(a => Number(a.score)),
     borderColor: '#0072CE',
     backgroundColor: 'rgba(136,193,233,0.08)',
     borderWidth: 3,
     fill: true,
     tension: 0.35,
+    // Die Kurve bleibt zwischen den Punkten und schießt nie über oder unter einen Wert hinaus.
+    cubicInterpolationMode: 'monotone',
     pointRadius: 5,
     pointBackgroundColor: '#fff',
     pointBorderColor: '#0072CE',
     pointBorderWidth: 2,
   }],
 }))
-const scoreChartOptions = {
+// Die Skala beginnt bei 70 % oder, wenn ein Score darunter liegt, beim nächsten Zehner darunter.
+const scoreAxisMin = computed(() => {
+  const lowest = Math.min(...chartPoints.value.map((a) => Number(a.score)))
+  return Number.isFinite(lowest) ? Math.max(0, Math.min(70, Math.floor((lowest - 2) / 10) * 10)) : 70
+})
+const scoreChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
   scales: {
     x: { grid: { display: false }, ticks: { color: '#5b7a99', font: { size: 11 } } },
-    y: { min: 70, max: 100, grid: { color: '#e9f1fb' }, ticks: { color: '#5b7a99', callback: v => `${v}%` } },
+    y: { min: scoreAxisMin.value, max: 100, grid: { color: '#e9f1fb' }, ticks: { color: '#5b7a99', callback: v => `${v}%` } },
   },
-}
+}))
 
 function startEdit() {
   editForm.value = { ...profile.value }

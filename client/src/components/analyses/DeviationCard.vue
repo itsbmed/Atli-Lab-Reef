@@ -85,7 +85,7 @@
               @pointerenter="active = item.key" @pointerleave="active = ''" @focus="active = item.key" @blur="active = ''"
             >
               <span :class="['cmp-column', item.percent < 0 ? 'neg' : 'pos', { clamped: item.clamped }]" :style="item.percent < 0 ? { top: `${100 - columnPos(0)}%`, height: `max(${item.extent}%, 3px)` } : { bottom: `${columnPos(0)}%`, height: `max(${item.extent}%, 3px)` }">
-                <em :class="['cmp-column-label', { quiet: Math.abs(item.percent) <= band && active !== item.key }]">{{ formatPercent(item.percent) }}</em>
+                <em :class="['cmp-column-label', { quiet: Math.abs(item.percent) <= band && active !== item.key, inside: item.edge }]">{{ formatPercent(item.percent) }}</em>
               </span>
             </button>
           </div>
@@ -239,7 +239,8 @@ const columns = computed(() => {
   const span = above + below
   const items = withPercent.map((item) => {
     const limit = item.percent < 0 ? below : above
-    return { ...item, extent: (Math.min(Math.abs(item.percent), limit) / span) * 100, clamped: Math.abs(item.percent) > limit }
+    // Reicht die Säule bis an den Rand, steht die Zahl in der Säule – sonst läge sie auf den Achsennamen.
+    return { ...item, extent: (Math.min(Math.abs(item.percent), limit) / span) * 100, clamped: Math.abs(item.percent) > limit, edge: Math.abs(item.percent) >= limit * 0.8 }
   })
   if (sort.value === 'deviation') items.sort((a, b) => Math.abs(b.percent) - Math.abs(a.percent))
   const ticks = [...columnSteps.value.filter((step) => step <= below).map((step) => -step).reverse(), 0, ...columnSteps.value.filter((step) => step <= above)]
@@ -387,6 +388,9 @@ function formatPercent(value) {
 .cmp-column-label { position: absolute; left: 50%; color: var(--text); font-size: 10.5px; font-style: normal; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
 .cmp-column.pos .cmp-column-label { bottom: calc(100% + 3px); }
 .cmp-column.neg .cmp-column-label { top: calc(100% + 3px); }
+.cmp-column.pos .cmp-column-label.inside { top: 5px; bottom: auto; }
+.cmp-column.neg .cmp-column-label.inside { top: auto; bottom: 5px; }
+.cmp-column-label.inside { padding: 1px 4px; border-radius: 4px; background: rgba(10,27,67,0.55); color: #fff; }
 .cmp-xaxis { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; margin-left: 62px; }
 .cmp-xaxis span { color: var(--text); font-size: 12px; font-weight: 700; text-align: center; }
 .cmp-xaxis span.derived { color: var(--text-muted); font-style: italic; }
@@ -409,6 +413,7 @@ function formatPercent(value) {
   .cmp-column-label, .cmp-dot-label { font-size: 9px; }
   /* Wenig Platz: Beschriftung nur außerhalb des ausgewogenen Bereichs oder beim gewählten Element */
   .cmp-column-label.quiet { display: none; }
+  .cmp-column-label.inside { padding: 0 2px; font-size: 8px; letter-spacing: -0.02em; }
 }
 @media (prefers-reduced-motion: reduce) { .cmp-column, .cmp-point, .cmp-dot, .cmp-readout > div { transition: none; } }
 </style>
