@@ -37,11 +37,30 @@
             {{ option.label }} <b>{{ option.count }}</b>
           </button>
         </div>
-        <div v-if="analyses.count > SEARCH_THRESHOLD" class="search-box">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" /></svg>
-          <input v-model="search" type="search" placeholder="Aquarium oder Nummer suchen…" aria-label="Analyseberichte durchsuchen" />
+        <div class="list-tools">
+          <label v-if="aquariumOptions.length > 1" class="list-select">
+            <span>Aquarium</span>
+            <select v-model="aquariumFilter" aria-label="Nach Aquarium filtern">
+              <option value="">Alle Aquarien</option>
+              <option v-for="option in aquariumOptions" :key="option.key" :value="option.key">{{ option.label }} ({{ option.count }})</option>
+            </select>
+          </label>
+          <label class="list-select">
+            <span>Sortieren</span>
+            <select v-model="sortKey" aria-label="Berichte sortieren">
+              <option v-for="option in SORT_OPTIONS" :key="option.key" :value="option.key">{{ option.label }}</option>
+            </select>
+          </label>
+          <div class="search-box">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="16" height="16"><circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" /></svg>
+            <input v-model="search" type="search" placeholder="Aquarium oder Nr. suchen…" aria-label="Analyseberichte durchsuchen" />
+          </div>
         </div>
       </div>
+      <p v-if="showFilters && filtered" class="list-count">
+        {{ visibleAnalyses.length }} von {{ analyses.count }} Berichten
+        <button type="button" class="link" @click="resetFilters">Filter zurücksetzen</button>
+      </p>
 
       <section v-if="!visibleAnalyses.length" class="empty-state compact">
         <span>Keine Treffer</span>
@@ -84,17 +103,50 @@ import AnalysisTimeline from '@/components/analyses/AnalysisTimeline.vue'
 
 // Filters only earn their space once the list stops fitting on one screen.
 const FILTER_THRESHOLD = 4
-const SEARCH_THRESHOLD = 8
+const SORT_OPTIONS = [
+  { key: 'newest', label: 'Neueste zuerst' },
+  { key: 'oldest', label: 'Älteste zuerst' },
+  { key: 'worst', label: 'Niedrigste Bewertung zuerst' },
+  { key: 'best', label: 'Höchste Bewertung zuerst' },
+  { key: 'aquarium', label: 'Aquarium A–Z' },
+]
 
 const analyses = useAnalysesStore()
 const isLoading = ref(true)
 const loadError = ref('')
 const activeFilter = ref('all')
 const search = ref('')
+const aquariumFilter = ref('')
+const sortKey = ref('newest')
 
 onMounted(loadAnalyses)
 
 const sortedAnalyses = computed(() => [...analyses.items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
+const aquariumKey = (analysis) => String(analysis.aquariumId || analysis.aquariumName || '')
+// Ein Eintrag je Aquarium mit Berichten, alphabetisch.
+const aquariumOptions = computed(() => {
+  const options = new Map()
+  for (const analysis of sortedAnalyses.value) {
+    const key = aquariumKey(analysis)
+    if (!key) continue
+    const option = options.get(key) || { key, label: analysis.aquariumName || 'Ohne Aquarium', count: 0 }
+    option.count += 1
+    options.set(key, option)
+  }
+  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, 'de'))
+})
+// Ohne Bewertung (noch im Labor) stehen beim Sortieren nach Bewertung immer am Ende.
+function scoreOf(analysis, fallback) {
+  const score = Number(analysis.score)
+  return analysis.score === null || analysis.score === undefined || !Number.isFinite(score) ? fallback : score
+}
+const SORTERS = {
+  newest: () => 0,
+  oldest: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+  worst: (a, b) => scoreOf(a, Infinity) - scoreOf(b, Infinity),
+  best: (a, b) => scoreOf(b, -Infinity) - scoreOf(a, -Infinity),
+  aquarium: (a, b) => String(a.aquariumName || '').localeCompare(String(b.aquariumName || ''), 'de'),
+}
 const showFilters = computed(() => analyses.count > FILTER_THRESHOLD)
 const filterOptions = computed(() => [
   { key: 'all', label: 'Alle', count: analyses.count },
@@ -103,13 +155,17 @@ const filterOptions = computed(() => [
 ])
 const visibleAnalyses = computed(() => {
   const query = search.value.trim().toLowerCase()
-  return sortedAnalyses.value.filter((analysis) => {
+  const rows = sortedAnalyses.value.filter((analysis) => {
     if (activeFilter.value === 'issues' && !isIssue(analysis)) return false
     if (activeFilter.value === 'open' && analysis.status === 'completed') return false
+    if (aquariumFilter.value && aquariumKey(analysis) !== aquariumFilter.value) return false
     if (!query) return true
     return [analysis.aquariumName, analysis.reportNumber, analysis.barcode].some((field) => String(field || '').toLowerCase().includes(query))
   })
+  // Stabil sortiert: bei Gleichstand bleibt die Reihenfolge „neueste zuerst“.
+  return rows.sort(SORTERS[sortKey.value] || SORTERS.newest)
 })
+const filtered = computed(() => activeFilter.value !== 'all' || Boolean(aquariumFilter.value) || Boolean(search.value.trim()))
 // Each completed report remembers the score of the one before it for the same aquarium.
 const previousScores = computed(() => {
   const result = {}
@@ -139,6 +195,7 @@ function isIssue(analysis) {
 }
 function resetFilters() {
   activeFilter.value = 'all'
+  aquariumFilter.value = ''
   search.value = ''
 }
 function reportLabel(analysis) {
@@ -180,7 +237,16 @@ function formatDate(iso) {
 .segmented button.active { background: #fff; color: var(--brand-blue); box-shadow: 0 6px 16px rgba(10,27,67,0.08); }
 .segmented b { color: var(--text-muted); font-size: 11px; }
 .segmented button.active b { color: var(--brand-blue); }
-.search-box { position: relative; min-width: min(100%, 250px); }
+.list-tools { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.list-select { position: relative; display: block; }
+/* Die Beschriftung steht nur für Screenreader; das Feld nennt seinen Wert selbst. */
+.list-select > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.list-select select { min-height: 42px; max-width: 220px; padding: 0 12px; border: 1px solid var(--border); border-radius: 13px; background-color: #fff; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; outline: 0; }
+.list-select select:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
+.list-count { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: -6px; color: var(--text-muted); font-size: 12.5px; font-weight: 600; }
+.list-count .link { padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; cursor: pointer; }
+.list-count .link:hover { text-decoration: underline; }
+.search-box { position: relative; flex: 0 1 230px; min-width: min(100%, 180px); }
 .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .search-box input { width: 100%; min-height: 42px; padding: 0 12px 0 36px; border: 1px solid var(--border); border-radius: 13px; background: #fff; color: var(--text); font: inherit; font-size: 13px; outline: 0; }
 .search-box input:focus { border-color: var(--brand-blue); box-shadow: var(--shadow-focus); }
@@ -245,6 +311,9 @@ function formatDate(iso) {
   .row-trend { font-size: 9px; }
   .row-chevron { display: none; }
   .list-filters { align-items: stretch; flex-direction: column; }
+  .list-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .list-tools .search-box { grid-column: 1 / -1; }
+  .list-select select { width: 100%; max-width: none; }
   .segmented { justify-content: space-between; }
 }
 </style>
