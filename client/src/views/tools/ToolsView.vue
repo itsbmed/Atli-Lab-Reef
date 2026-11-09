@@ -169,29 +169,39 @@
         <Transition name="sim-peek">
           <button v-if="simulationReady && !resultsInView" type="button" class="sim-peek" @click="scrollToResults">
             <span>Nach {{ changeCount }}×</span>
-            <strong>{{ formatNumber(simulation.deviationAfter, 0) }} Pkt.</strong>
-            <em :class="simulation.improvement >= 0 ? 'up' : 'down'">{{ simulation.improvement >= 0 ? '+' : '−' }}{{ formatNumber(Math.abs(simulation.improvement), 0) }}</em>
+            <strong>QI {{ qiText(simulation.qiAfter.overall) }}</strong>
+            <em :class="qiGainTone">{{ signedPoints(simulation.qiGain) }}</em>
             <b>Ergebnis <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></b>
           </button>
         </Transition>
         <div v-if="simulationReady" ref="simResults" class="sim-results">
+          <!-- Qualitätsindex: erst die Antwort, dann jetzt und nachher nebeneinander, dann der Grund in Worten -->
           <div class="panel sim-score">
-            <div class="score-tile">
-              <span>Abweichung jetzt</span>
-              <strong>{{ formatNumber(simulation.deviationBefore, 1) }}</strong>
-              <small>Punkte · Summe über die {{ simulation.scoredCount }} Leitelemente</small>
-            </div>
-            <svg class="score-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-            <div class="score-tile">
-              <span>Nach {{ changeCount }} {{ changeCount === 1 ? 'Wechsel' : 'Wechseln' }}</span>
-              <strong>{{ formatNumber(simulation.deviationAfter, 1) }}</strong>
-              <small>Punkte · Ø {{ formatNumber(simulation.meanAfter, 1) }} % vom Ideal</small>
-            </div>
-            <div :class="['score-tile', 'gain', simulation.improvement >= 0 ? 'up' : 'down']">
-              <span>{{ simulation.improvement >= 0 ? 'Verbessert' : 'Verschlechtert' }}</span>
-              <strong>{{ simulation.improvement >= 0 ? '+' : '−' }}{{ formatNumber(Math.abs(simulation.improvement), 1) }}</strong>
-              <small>Punkte · {{ improvementShare }} % {{ simulation.improvement >= 0 ? 'weniger' : 'mehr' }} Abweichung</small>
-            </div>
+            <header class="qi-head">
+              <span class="panel-kicker">Qualitätsindex</span>
+              <h3>{{ qiHeadline }}</h3>
+              <p class="curve-hint" v-html="curveHint"></p>
+            </header>
+
+            <table class="qi-compare">
+              <thead>
+                <tr><th scope="col">Bereich</th><th scope="col" class="num">Jetzt</th><th scope="col" class="num">Nach {{ changeCount }} {{ changeCount === 1 ? 'Wechsel' : 'Wechseln' }}</th><th scope="col" class="num">Änderung</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in qiCompareRows" :key="row.key" :class="{ total: row.key === 'total' }">
+                  <th scope="row">{{ row.label }}<small v-if="row.hint">{{ row.hint }}</small></th>
+                  <td class="num"><span :class="['qi-score', qiTone(row.before)]">{{ qiText(row.before) }}<i :style="{ width: `${row.before ?? 0}%` }" aria-hidden="true"></i></span></td>
+                  <td class="num"><span :class="['qi-score', 'after', qiTone(row.after)]">{{ qiText(row.after) }}<i :style="{ width: `${row.after ?? 0}%` }" aria-hidden="true"></i></span></td>
+                  <td class="num"><em :class="['qi-delta', row.trend]">{{ row.before === null || row.after === null ? '–' : signedPoints(row.after - row.before) }}</em></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="qi-foot">
+              Jede Gruppe startet bei 100 % und verliert je Wert außerhalb seines Bereichs 5 (leicht), 10 (deutlich), 20 (stark) oder 30 (kritisch) Punkte. Gut ab 90 %.
+              <template v-if="simulation.estimatedSalinity"> Salinität aus der Zusammensetzung geschätzt.</template>
+              <template v-if="simulation.qiAfter.missing.length"> Ohne Wert, deshalb nicht bewertet: {{ simulation.qiAfter.missing.map(qiElementLabel).join(', ') }}.</template>
+            </p>
           </div>
 
           <div class="panel sim-curve">
@@ -200,20 +210,19 @@
                 <span class="panel-kicker">Kosten und Nutzen</span>
                 <h3>Wirkung je Wechsel</h3>
               </div>
-              <p class="curve-hint" v-html="curveHint"></p>
             </header>
-            <div class="curve" role="img" :aria-label="`Abweichung nach 0 bis ${MAX_WATER_CHANGES} Wechseln`">
+            <div class="curve" role="img" :aria-label="`Qualitätsindex nach 0 bis ${MAX_WATER_CHANGES} Wechseln`">
               <button
                 v-for="point in curve"
                 :key="point.count"
                 type="button"
                 :class="['curve-bar', { on: point.count === changeCount, now: point.count === 0, sensible: point.count === sensible }]"
                 :disabled="point.count === 0"
-                :title="`${point.count ? `${point.count} Wechsel` : 'Jetzt'}: ${formatNumber(point.deviation, 1)} Punkte Abweichung`"
+                :title="`${point.count ? `${point.count} Wechsel` : 'Jetzt'}: QI ${qiText(point.qi)}`"
                 @click="changeCount = point.count"
               >
-                <em>{{ formatNumber(point.deviation, 0) }}</em>
-                <i :style="{ height: `${curveMax ? Math.max(3, (point.deviation / curveMax) * 100) : 0}%` }"></i>
+                <em>{{ qiText(point.qi) }}</em>
+                <i :style="{ height: `${Math.max(3, point.qi || 0)}%` }"></i>
                 <span>{{ point.count || 'jetzt' }}</span>
               </button>
             </div>
@@ -269,6 +278,7 @@
                           tick-suffix=" %"
                           zone-label="ideal"
                           :far-beyond="BALANCE_BAND"
+                          :previous="row.pctBefore === null ? null : row.pctBefore - 100"
                         />
                         <span class="dev-num"><b>{{ signedPercent(row.pctAfter - 100) }}</b><small>vorher {{ signedPercent(row.pctBefore - 100) }}</small></span>
                       </td>
@@ -288,7 +298,7 @@
             <p v-else class="sim-skipped">Kein Wert passt zu diesem Filter. <button type="button" class="link" @click="simQuery = ''; simFilter = 'all'">Filter zurücksetzen</button></p>
           </div>
 
-          <p class="disclaimer">Neuwasser = Osmosewasser + Salz. Jeder Wechsel tauscht {{ formatNumber(simPercent, 1) }} % des Nettovolumens; der nächste rechnet mit dem Ergebnis des vorigen. Abweichung = Abstand zu 100 % vom Ideal; Nitrat und unerwünschte Elemente unter ihrem Idealwert zählen als ideal. Gerechnet wird jedes Element des Berichts; die Punkte zählen die 14 Leitelemente. Absolute Ocean bringt die ATI-Referenzwerte mit, aber keine Nährstoffe und keine unerwünschten Elemente. Das Ergebnis hängt davon ab, wie sich die Werte seit der Probenentnahme verändert haben – keine Gewähr für die Richtigkeit.</p>
+          <p class="disclaimer">Neuwasser = Osmosewasser + Salz. Jeder Wechsel tauscht {{ formatNumber(simPercent, 1) }} % des Nettovolumens; der nächste rechnet mit dem Ergebnis des vorigen. Der Qualitätsindex (QI) bewertet 16 Parameter in vier Gruppen – Basis, Mengenelemente, Nährstoffe, Spurenelemente. Jede Gruppe startet bei 100 und verliert je Parameter außerhalb seines Bereichs 5, 10, 20 oder 30 Punkte; der QI ist die schwächste Gruppe. Ein Wert verbessert den QI erst, wenn er eine Schwelle überschreitet. Die Abweichung je Element zeigt den Abstand zum Idealwert des Labors. Gerechnet wird jedes Element des Berichts. Absolute Ocean bringt die ATI-Referenzwerte mit, aber keine Nährstoffe und keine unerwünschten Elemente. Das Ergebnis hängt davon ab, wie sich die Werte seit der Probenentnahme verändert haben – keine Gewähr für die Richtigkeit.</p>
         </div>
 
         <EmptyState v-else kicker="Simulation nicht verfügbar" title="Es fehlen Ausgangswerte" :message="simulationUnavailable" mark="H₂O" tone="compact">
@@ -466,7 +476,7 @@ import { BALANCE_BAND, compositionTone } from '@/services/waterBalance'
 import { analysisApi, profileApi } from '@/services/toolsData'
 import { buildAnalysisSeries, calculateConsumption, parameterFromAnalysis } from '@/services/toolsCalculations'
 import {
-  DEFAULT_IDEALS, MAX_WATER_CHANGES, changePercent, deviationCurve, referenceSalt, sensibleCount,
+  DEFAULT_IDEALS, MAX_WATER_CHANGES, QI_PARAMETERS, changePercent, qiCurve, qiPlateau, referenceSalt,
   simulateWaterChange, valuesFromParameters,
 } from '@/services/waterChangeSimulator'
 import '@/assets/styles/report-base.css'
@@ -601,25 +611,63 @@ const simInput = computed(() => ({
   percent: simPercent.value,
 }))
 const simulation = computed(() => simulateWaterChange({ ...simInput.value, count: changeCount.value }))
-const curve = computed(() => deviationCurve(simInput.value))
-const curveMax = computed(() => Math.max(...curve.value.map((point) => point.deviation), 0))
-const sensible = computed(() => sensibleCount(curve.value, 5))
+const curve = computed(() => qiCurve(simInput.value))
+const sensible = computed(() => qiPlateau(curve.value))
 const curveHint = computed(() => {
-  const gain = (n) => curve.value[n - 1].deviation - curve.value[n].deviation
+  const now = curve.value[changeCount.value]?.qi
+  const best = curve.value[sensible.value]?.qi
   if (sensible.value === 0) {
-    return 'Schon der erste Wechsel verbessert die Abweichung um weniger als 5 Punkte oder verschlechtert sie. Prüfen Sie die Einzelwerte.'
+    return 'Kein Wechsel hebt den Qualitätsindex – die Werte überschreiten keine Schwelle. Prüfen Sie die Einzelwerte.'
   }
   if (sensible.value < changeCount.value) {
-    return `Ab <b>${sensible.value} ${sensible.value === 1 ? 'Wechsel' : 'Wechseln'}</b> bringt der nächste weniger als 5 Punkte Verbesserung oder verschlechtert die Abweichung. Prüfen Sie die Einzelwerte.`
+    return `Schon nach <b>${sensible.value} ${sensible.value === 1 ? 'Wechsel' : 'Wechseln'}</b> erreicht der QI ${qiText(best)}; weitere Wechsel heben ihn nicht mehr.`
   }
   if (sensible.value > changeCount.value) {
-    return `Ein ${changeCount.value + 1}. Wechsel brächte noch <b>${formatNumber(gain(changeCount.value + 1), 1)} Punkte</b>.`
+    return `Mit <b>${sensible.value} ${sensible.value === 1 ? 'Wechsel' : 'Wechseln'}</b> stiege der QI von ${qiText(now)} auf ${qiText(best)}.`
   }
-  return `<b>${changeCount.value} Wechsel</b> ${changeCount.value === 1 ? 'ist' : 'sind'} ein gutes Verhältnis aus Wasser und Wirkung.`
+  return `<b>${changeCount.value} Wechsel</b> ${changeCount.value === 1 ? 'erreicht' : 'erreichen'} den höchsten QI dieser Einstellung – mehr Wasser hebt ihn nicht weiter.`
 })
-const improvementShare = computed(() => (simulation.value.deviationBefore
-  ? formatNumber(Math.abs(simulation.value.improvement / simulation.value.deviationBefore) * 100, 0)
-  : '0'))
+// QI in Prozent; Unterschiede in Prozentpunkten.
+function qiText(value) {
+  return value === null || value === undefined ? '–' : `${value} %`
+}
+function signedPoints(value) {
+  if (value === null || value === undefined) return '–'
+  return `${value > 0 ? '+' : value < 0 ? '−' : '±'}${Math.abs(value)}`
+}
+// Wie in der Mappe: über 89 ist grün.
+function qiTone(value) {
+  if (value === null || value === undefined) return ''
+  return value > 89 ? 'good' : value >= 70 ? 'watch' : 'critical'
+}
+const qiGainTone = computed(() => (simulation.value.qiGain > 0 ? 'up' : simulation.value.qiGain < 0 ? 'down' : 'flat'))
+function qiElementLabel(key) {
+  return ELEMENT_DEFINITION_MAP[key]?.symbol || ELEMENT_DEFINITION_MAP[key]?.label || key
+}
+// Die Antwort in einem Satz.
+const qiHeadline = computed(() => {
+  const { qiBefore, qiAfter, qiGain } = simulation.value
+  const changes = `${changeCount.value} ${changeCount.value === 1 ? 'Wechsel' : 'Wechsel'}`
+  if (qiGain === null) return 'Für den Qualitätsindex fehlen Werte.'
+  if (qiGain > 0) return `${changes} ${changeCount.value === 1 ? 'hebt' : 'heben'} den QI von ${qiText(qiBefore.overall)} auf ${qiText(qiAfter.overall)}.`
+  if (qiGain < 0) return `${changes} ${changeCount.value === 1 ? 'senkt' : 'senken'} den QI von ${qiText(qiBefore.overall)} auf ${qiText(qiAfter.overall)}.`
+  return `${changes} ${changeCount.value === 1 ? 'ändert' : 'ändern'} den QI nicht – er bleibt bei ${qiText(qiAfter.overall)}.`
+})
+const qiTrend = (before, after) => (before === null || after === null || before === after ? 'flat' : after > before ? 'up' : 'down')
+// Gesamt und die vier Gruppen, je jetzt und nachher.
+const qiCompareRows = computed(() => {
+  const { qiBefore, qiAfter } = simulation.value
+  return [
+    { key: 'total', label: 'Gesamt', hint: 'die schwächste Gruppe', before: qiBefore.overall, after: qiAfter.overall },
+    ...qiAfter.groups.map((group, index) => ({
+      key: group.key,
+      label: group.label,
+      hint: group.score === null ? 'keine Werte' : group.score === qiAfter.overall && group.score < 100 ? 'bestimmt den QI' : '',
+      before: qiBefore.groups[index].score,
+      after: group.score,
+    })),
+  ].map((row) => ({ ...row, trend: qiTrend(row.before, row.after) }))
+})
 
 const simulationReady = computed(() => (
   selectedProfile.value?.water_type === 'Meerwasser' && Boolean(simReport.value) && Boolean(saltValues.value)
@@ -632,7 +680,7 @@ const simulationUnavailable = computed(() => {
   if (!(changeLitres.value > 0) || changeLitres.value > netLitres.value) return 'Die Wassermenge je Wechsel muss größer als 0 sein und darf das Nettovolumen nicht überschreiten.'
   if (!simReport.value) return 'Für dieses Aquarium liegt noch kein abgeschlossener Laborbericht vor.'
   if (!saltValues.value) return 'Bitte eine Salzquelle mit Werten auswählen.'
-  return 'Der Bericht enthält keines der 14 Elemente, die der Simulator braucht.'
+  return `Der Bericht enthält keinen der ${QI_PARAMETERS.length} Parameter, die der Simulator braucht.`
 })
 
 const tableRows = computed(() => simulation.value.rows.map((row) => ({
@@ -665,7 +713,7 @@ const simFilter = ref('all')
 const SIM_FILTERS = {
   all: { label: 'Alle', test: () => true },
   off: { label: 'Außerhalb Ideal', test: (row) => row.simulated && row.tone !== 'good' },
-  scored: { label: 'Leitelemente', test: (row) => row.simulated && row.scored },
+  scored: { label: 'Im QI', test: (row) => row.simulated && row.qiAfter !== null },
   other: { label: 'Nicht berechnet', test: (row) => !row.simulated },
 }
 const allSimRows = computed(() => [...tableRows.value, ...otherRows.value])
@@ -987,17 +1035,39 @@ onMounted(async () => {
 .setup-total b { color: var(--text); }
 
 .sim-results { display: grid; gap: 16px; min-width: 0; }
-.sim-score { display: grid; grid-template-columns: 1fr auto 1fr 1fr; align-items: stretch; gap: 14px; }
-.sim-score .score-arrow { align-self: center; }
-.score-tile { min-width: 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 18px; background: #f8fbfe; }
-.score-tile span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.score-tile strong { display: block; margin-top: 4px; color: var(--text); font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
-.score-tile small { display: block; margin-top: 5px; color: var(--text-muted); font-size: 11.5px; }
-.score-tile.gain.up { border-color: rgba(16,185,129,0.3); background: linear-gradient(135deg, #f1fbf6, #def6ea); }
-.score-tile.gain.up strong { color: #0f8a5f; }
-.score-tile.gain.down { border-color: rgba(232,93,79,0.3); background: #fff3f1; }
-.score-tile.gain.down strong { color: #b53a2e; }
-.score-arrow { width: 24px; height: 24px; fill: none; stroke: var(--brand-blue); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sim-score { display: grid; gap: 18px; }
+.qi-head { display: grid; gap: 4px; }
+.qi-head h3 { margin: 0; font-size: 20px; line-height: 1.3; }
+.qi-head .curve-hint { max-width: none; }
+
+/* Jetzt und nachher nebeneinander – Zeile für Zeile von links nach rechts lesen */
+.qi-compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.qi-compare th, .qi-compare td { padding: 10px 12px; border-top: 1px solid var(--border); text-align: left; }
+.qi-compare thead th { padding-top: 0; border-top: 0; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.qi-compare .num { text-align: right; }
+.qi-compare tbody th { color: var(--text); font-size: 14px; font-weight: 700; }
+.qi-compare tbody th small { display: block; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
+.qi-compare tr.total th, .qi-compare tr.total td { padding-top: 14px; padding-bottom: 14px; background: #f6f9fc; }
+.qi-compare tr.total th { font-size: 15px; font-weight: 800; }
+.qi-score { position: relative; display: inline-grid; min-width: 64px; padding-bottom: 7px; color: var(--text-muted); font-size: 15px; font-weight: 700; }
+.qi-score i { position: absolute; right: 0; bottom: 0; height: 4px; max-width: 100%; border-radius: 999px; background: #c7d2de; }
+.qi-score::after { content: ''; position: absolute; right: 0; bottom: 0; z-index: -1; width: 100%; height: 4px; border-radius: 999px; background: #edf2f7; }
+.qi-score { z-index: 0; }
+.qi-score.after { color: var(--text); font-size: 17px; font-weight: 800; }
+.total .qi-score { font-size: 18px; }
+.total .qi-score.after { font-size: 24px; }
+.qi-score.after.good { color: #0f8a5f; }
+.qi-score.after.watch { color: #b7791f; }
+.qi-score.after.critical { color: #b53a2e; }
+.qi-score.after.good i { background: #3fbf88; }
+.qi-score.after.watch i { background: #f0a43a; }
+.qi-score.after.critical i { background: #e85d4f; }
+.qi-delta { display: inline-block; min-width: 46px; padding: 3px 9px; border-radius: 999px; background: #eef2f7; color: var(--text-muted); font-size: 13px; font-style: normal; font-weight: 800; text-align: center; }
+.qi-delta.up { background: #e3f6ee; color: #0f8a5f; }
+.qi-delta.down { background: #fdecea; color: #b53a2e; }
+
+.qi-foot { margin: 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.5; }
+.score-arrow { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--brand-blue); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 .curve-hint { max-width: 360px; margin: 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
 .curve-hint :deep(b) { color: var(--text); }
@@ -1112,9 +1182,6 @@ tr.unsimulated .el b { color: var(--text-muted); }
   .curve-bar i { transition: none; }
 }
 @media (max-width: 1100px) {
-  .sim-score { grid-template-columns: 1fr 1fr; }
-  .score-arrow { display: none; }
-  .score-tile.gain { grid-column: 1 / -1; }
 }
 .sim-peek { display: none; }
 .source-toggle { display: none; }
@@ -1159,13 +1226,15 @@ tr.unsimulated .el b { color: var(--text-muted); }
   .tool-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; overflow: visible; }
   .tool-tabs button { justify-content: center; min-height: 44px; padding: 0 10px; font-size: 13.5px; }
   /* Jetzt und nachher nebeneinander, die Verbesserung darunter */
-  .sim-score { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
-  .sim-score .score-arrow { display: none; }
-  .sim-score .score-tile.gain { grid-column: 1 / -1; }
-  .score-tile { padding: 12px; border-radius: 14px; }
-  .score-tile span { font-size: 10px; }
-  .score-tile strong { font-size: 26px; }
-  .score-tile small { font-size: 11px; }
+  .sim-score { gap: 12px; padding: 14px; }
+  .qi-head h3 { font-size: 17px; }
+  .qi-compare th, .qi-compare td { padding: 9px 6px; }
+  .qi-compare thead th { font-size: 9.5px; letter-spacing: 0.04em; }
+  .qi-compare tbody th { font-size: 13px; }
+  .qi-score { min-width: 48px; font-size: 13px; }
+  .qi-score.after { font-size: 15px; }
+  .total .qi-score.after { font-size: 20px; }
+  .qi-delta { min-width: 0; padding: 2px 7px; font-size: 12px; }
   .sim-peek {
     position: fixed; z-index: 110; left: 16px; right: 16px; bottom: calc(92px + env(safe-area-inset-bottom, 0px));
     display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 10px 8px 14px;
