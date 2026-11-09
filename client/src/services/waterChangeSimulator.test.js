@@ -7,6 +7,11 @@ import {
   changePercent,
   deviationCurve,
   percentOfIdeal,
+  qiCurve,
+  qiDeduction,
+  qiPlateau,
+  qualityIndex,
+  estimatedSalinity,
   referenceSalt,
   sensibleCount,
   simulateWaterChange,
@@ -184,4 +189,72 @@ test('pollutants under their ideal count as ideal; without a positive ideal ther
   assert.equal(percentOfIdeal('aluminium', 0.05, 0.1), 100)
   assert.equal(percentOfIdeal('mercury', 0, 0), 100)
   assert.equal(percentOfIdeal('iodine', 10, 0), null)
+})
+
+// „WW Simulator mit QI Auswertung“: Aquarium B (neue Startwerte), Osmose A, Salz B, 7 × 25 %.
+const qiAquariumB = {
+  kh: 7.5, chloride: 22000, sodium: 8900, magnesium: 800, sulfur: 600, calcium: 350, potassium: 250, bromine: 40,
+  strontium: 2, boron: 6, fluoride: 2, nitrate: 0, silicon: 75, lithium: 250, zinc: 40,
+}
+const qiSaltB = { ...ABSOLUTE_OCEAN, kh: 7.5 }
+const qiScenario = { aquarium: qiAquariumB, salt: qiSaltB, ideal: DEFAULT_IDEALS, percent: 25 }
+
+test('salinity is estimated from the composition like in the QI workbook', () => {
+  close(estimatedSalinity(qiAquariumB), 33.50341796875)
+  close(estimatedSalinity(qiSaltB), 35.0453125)
+  assert.equal(estimatedSalinity({ chloride: 19800 }), null, 'no estimate without the full composition')
+})
+
+test('seven 25 % changes give the new values of the QI workbook, including PSU and KH', () => {
+  const result = simulateWaterChange({ ...qiScenario, count: 7 })
+  const after = Object.fromEntries(result.rows.map((row) => [row.key, row.after]))
+  const workbook = {
+    salinity: 34.839494425058362, kh: 7.5, chloride: 20093.66455078125, sodium: 10719.683837890625, magnesium: 1250.58837890625,
+    sulfur: 859.954833984375, calcium: 410.6561279296875, potassium: 386.9095458984375, bromine: 63.39593505859375,
+    strontium: 7.2857482910156257, boron: 4.700225830078125, fluoride: 1.3934387207031249, nitrate: 0,
+    silicon: 36.00677490234375, lithium: 189.3438720703125, zinc: 7.0723876953125,
+  }
+  for (const [key, value] of Object.entries(workbook)) close(after[key], value)
+  assert.equal(result.estimatedSalinity, true)
+})
+
+test('low values are scored from the most severe threshold, as the threshold table describes', () => {
+  // Die WENN-Formel der Mappe gibt hier dreimal 5 Punkte.
+  assert.equal(qiDeduction('magnesium', 800), 30)
+  assert.equal(qiDeduction('magnesium', 1052), 10)
+  assert.equal(qiDeduction('magnesium', 1183), 10)
+  assert.equal(qiDeduction('magnesium', 1249.25), 0)
+  assert.equal(qiDeduction('magnesium', 1380.75), 0, 'the limits themselves are still fine')
+  assert.equal(qiDeduction('magnesium', 1381), 5)
+  assert.equal(qiDeduction('magnesium', 1800), 30)
+  assert.equal(qiDeduction('nitrate', 0), 0, 'nitrate has no lower limit below 0')
+  assert.equal(qiDeduction('calcium', 350), 5, 'a value on a threshold falls into the milder band')
+  assert.equal(qiDeduction('phosphate', 1), null)
+})
+
+test('the QI is the weakest of four groups and a group never drops below 0', () => {
+  const before = qualityIndex({ salinity: 33.50341796875, ...qiAquariumB })
+  assert.deepEqual(before.groups.map((group) => group.score), [100, 0, 95, 65])
+  assert.equal(before.overall, 0)
+  const result = simulateWaterChange({ ...qiScenario, count: 7 })
+  assert.deepEqual(result.qiAfter.groups.map((group) => group.score), [100, 95, 80, 95])
+  assert.equal(result.qiAfter.overall, 80)
+  assert.equal(result.qiGain, 80)
+  assert.deepEqual(qualityIndex({ kh: 8 }).groups.map((group) => group.score), [100, null, null, null], 'groups without values do not count')
+})
+
+test('the QI curve shows from which change the QI stops rising', () => {
+  const curve = qiCurve(qiScenario)
+  assert.equal(curve.length, 11)
+  assert.equal(curve[0].qi, 0)
+  const plateau = qiPlateau(curve)
+  assert.ok(curve.slice(plateau).every((point) => point.qi === curve[plateau].qi))
+  assert.ok(curve.slice(0, plateau).every((point) => point.qi < curve[plateau].qi))
+  assert.equal(qiPlateau([{ count: 0, qi: 90 }, { count: 1, qi: 90 }]), 0)
+})
+
+test('Absolute Ocean brings 35 PSU and 7.5 °dKH', () => {
+  const salt = referenceSalt({ salinity: 35, kh: 8 })
+  assert.equal(salt.salinity, 35)
+  assert.equal(salt.kh, 7.5)
 })
