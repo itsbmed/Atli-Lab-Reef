@@ -605,18 +605,19 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-charts :deep(.cmp-step-copy strong) { gap: 5px; font-size: 10px; }
 .rp-charts :deep(.cmp-step-copy strong i) { width: 14px; height: 14px; font-size: 8.5px; }
 .rp-charts :deep(.cmp-step-copy small) { font-size: 8.5px; line-height: 1.35; }
-.rp-charts :deep(.pg-row) { padding: 4px 12px; }
-.rp-charts :deep(.pg-row + .pg-row) { margin-top: 5px; }
-.rp-charts :deep(.pg-hint) { margin-top: 1px; font-size: 10px; }
-.rp-charts :deep(.pg-symbol) { min-height: 32px; border-radius: 9px; font-size: 10px; }
-.rp-charts :deep(.pg-name) { gap: 2px; }
-.rp-charts :deep(.pg-name strong) { font-size: 11.5px; line-height: 1.25; }
-.rp-charts :deep(.pg-meta small) { font-size: 9.5px; }
-.rp-charts :deep(.pg-chip) { padding: 1px 6px; font-size: 9px; }
-.rp-charts :deep(.tg) { padding-top: 24px; }
-.rp-charts :deep(.tg-bubble) { padding: 2px 7px; font-size: 10.5px; }
-.rp-charts :deep(.tg-scale) { height: 11px; margin-top: 4px; }
-.rp-charts :deep(.tg-scale small) { font-size: 8.5px; }
+/* Paar-Anzeigen (Verhältnisse, Wachstum) etwas kleiner als am Bildschirm */
+.rp-charts :deep(.pg-row) { grid-template-columns: 38px minmax(0, 1fr) minmax(0, 1.25fr); gap: 10px; padding: 3px 10px; }
+.rp-charts :deep(.pg-row + .pg-row) { margin-top: 3px; }
+.rp-charts :deep(.pg-hint) { margin-top: 1px; font-size: 9px; }
+.rp-charts :deep(.pg-symbol) { min-height: 26px; border-radius: 8px; font-size: 9px; }
+.rp-charts :deep(.pg-name) { gap: 1px; }
+.rp-charts :deep(.pg-name strong) { font-size: 10px; line-height: 1.25; }
+.rp-charts :deep(.pg-meta small) { font-size: 8.5px; }
+.rp-charts :deep(.pg-chip) { padding: 0 5px; font-size: 8px; }
+.rp-charts :deep(.pg .tg) { padding-top: 19px; }
+.rp-charts :deep(.pg .tg-bubble) { padding: 1px 6px; font-size: 9px; }
+.rp-charts :deep(.pg .tg-scale) { height: 8px; margin-top: 3px; }
+.rp-charts :deep(.pg .tg-scale small) { font-size: 7.5px; }
 /* Querformat: links Zusammensetzung und Wachstum, rechts die Verhältnisse */
 .rp-landscape .rp-charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-flow: row dense; align-items: start; gap: 12px 14px; }
 .rp-landscape .rp-charts > .rp-head { grid-column: 1 / -1; }
@@ -630,7 +631,7 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-landscape .rp-charts :deep(.cmp-art) { display: none; }
 .rp-landscape .rp-charts :deep(.cmp-step) { grid-template-columns: minmax(0, 1fr); padding: 4px 6px; }
 .rp-landscape .rp-charts :deep(.cmp-step-copy small) { font-size: 7.5px; }
-.rp-landscape .rp-charts :deep(.pg-row) { grid-template-columns: 44px minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 10px; }
+.rp-landscape .rp-charts :deep(.pg-row) { grid-template-columns: 38px minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 8px; }
 
 /* ── Empfehlungen ── */
 .rp-action { margin-bottom: 16px; padding: 14px 16px; border: 1px solid #dde5ee; border-left: 4px solid #10b981; border-radius: 12px; break-inside: avoid; }
