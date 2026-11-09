@@ -40,6 +40,14 @@ export const NYOS_ION_ELEMENTS = Object.freeze([
   { key: 'ion-elements-3', name: 'ION ELEMENTS 3 ALK/PH', note: 'Fluor, Iod, Kalium, Selen', url: `${SITE}ion-elements-3-alk-ph`, image: `${IMAGES}ION_Elements_3_800x942_white.jpg` },
 ])
 
+// NYOS PURE Meersalz (20 kg Eimer), Produktseite und Bild von nyos.info, geprüft am 06.11.2026.
+export const NYOS_PURE_SALT = Object.freeze({
+  name: 'NYOS PURE',
+  url: 'https://www.nyos.info/de/meersalz',
+  image: 'https://www.nyos.info/assets/img/produkte/meersalz/img1_img6_nyos_salzeimer.jpg',
+  linkLabel: NYOS_LINK_LABEL,
+})
+
 export function nyosLine(key) {
   return NYOS_SUPPLY_LINES.find((line) => line.key === key) || null
 }

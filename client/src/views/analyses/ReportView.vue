@@ -120,7 +120,7 @@
                   <div class="action-heading">
                     <small><em :class="['priority-chip', item.tone]">Priorität {{ item.priority }}</em>{{ item.kicker }}</small>
                     <h3>{{ item.title }}</h3>
-                    <p><template v-for="(part, partIndex) in item.summaryParts" :key="partIndex"><strong v-if="part.bold">{{ part.text }}</strong><template v-else>{{ part.text }}</template></template></p>
+                    <p><template v-for="(part, partIndex) in item.summaryParts.filter((part) => !part.printOnly)" :key="partIndex"><strong v-if="part.bold">{{ part.text }}</strong><template v-else>{{ part.text }}</template></template><template v-if="item.saltChoices?.length">{{ ' ' + item.choicePrompt }}</template></p>
                   </div>
                   <button
                     type="button"
@@ -141,21 +141,48 @@
                   </article>
                 </div>
 
+                <!-- Salinität anheben: erst das Salz wählen, darunter stehen dessen Mengen -->
+                <section v-if="item.saltChoices?.length" class="salt-choice">
+                  <span class="action-detail-label" :id="`salt-${item.key}`">Produkt auswählen</span>
+                  <div class="salt-options" role="radiogroup" :aria-labelledby="`salt-${item.key}`">
+                    <div v-for="choice in item.saltChoices" :key="choice.key" :class="['salt-option', { on: chosenSalt(item).key === choice.key }]">
+                      <button type="button" role="radio" :aria-checked="chosenSalt(item).key === choice.key" @click="saltChoice = choice.key">
+                        <span class="product-thumb"><img :src="choice.image" alt="" loading="lazy" /></span>
+                        <span class="salt-copy"><strong>{{ choice.name }}</strong><small>{{ choice.note }}</small></span>
+                      </button>
+                      <a :href="choice.url" class="shop-link" target="_blank" rel="noopener">{{ choice.linkLabel ? 'Produktseite' : 'zum Shop' }} &gt;&gt;</a>
+                    </div>
+                  </div>
+                  <ul class="salt-amounts" aria-live="polite">
+                    <li v-for="amount in chosenSalt(item).amounts" :key="amount.label">
+                      <span class="product-thumb small"><img :src="amount.image" alt="" loading="lazy" /></span>
+                      <span><strong>{{ amount.label }}</strong><b>{{ amount.value }}</b></span>
+                    </li>
+                  </ul>
+                </section>
+
                 <div v-if="showDetailBlock(item)" class="action-detail-block">
                   <span class="action-detail-label">{{ item.detailLabel }}</span>
-                  <!-- Versorgung: je Änderung eine Zeile mit Richtung und Handlungssatz, der Rest bleibt gesammelt -->
-                  <ol v-if="item.key === 'reduce-supply'" class="supply-steps">
-                    <li v-for="step in supplySteps(item.detailItems).changes" :key="step.label" :class="step.direction">
-                      <i aria-hidden="true"><svg viewBox="0 0 24 24"><path :d="step.direction === 'up' ? 'M12 19V5m-6 6 6-6 6 6' : 'M12 5v14m-6-6 6 6 6-6'" /></svg></i>
-                      <div><strong>{{ step.label }}</strong><span>{{ step.text }}</span></div>
-                      <b>{{ step.value }}</b>
-                    </li>
-                    <li v-if="supplySteps(item.detailItems).kept.length" class="kept">
-                      <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9.5h12M6 14.5h12" /></svg></i>
-                      <div><strong>Beibehalten</strong><span>{{ supplySteps(item.detailItems).kept.join(' · ') }}</span></div>
-                      <b>unverändert</b>
-                    </li>
-                  </ol>
+                  <!-- Versorgung: je Änderung eine Zeile mit dem Produkt des Versorgungssystems, der Rest bleibt gesammelt -->
+                  <template v-if="item.key === 'reduce-supply'">
+                    <ol class="supply-steps">
+                      <li v-for="row in supplyRows(item).rows" :key="row.key" :class="row.direction">
+                        <span v-if="row.product?.image" class="product-thumb"><img :src="row.product.image" alt="" loading="lazy" /></span>
+                        <i v-else aria-hidden="true"><svg viewBox="0 0 24 24"><path :d="row.direction === 'up' ? 'M12 19V5m-6 6 6-6 6 6' : 'M12 5v14m-6-6 6 6 6-6'" /></svg></i>
+                        <div><strong>{{ row.title }}</strong><span :class="['supply-change', row.direction]"><b aria-hidden="true">{{ row.direction === 'up' ? '↑' : '↓' }}</b>{{ row.text }}</span></div>
+                        <a v-if="row.product?.url" :href="row.product.url" class="shop-link" target="_blank" rel="noopener">{{ row.product.linkLabel ? 'Produktseite' : 'zum Shop' }} &gt;&gt;</a>
+                      </li>
+                      <li v-if="supplyRows(item).kept.length" class="kept">
+                        <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9.5h12M6 14.5h12" /></svg></i>
+                        <div><strong>Beibehalten</strong><span>{{ supplyRows(item).kept.join(' · ') }}</span></div>
+                      </li>
+                    </ol>
+                    <p v-if="supplyBasis.name" class="supply-basis">
+                      <template v-if="supplyBasis.system">Die Empfehlung basiert auf der Auswahl des Versorgungssystems beim Aquarium <b>„{{ supplyBasis.name }}“</b><template v-if="supplyBasis.volume"> mit einem Nettowasservolumen von <b>{{ supplyBasis.volume }} Litern</b></template>.</template>
+                      <template v-else>Für das Aquarium <b>„{{ supplyBasis.name }}“</b> ist noch kein Versorgungssystem hinterlegt – die Empfehlung gilt deshalb allgemein.</template>
+                      <RouterLink v-if="supplyBasis.link" :to="supplyBasis.link">{{ supplyBasis.system ? 'Versorgungssystem ändern?' : 'Versorgungssystem hinterlegen?' }}</RouterLink>
+                    </p>
+                  </template>
                   <ul v-else>
                     <li v-for="entry in item.detailItems" :key="entry.label">
                       <span>{{ entry.label }}</span>
@@ -167,16 +194,17 @@
                   </button>
                 </div>
 
-                <aside v-if="item.tips.length" class="action-tips">
+                <aside v-if="item.tips.length || item.tipParts?.length" class="action-tips">
                   <i aria-hidden="true">✦</i>
                   <div>
-                    <span>{{ item.tips.length === 1 ? 'Tipp' : 'Tipps' }}</span>
+                    <span>{{ item.tips.length + (item.tipParts?.length || 0) === 1 ? 'Tipp' : 'Tipps' }}</span>
                     <p v-for="tip in item.tips" :key="tip">{{ tip }}</p>
+                    <p v-for="(parts, tipIndex) in item.tipParts || []" :key="`parts-${tipIndex}`"><template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.bold">{{ part.text }}</strong><template v-else>{{ part.text }}</template></template></p>
                   </div>
                 </aside>
 
                 <ProductSuggestions
-                  v-if="recommendationProducts(item).length"
+                  v-if="recommendationProducts(item).length && !productsInCard(item)"
                   class="action-products"
                   :products="recommendationProducts(item)"
                   :alternatives="productAlternatives(item)"
@@ -632,6 +660,7 @@ import { essentialsRecommendation } from '@/services/atiProductCatalog'
 import { NYOS_LINK_LABEL, nyosRecommendation } from '@/services/nyosProductCatalog'
 import { findScale, loadActiveScaleId, loadEvaluationScales } from '@/services/evaluationScales'
 import { buildDirectRecommendations, evaluateAnalysis, supplySteps } from '@/services/directRecommendations'
+import { supplyChannelProduct } from '@/services/supplyProducts'
 import { waterBalance } from '@/services/waterBalance'
 import ParameterTrendChart from '@/components/analyses/ParameterTrendChart.vue'
 import DosingPlan from '@/components/analyses/DosingPlan.vue'
@@ -804,7 +833,46 @@ const actionsIntro = computed(() => {
 // die Menge bereits, entfällt der Korrekturkasten.
 function showDetailBlock(item) {
   if (!item.detailLabel || !item.detailItems.length) return false
-  return !(item.key === 'salinity' && recommendationProducts(item).length)
+  if (item.key === 'salinity') return !item.saltChoices?.length && !recommendationProducts(item).length
+  return true
+}
+// Salinität: das gewählte Salz, anfangs Absolute Ocean.
+const saltChoice = ref('absolute-ocean')
+function chosenSalt(item) {
+  return item.saltChoices.find((choice) => choice.key === saltChoice.value) || item.saltChoices[0]
+}
+// Versorgung: jede Änderung mit dem Produkt, das im Versorgungssystem des Beckens dafür steht.
+function supplyRows(item) {
+  const profile = analysis.value?.aquariumProfile || {}
+  const options = { mode: profile.supplyMode, line: profile.supplyLine, aquariumType: profile.aquariumType }
+  const titleOf = (entry, product) => product?.name || (entry.channel === 'trace' ? 'Spurenelemente' : entry.label)
+  const rows = supplySteps(item.detailItems).changes.map((step) => {
+    const product = supplyChannelProduct(step.channel, options)
+    return { key: step.label, title: titleOf(step, product), text: step.text, direction: step.direction, product }
+  })
+  const kept = item.detailItems
+    .filter((entry) => !/^[+−-]/.test(String(entry.value || '')))
+    .map((entry) => titleOf(entry, supplyChannelProduct(entry.channel, options)))
+  return { rows, kept }
+}
+// Worauf die Versorgungsempfehlung beruht – mit Weg zurück zum Aquarium, um es zu ändern.
+const supplyBasis = computed(() => {
+  const profile = analysis.value?.aquariumProfile || {}
+  const system = profile.supplySystem && profile.supplySystem !== 'Nicht angegeben' ? profile.supplySystem : ''
+  const volume = Number(profile.volumeLiters) || 0
+  const id = analysis.value?.aquariumId
+  return {
+    name: analysis.value?.aquariumName || '',
+    system,
+    volume: volume ? volume.toLocaleString('de-DE') : '',
+    link: id ? `/aquariums/${encodeURIComponent(id)}?edit=supply` : '',
+  }
+})
+// Steht das Produkt schon in der Karte (Salzwahl, Versorgungszeilen), entfällt der Kasten „Passende Produkte“.
+function productsInCard(item) {
+  if (item.key === 'salinity') return Boolean(item.saltChoices?.length)
+  if (item.key === 'reduce-supply') return supplyRows(item).rows.some((row) => row.product)
+  return false
 }
 const essentialsSuggestion = computed(() => essentialsRecommendation(
   analysis.value?.aquariumProfile?.aquariumType,
@@ -1152,7 +1220,9 @@ const printSettings = ref(null)
 const printRecommendationItems = computed(() => directRecommendations.value.map((item) => ({
   ...item,
   products: recommendationProducts(item),
-  showDetail: showDetailBlock(item),
+  // Im Druck stehen die Mengen beider Salze als Liste; die Auswahl gibt es nur am Bildschirm.
+  showDetail: item.key === 'salinity' ? item.detailItems.length > 0 : showDetailBlock(item),
+  supplyRows: item.key === 'reduce-supply' ? supplyRows(item) : null,
 })))
 let pageStyle = null
 function onPdfCreate({ settings }) {
@@ -1303,6 +1373,38 @@ onBeforeUnmount(endPrint)
 .supply-steps li.kept { border-style: dashed; background: transparent; }
 .supply-steps li.kept i { background: #eef2f7; color: var(--text-muted); }
 .action-detail-block .supply-steps li.kept > b { background: #eef2f7; color: var(--text-muted); }
+/* Versorgungszeilen mit Produktbild: Bild · Produkt und Handlung · Link zum Shop */
+.action-detail-block .supply-steps li { grid-template-columns: 52px minmax(0, 1fr) auto; }
+.supply-steps > li > i { justify-self: center; }
+.supply-change b { margin-right: 6px; color: var(--brand-blue); font-weight: 800; }
+.supply-change.down b { color: #9a4d0a; }
+.supply-basis { margin: 12px 2px 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
+.supply-basis b { color: var(--text); }
+.supply-basis a { margin-left: 4px; color: var(--brand-blue); font-weight: 700; }
+.supply-basis a:hover { text-decoration: underline; }
+.product-thumb { display: grid; flex: none; place-items: center; width: 52px; height: 52px; overflow: hidden; border: 1px solid #e3edf7; border-radius: 12px; background: #fff; }
+.product-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.product-thumb.small { width: 40px; height: 40px; border-radius: 10px; }
+.shop-link { color: var(--brand-blue); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.shop-link:hover { text-decoration: underline; }
+
+/* Salinität: Salz wählen, darunter die Mengen des gewählten Salzes */
+.salt-choice { margin: 14px 0 0; padding: 17px 19px; border: 1px solid #cfe4f3; border-left: 4px solid var(--brand-blue); border-radius: 13px; background: #f4fafe; }
+.salt-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+/* Bild und Name als Auswahl, der Link darunter – so bleibt der Name auch in schmalen Karten auf einer Zeile */
+.salt-option { display: grid; gap: 2px; padding: 10px 14px 10px 10px; border: 1.5px solid transparent; border-radius: 13px; background: rgba(255,255,255,0.55); transition: border-color .15s, background .15s, box-shadow .15s; }
+.salt-option:hover { border-color: #b9d6ee; }
+.salt-option.on { border-color: var(--brand-blue); background: #fff; box-shadow: 0 6px 16px rgba(0,114,206,0.12); }
+.salt-option button { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.salt-option button:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: 10px; }
+.salt-copy { display: grid; min-width: 0; }
+.salt-option .shop-link { justify-self: start; margin-left: 64px; font-size: 12.5px; }
+.salt-copy strong { color: var(--text); font-size: 15px; font-weight: 800; }
+.salt-copy small { color: var(--text-muted); font-size: 12.5px; }
+.salt-amounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.salt-amounts li { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border: 1px solid #cfe4f3; border-radius: 12px; background: #fff; }
+.salt-amounts strong { display: block; color: var(--text); font-size: 13px; font-weight: 700; }
+.salt-amounts b { display: block; color: var(--brand-blue); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .detail-more { margin-top: 14px; padding: 9px 15px; border: 1px solid var(--brand-blue); border-radius: 999px; background: #fff; color: var(--brand-blue); font-size: 11.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
 .detail-more:hover { background: var(--brand-blue); color: #fff; }
 .detail-more span { display: inline-block; transition: transform .18s; }
@@ -1336,6 +1438,11 @@ onBeforeUnmount(endPrint)
   .action-detail-block li { width: 100%; justify-content: space-between; }
   .action-detail-block .supply-steps li { gap: 10px; padding: 10px 12px; }
   .action-detail-block .supply-steps li.kept > b { display: none; }
+  .action-detail-block .supply-steps li { grid-template-columns: 44px minmax(0, 1fr); }
+  .supply-steps .product-thumb { width: 44px; height: 44px; }
+  .supply-steps .shop-link { grid-column: 2; }
+  .salt-choice { padding: 14px; }
+  .salt-options { grid-template-columns: minmax(0, 1fr); }
   .action-tips { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; }
   .action-tips > i { width: 24px; height: 24px; }
   .action-footer > em { margin-left: 0; }

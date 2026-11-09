@@ -45,8 +45,8 @@ test('element supply adjusts in both directions by 10–20 % (V2.2)', () => {
   const reduced = buildDirectRecommendations(evaluateAnalysis([parameter('calcium', 'Calcium', 'quantity', 300)], scale))
   assert.equal(elevated[0].key, 'reduce-supply')
   assert.equal(elevated[0].detailLabel, 'Tägliche Elementversorgung anpassen')
-  assert.deepEqual(elevated[0].detailItems, [{ label: 'Calcium', value: '−10–20 %' }])
-  assert.deepEqual(reduced[0].detailItems, [{ label: 'Calcium', value: '+10–20 %' }])
+  assert.deepEqual(elevated[0].detailItems, [{ label: 'Calcium', value: '−10–20 %', channel: 'calcium' }])
+  assert.deepEqual(reduced[0].detailItems, [{ label: 'Calcium', value: '+10–20 %', channel: 'calcium' }])
 })
 
 test('element names are bold inside the sentence instead of a separate chip row', () => {
@@ -137,6 +137,15 @@ test('salinity gets a separate low/high correction based on volume and target PS
     { label: 'oder Nyos pure Salz', value: '2.650 g' },
   ])
   assert.ok(low.summary.includes('oder ergänzen Sie 2.650 g Nyos pure Salz, um die Salinität auf 35 PSU anzuheben.'))
+  // Am Bildschirm wählt man das Salz; der Satz mit beiden Mengen bleibt nur im Druck.
+  assert.ok(low.summaryParts.at(-1).printOnly)
+  assert.deepEqual(low.saltChoices.map((choice) => [choice.key, choice.amounts.map((amount) => amount.value)]), [
+    ['absolute-ocean', ['4.275 ml', '4.275 ml']],
+    ['nyos-pure', ['2.650 g']],
+  ])
+  assert.equal(low.saltChoices[0].url, shop.url)
+  assert.equal(low.saltChoices[1].url, 'https://www.nyos.info/de/meersalz')
+  assert.deepEqual(high.saltChoices, [], 'too much salt: nothing to choose')
   assert.equal(high.title, 'Salinität kontrolliert senken')
   // Zu viel Salz kauft man nicht nach, also trägt diese Maßnahme keinen Shop-Link.
   assert.deepEqual(high.detailItems, [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: '62,5 l' }])
@@ -203,10 +212,17 @@ const supplyCard = (parts, scores) => buildDirectRecommendations(workbook(scores
 
 test('V2.2 baseline, two parts: KH and Ca/Mg up, trace elements off', () => {
   assert.deepEqual(supplyCard(2).detailItems, [
-    { label: 'KH', value: '+10–20 %' },
-    { label: 'Ca/Mg', value: '+10–20 %' },
-    { label: 'Spuren/DT', value: '−100 %' },
+    { label: 'KH', value: '+10–20 %', channel: 'kh' },
+    { label: 'Ca/Mg', value: '+10–20 %', channel: 'calcium' },
+    { label: 'Spuren/DT', value: '−100 %', channel: 'trace' },
   ])
+})
+
+test('the supply card asks to check the home-testable elements, not zinc', () => {
+  const [tip] = supplyCard(2).tipParts
+  assert.deepEqual(tip.filter((part) => part.bold).map((part) => part.text), ['KH', 'Calcium'])
+  assert.equal(tip.map((part) => part.text).join(''), 'Überprüfen Sie KH und Calcium regelmäßig mit Ihrem Heimtest. Passen Sie die Dosierung ggf. bedarfsgerecht an.')
+  assert.deepEqual(supplyCard(2, { kh: 5, calcium: 5 }).tipParts, [], 'only zinc off: nothing to test at home')
 })
 
 test('V2.2: the channels follow the number of supply parts', () => {

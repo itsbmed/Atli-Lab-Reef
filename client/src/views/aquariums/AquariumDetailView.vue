@@ -279,7 +279,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
@@ -456,6 +456,14 @@ function startEdit() {
   showEditPresetPicker.value = false
   editing.value = true
 }
+// „Versorgungssystem ändern?“ aus einer Empfehlung: Bearbeiten öffnen und zum Versorgungssystem springen.
+watch(profile, async (item) => {
+  if (!item || route.query.edit !== 'supply' || editing.value) return
+  startEdit()
+  router.replace({ query: { ...route.query, edit: undefined } })
+  await nextTick()
+  document.querySelector('.edit-card fieldset.supply')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}, { immediate: true })
 function cancelEdit() {
   editing.value = false
   showEditPresetPicker.value = false

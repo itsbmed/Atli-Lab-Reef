@@ -181,14 +181,15 @@
         </div>
         <div v-if="item.showDetail" class="rp-detail">
           <span class="rp-eyebrow">{{ item.detailLabel }}</span>
-          <ul v-if="item.key === 'reduce-supply'" class="rp-supply">
-            <li v-for="step in supplySteps(item.detailItems).changes" :key="step.label" :class="step.direction"><i aria-hidden="true">{{ step.direction === 'up' ? '↑' : '↓' }}</i><span><b>{{ step.label }}</b> · {{ step.text }}</span><em>{{ step.value }}</em></li>
-            <li v-if="supplySteps(item.detailItems).kept.length" class="kept"><i aria-hidden="true">=</i><span><b>Beibehalten</b> · {{ supplySteps(item.detailItems).kept.join(' · ') }}</span><em>unverändert</em></li>
+          <ul v-if="item.key === 'reduce-supply' && item.supplyRows" class="rp-supply">
+            <li v-for="row in item.supplyRows.rows" :key="row.key" :class="row.direction"><i aria-hidden="true">{{ row.direction === 'up' ? '↑' : '↓' }}</i><span><b>{{ row.title }}</b> · {{ row.text }}</span></li>
+            <li v-if="item.supplyRows.kept.length" class="kept"><i aria-hidden="true">=</i><span><b>Beibehalten</b> · {{ item.supplyRows.kept.join(' · ') }}</span><em>unverändert</em></li>
           </ul>
           <ul v-else><li v-for="entry in item.detailItems" :key="entry.label"><span>{{ entry.label }}</span><b v-if="entry.value">{{ entry.value }}</b></li></ul>
         </div>
         <p v-if="item.products.length" class="rp-products-line">Produkte: {{ item.products.map((product) => product.productName).join(' · ') }}</p>
         <p v-for="tip in item.tips || []" :key="tip" class="rp-tip">Tipp: {{ tip }}</p>
+        <p v-for="(parts, tipIndex) in item.tipParts || []" :key="`parts-${tipIndex}`" class="rp-tip">Tipp: <template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.bold">{{ part.text }}</strong><template v-else>{{ part.text }}</template></template></p>
       </article>
     </section>
 
@@ -247,7 +248,6 @@ import PairGauges from '@/components/analyses/PairGauges.vue'
 import ValueDirection from '@/components/analyses/ValueDirection.vue'
 import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { printOsmosisGroups, printProducts, printRecommendations, printValueGroups } from '@/services/pdfExport'
-import { supplySteps } from '@/services/directRecommendations'
 import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
 
 const props = defineProps({
