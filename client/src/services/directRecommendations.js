@@ -1,6 +1,7 @@
 import { SCORE_BAND_MAP, evaluateParameter } from './evaluationScales.js'
 import { templateMap } from './recommendationTemplates.js'
 import { absoluteOceanSet, DAILY_SUPPLY_KEYS } from './atiProductCatalog.js'
+import { NYOS_PURE_SALT } from './nyosProductCatalog.js'
 
 // An imported report keeps the originating laboratory's verdict; only unclassified
 // values fall through to the selected evaluation scale.
@@ -68,9 +69,11 @@ function supplyPlan(parameters, parts) {
     .map((channel) => ({
       label: channel.label || parameters.find((parameter) => parameter.key === channel.key).label,
       value: supplyChange(scoreOf(parameters, channel.key)),
+      // Kanal für die Produktzuordnung: kh, calcium, magnesium; bei All-in-one 'all'.
+      channel: parts === 1 ? 'all' : channel.key,
     }))
   const trace = traceChange(scoreOf(parameters, 'zinc'))
-  if (trace) channels.push({ label: 'Spuren/DT', value: trace })
+  if (trace) channels.push({ label: 'Spuren/DT', value: trace, channel: 'trace' })
   return channels
 }
 
@@ -90,7 +93,7 @@ export function supplySteps(detailItems = []) {
     const text = direction === 'up'
       ? `Tagesdosis um ${amount} erhöhen`
       : amount === '100 %' ? 'Dosierung aussetzen' : `Tagesdosis um ${amount} reduzieren`
-    changes.push({ label: item.label, value, direction, text })
+    changes.push({ label: item.label, channel: item.channel, value, direction, text })
   }
   return { changes, kept }
 }
@@ -102,6 +105,9 @@ function affected(parameters, predicate) {
 function severity(items) {
   return Math.max(0, ...items.map((item) => Math.abs(item.evaluation.score - 5)))
 }
+
+// Kurznamen, wie man sie vom Heimtest kennt.
+const HOME_TEST_NAMES = Object.freeze({ kh: 'KH', calcium: 'Calcium', magnesium: 'Magnesium' })
 
 // Element names render bold inside the sentence instead of as a separate chip row.
 function boldList(items) {
@@ -169,6 +175,38 @@ function salinityCorrection(parameter, volumeLiters) {
   }
   const liters = Math.max(0, volume - (target / current * volume))
   return [{ label: 'Meerwasser entnehmen und durch Osmosewasser ersetzen', value: `${numberLabel(liters)} l` }]
+}
+
+// Zum Anheben stehen zwei Salze zur Wahl, jedes mit seiner Menge: Absolute Ocean
+// (zwei Flaschen zu gleichen Teilen) oder NYOS PURE als Pulver.
+function saltChoices(parameter, volumeLiters) {
+  const current = Number(parameter.value)
+  const target = targetValue(parameter)
+  const volume = Number(volumeLiters)
+  if (!Number.isFinite(current) || !Number.isFinite(target)) return []
+  const known = volume > 0
+  const millilitersEach = known ? Math.max(0, (target - current) * 1.71 * volume) : 0
+  const set = absoluteOceanSet(millilitersEach)
+  const each = known ? `${numberLabel(millilitersEach, 0)} ml` : 'je 1,71 ml pro PSU und Liter'
+  return [
+    {
+      key: 'absolute-ocean',
+      name: 'Absolute Ocean',
+      note: 'flüssiges Meersalz',
+      url: set.url,
+      image: set.image,
+      amounts: [{ label: 'Absolute Ocean 1', value: each, image: set.image }, { label: 'Absolute Ocean 2', value: each, image: set.image }],
+    },
+    {
+      key: 'nyos-pure',
+      name: NYOS_PURE_SALT.name,
+      note: 'Meersalz',
+      url: NYOS_PURE_SALT.url,
+      image: NYOS_PURE_SALT.image,
+      linkLabel: NYOS_PURE_SALT.linkLabel,
+      amounts: [{ label: NYOS_PURE_SALT.name, value: known ? `${numberLabel(nyosGrams(target, current, volume), 0)} g` : '1,06 g pro PSU und Liter', image: NYOS_PURE_SALT.image }],
+    },
+  ]
 }
 
 function nyosGrams(target, current, volume) {
@@ -241,8 +279,12 @@ const RULES = [
         summaryParts: [
           { text: 'Die ' },
           { text: item.label, bold: true },
-          { text: ` liegt bei ${numberLabel(item.value)} ${item.unit || 'PSU'} und damit ${low ? 'unter' : 'über'} dem Zielwert${Number.isFinite(target) ? ` von ${numberLabel(target)} PSU` : ''}. ${low ? lowSalinityText(target, Number(item.value), context.volumeLiters) : 'Entnehmen Sie die berechnete Menge Meerwasser und ersetzen Sie diese durch Osmosewasser.'}` },
+          { text: ` liegt bei ${numberLabel(item.value)} ${item.unit || 'PSU'} und damit ${low ? 'unter' : 'über'} dem Zielwert${Number.isFinite(target) ? ` von ${numberLabel(target)} PSU` : ''}.` },
+          // Am Bildschirm ersetzt die Salzwahl diesen Satz (choicePrompt); im Druck bleibt er stehen.
+          { text: ` ${low ? lowSalinityText(target, Number(item.value), context.volumeLiters) : 'Entnehmen Sie die berechnete Menge Meerwasser und ersetzen Sie diese durch Osmosewasser.'}`, printOnly: low },
         ],
+        choicePrompt: low ? 'Wählen Sie das Produkt, mit dem Sie die Salinität in Ihrem Aquarium erhöhen möchten:' : '',
+        saltChoices: low ? saltChoices(item, context.volumeLiters) : [],
         detailItems: salinityCorrection(item, context.volumeLiters),
       }
     },
@@ -262,7 +304,8 @@ const RULES = [
       const tips = []
       // Zwei Teile: Magnesium hat keinen eigenen Kanal; ist es erhöht, hilft nur das richtige Salz.
       if (parts === 2 && scoreOf(parameters, 'magnesium') > 5) tips.push('Nutzen Sie ausschließlich Meersalze mit naturnahen Werten für Wasserwechsel.')
-      if (parts === null || parts === undefined) tips.push('Hinterlegen Sie im Aquarium Ihr Versorgungssystem – dann passen wir die Empfehlung an seine Teile an.')
+      // Was täglich dosiert wird, lässt sich zu Hause nachmessen – Zink nicht.
+      const homeTest = items.filter((item) => DAILY_SUPPLY_KEYS.includes(item.key)).map((item) => ({ label: HOME_TEST_NAMES[item.key] || item.label }))
       return {
         summaryParts: [
           ...boldList(items),
@@ -273,6 +316,11 @@ const RULES = [
         // Alle Kanäle stehen da, auch die, die passen – sonst bleibt offen, ob sie geprüft wurden.
         detailItems: supplyPlan(parameters, parts),
         tips,
+        tipParts: homeTest.length ? [[
+          { text: 'Überprüfen Sie ' },
+          ...boldList(homeTest),
+          { text: ' regelmäßig mit Ihrem Heimtest. Passen Sie die Dosierung ggf. bedarfsgerecht an.' },
+        ]] : [],
       }
     },
   },
@@ -395,6 +443,8 @@ function compose(rule, items, templates, context) {
     detailLabel: template.detailLabel,
     detailItems,
     tips: [...template.tips],
+    // Tipps mit fett gesetzten Elementnamen: je Tipp eine Liste von Textteilen.
+    tipParts: [],
     tone: rank >= 3 ? 'critical' : 'watch',
     priority: rank >= 3 ? 'Hoch' : 'Mittel',
     elements: items.map((item) => item.label),
