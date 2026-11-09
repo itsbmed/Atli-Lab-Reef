@@ -6,6 +6,10 @@
       <span v-if="undetectable" class="tg-hatch" aria-hidden="true"></span>
       <i v-if="low > 0" class="tg-tick" :style="{ left: `${low}%` }" aria-hidden="true"></i>
       <i v-if="high < 100" class="tg-tick" :style="{ left: `${high}%` }" aria-hidden="true"></i>
+      <template v-if="previousAt !== null">
+        <i class="tg-trail" :style="{ left: `${Math.min(previousAt, marker)}%`, width: `${Math.abs(marker - previousAt)}%` }" aria-hidden="true"></i>
+        <b class="tg-previous" :style="{ left: `clamp(7px, ${previousAt}%, calc(100% - 7px))` }" aria-hidden="true"></b>
+      </template>
       <b class="tg-marker" aria-hidden="true"></b>
     </span>
     <span ref="scaleRow" class="tg-scale" aria-hidden="true">
@@ -29,10 +33,18 @@ const props = defineProps({
   tickSuffix: { type: String, default: '' },
   zoneLabel: { type: String, default: 'Zielbereich' },
   farBeyond: { type: Number, default: null },
+  // Optional ein früherer Wert (z. B. vor einer Simulation): hohler Punkt, verbunden mit dem aktuellen.
+  previous: { type: Number, default: null },
 })
 
 const measuredValue = computed(() => (props.undetectable ? null : props.value))
-const scale = computed(() => gaugeScale(props.min, props.max, measuredValue.value))
+// Mit früherem Wert dehnt sich die Skala so weit, dass beide Punkte darauf passen.
+const scale = computed(() => {
+  const current = gaugeScale(props.min, props.max, measuredValue.value)
+  if (props.undetectable || !Number.isFinite(props.previous)) return current
+  const earlier = gaugeScale(props.min, props.max, props.previous)
+  return { start: Math.min(current.start, earlier.start), end: Math.max(current.end, earlier.end) }
+})
 const low = computed(() => gaugePercent(props.min, scale.value))
 const high = computed(() => gaugePercent(props.max, scale.value))
 const format = computed(() => {
@@ -52,6 +64,11 @@ const marker = computed(() => {
   if (props.value < props.min && at > low.value - clear) return Math.max(0, low.value - clear)
   if (props.value > props.max && at < high.value + clear) return Math.min(100, high.value + clear)
   return at
+})
+
+const previousAt = computed(() => {
+  if (props.undetectable || !Number.isFinite(props.previous)) return null
+  return Math.max(0, Math.min(100, gaugePercent(props.previous, scale.value)))
 })
 
 // Der Marker zeigt, was die Skala sagt – unabhängig vom Laborurteil daneben im Chip:
@@ -111,6 +128,8 @@ const trackBackground = computed(() => (props.undetectable ? null : gaugeGradien
 .tg-tick { position: absolute; top: -7px; bottom: -7px; width: 0; border-left: 1px dashed rgba(10,27,67,0.32); }
 
 .tg-marker { position: absolute; z-index: 2; top: 50%; left: clamp(10px, var(--tg-at), calc(100% - 10px)); width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%, -50%); transition: left .3s ease; }
+.tg-previous { position: absolute; z-index: 1; top: 50%; width: 12px; height: 12px; border: 2.5px solid #8796a8; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+.tg-trail { position: absolute; z-index: 1; top: 50%; height: 4px; border-radius: 999px; background: rgba(10,27,67,0.28); transform: translateY(-50%); }
 .tg-in .tg-marker { border: 3px solid #fff; background: var(--brand-dark, #0a1b43); box-shadow: 0 2px 7px rgba(10,27,67,0.34); }
 .tg-watch .tg-marker,
 .tg-critical .tg-marker,
