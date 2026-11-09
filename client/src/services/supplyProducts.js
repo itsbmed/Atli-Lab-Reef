@@ -1,11 +1,12 @@
-import { ATI_PRODUCT_CATALOG, essentialsFor } from './atiProductCatalog.js'
+import { essentialsFor } from './atiProductCatalog.js'
 import { NYOS_ION_ELEMENTS, NYOS_LINK_LABEL, nyosLine, NYOS_SUPPLY_LINES } from './nyosProductCatalog.js'
 
 // Welches Produkt hinter einem Kanal der täglichen Versorgung steht. Kanäle kommen aus
 // der Empfehlung „Elementversorgung anpassen“: kh, calcium (bei zwei Teilen Ca/Mg),
 // magnesium, all (All-in-one) und trace (Spurenelemente, gesteuert über Zink).
 // Ohne gewähltes System gilt wie bei den Produktvorschlägen die ATI-Linie zum Beckentyp;
-// ein fremdes System und „keine Versorgung“ haben kein Produkt von uns.
+// ein fremdes System und „keine Versorgung“ haben kein Produkt von uns. Einzelne ICP-Elemente
+// gehören nicht zum Versorgungssystem, ein Kanal ohne Flasche der Linie bleibt ohne Produkt.
 export function supplyChannelProduct(channel, { mode = '', line = '', aquariumType = '' } = {}) {
   if (mode === 'other' || mode === 'none') return null
   if (mode === 'nyos') {
@@ -24,10 +25,6 @@ export function supplyChannelProduct(channel, { mode = '', line = '', aquariumTy
     // „Essentials SPS #1 (KH)“ statt „Essentials SPS #1 KH 2.700ml“: die Flasche, nicht das Gebinde.
     const name = channel === 'kh' ? `${essentials.label} #1 (KH)` : `${essentials.label} #2 (Ca/Mg)`
     return { name, url: component.url, image: component.image }
-  }
-  if (channel === 'magnesium') {
-    const magnesium = ATI_PRODUCT_CATALOG.magnesium
-    return { name: 'ICP Element Magnesium', url: magnesium.url, image: magnesium.image }
   }
   return null
 }

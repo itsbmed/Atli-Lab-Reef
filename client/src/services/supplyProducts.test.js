@@ -11,7 +11,7 @@ test('ATI: the bottle of the Essentials line stands behind KH and Ca/Mg', () => 
 test('without a chosen system the line follows the tank type, as in the product suggestions', () => {
   assert.equal(supplyChannelProduct('kh', {}).name, 'Essentials SPS #1 (KH)')
   assert.equal(supplyChannelProduct('kh', { aquariumType: 'Mischbecken' }).name, 'Essentials Mixed Reef #1 (KH)')
-  assert.equal(supplyChannelProduct('magnesium', {}).name, 'ICP Element Magnesium')
+  assert.equal(supplyChannelProduct('magnesium', {}), null, 'no single ICP element in the supply system')
   assert.equal(supplyChannelProduct('trace', {}), null, 'ATI has no trace bottle in the line')
 })
 
