@@ -73,6 +73,7 @@
         <span class="print-brand-site"><b>lab.atiaquaristik.com</b><small>by ATI Aquaristik</small></span>
         <span class="print-brand-col"><b>Herbert-Rust-Weg 14</b><small>59071 Hamm</small></span>
         <span class="print-brand-col"><b>Tel. +49-(0) 2381-871012-0</b><small>E-Mail: info@atiaquaristik.com</small></span>
+        <span v-if="qrCodes[reportUrl]" class="print-brand-qr"><small>Bericht online</small><span class="rp-qr" v-html="qrCodes[reportUrl]"></span></span>
       </footer>
     </section>
 
@@ -248,13 +249,16 @@ import PairGauges from '@/components/analyses/PairGauges.vue'
 import ValueDirection from '@/components/analyses/ValueDirection.vue'
 import { doseSchedule, formatMl } from '@/services/dosingCalendar'
 import { printOsmosisGroups, printProducts, printRecommendations, printValueGroups } from '@/services/pdfExport'
-import { OSMOSIS_LEFT_GROUPS, VALUES_LEFT_GROUPS, balanceColumns } from '@/services/reportColumns'
+import { layoutColumns } from '@/services/reportColumns'
 
 const props = defineProps({
   analysis: { type: Object, required: true },
   settings: { type: Object, required: true },
   groups: { type: Array, default: () => [] },
   osmosisGroups: { type: Array, default: () => [] },
+  // Spalten aus „Alle Werte“ und „Osmose“, wie dort angeordnet
+  valuesLayout: { type: Array, default: () => [] },
+  osmosisLayout: { type: Array, default: () => [] },
   // Empfehlungen mit ihren Produkten (products) und ob der Detailkasten gezeigt wird (showDetail)
   recommendationItems: { type: Array, default: () => [] },
   completed: { type: Object, default: () => ({}) },
@@ -275,11 +279,11 @@ const TONE_COLORS = { critical: '#e85d4f', watch: '#f59e0b', good: '#10b981' }
 const profile = computed(() => props.analysis.aquariumProfile)
 const volume = computed(() => Number(profile.value?.volumeLiters) || 0)
 const valueGroups = computed(() => printValueGroups(props.groups, props.settings))
-// Hochformat wie die Website, Querformat drei gleich hohe Spalten – so passen die Tabellen auf eine Seite.
+// Die Tabellen stehen wie unter „Alle Werte“ und „Osmose“ angeordnet – in beiden Formaten.
 const landscape = computed(() => props.settings.format.orientation === 'landscape')
-const valueColumns = computed(() => (landscape.value ? balanceColumns(valueGroups.value, null, 3) : balanceColumns(valueGroups.value, VALUES_LEFT_GROUPS)))
+const valueColumns = computed(() => layoutColumns(valueGroups.value, props.valuesLayout))
 const osmosisGroups = computed(() => printOsmosisGroups(props.osmosisGroups, props.settings))
-const osmosisColumns = computed(() => (landscape.value ? balanceColumns(osmosisGroups.value, null, 3) : balanceColumns(osmosisGroups.value, OSMOSIS_LEFT_GROUPS)))
+const osmosisColumns = computed(() => layoutColumns(osmosisGroups.value, props.osmosisLayout))
 const recommendations = computed(() => printRecommendations(props.recommendationItems, props.settings, props.completed))
 const schedule = computed(() => doseSchedule(props.dosingItems))
 const doseGridStyle = computed(() => ({ gridTemplateColumns: `minmax(140px, 1.6fr) repeat(${schedule.value.days}, minmax(44px, 1fr)) minmax(70px, 0.9fr)` }))
@@ -370,7 +374,7 @@ async function buildQrCodes() {
 watch(products, buildQrCodes)
 onMounted(buildQrCodes)
 
-// Fußzeile auf jeder Seite: Aquarium, Analyse, Seitenzahl und ein QR-Code zum Bericht online.
+// Fußzeile auf jeder Seite: Aquarium, Analyse und Seitenzahl. Der QR-Code zum Bericht steht nur auf dem Deckblatt.
 // Chrome setzt sie in die Randfelder von @page; die Seitenränder legt ReportView fest.
 const reportUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/analyses/${encodeURIComponent(props.analysis.id)}`
 const footerCss = computed(() => {
@@ -378,12 +382,11 @@ const footerCss = computed(() => {
     props.analysis.aquariumName,
     [`Analyse-Nr. ${props.analysis.reportNumber || props.analysis.id}`, formatDate(props.analysis.completedAt || props.analysis.createdAt)].filter(Boolean).join(' · '),
   ].filter(Boolean)
-  const qr = qrCodes.value[reportUrl]
   const box = 'padding-top: 3mm; border-top: 0.75pt solid #0072ce; color: #3d4f69; font: 7.5pt/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; vertical-align: top; white-space: pre;'
   return `@page {
     @bottom-left { content: ${cssString(lines.join('\n'))}; ${box} }
     @bottom-center { content: "Seite " counter(page) " von " counter(pages); ${box} }
-    @bottom-right { content: ${qr ? `"Bericht online\\A" url("data:image/svg+xml,${encodeURIComponent(qr)}")` : '""'}; text-align: right; ${box} }
+    @bottom-right { content: ""; ${box} }
   }`
 })
 function cssString(text) {
@@ -514,6 +517,8 @@ h3 { margin: 0; font-size: 11pt; }
 .print-brand small { display: block; color: #7a8da3; font-size: 9px; line-height: 1.35; }
 .print-brand-site b { color: #0072ce; font-size: 12px; }
 .print-brand-col b { color: #526780; font-weight: normal; }
+.print-brand-qr { display: flex; align-items: center; gap: 8px; margin-left: auto; text-align: right; }
+.print-brand-qr .rp-qr { width: 44px; height: 44px; }
 
 /* ── Messwerte & Osmose: Tabellenansicht der Website ── */
 .compact-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
@@ -557,7 +562,6 @@ tr.critical .compact-status { color: #b53a2e; }
 .rp-landscape .compact-table tbody th, .rp-landscape .compact-table td { padding-block: 1.5px; }
 .rp-landscape .compact-table thead th { padding-block: 3px 2px; }
 .rp-landscape .compact-group-head { padding-block: 5px; }
-.rp-landscape .compact-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rp-landscape .compact-values, .rp-landscape .compact-column { gap: 8px; }
 .rp-legend { margin: 16px 0 0; color: #5b6b82; font-size: 8pt; }
 .rp-legend i { display: inline-block; width: 7px; height: 7px; margin: 0 4px 0 10px; border-radius: 50%; background: #10b981; }

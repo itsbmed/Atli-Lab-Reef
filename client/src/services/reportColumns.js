@@ -15,3 +15,14 @@ export function balanceColumns(sections, leftKeys = null, count = 2) {
   })
   return columns.filter((column) => column.length)
 }
+
+// Die Anordnung aus „Alle Werte“ und „Osmose“ (Spalten von Gruppenschlüsseln) auf die Gruppen
+// anwenden, damit der Druck die Tabellen genauso zeigt. Was dort nicht steht, kommt in die letzte Spalte.
+export function layoutColumns(sections, layout = []) {
+  const byKey = new Map(sections.map((group, order) => [group.key, { ...group, order }]))
+  const columns = layout.map((keys) => keys.filter((key) => byKey.has(key)).map((key) => byKey.get(key)))
+  if (!columns.length) columns.push([])
+  const placed = new Set(layout.flat())
+  byKey.forEach((group, key) => { if (!placed.has(key)) columns[columns.length - 1].push(group) })
+  return columns.filter((column) => column.length)
+}

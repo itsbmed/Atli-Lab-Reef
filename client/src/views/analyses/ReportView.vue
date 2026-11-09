@@ -19,6 +19,8 @@
           :settings="printSettings"
           :groups="parameterGroups"
           :osmosis-groups="osmosisGroupSections"
+          :values-layout="valuesArrange.arrangement.columns"
+          :osmosis-layout="osmosisArrange.arrangement.columns"
           :recommendation-items="printRecommendationItems"
           :completed="completedActions"
           :dosing-items="approvedDosingItems"
