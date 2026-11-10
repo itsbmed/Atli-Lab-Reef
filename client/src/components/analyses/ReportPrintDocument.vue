@@ -152,7 +152,7 @@
     </section>
 
     <!-- Diagramme -->
-    <section v-if="settings.sections.charts" class="rp-section rp-charts">
+    <section v-if="settings.sections.charts" ref="chartsSection" class="rp-section rp-charts" :style="chartsZoom < 1 ? { zoom: chartsZoom } : null">
       <header class="rp-head">
         <b class="rp-num">{{ number('charts') }}</b>
         <div><h2>Zusammensetzung &amp; Verhältnisse</h2><p>Wie gut die Elemente zueinander und zu Ihrer Salinität passen</p></div>
@@ -243,7 +243,7 @@
 
 <script setup>
 import { absolutePublicUrl, publicUrl } from '@/services/publicUrl'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import CompositionChart from '@/components/analyses/CompositionChart.vue'
 import PairGauges from '@/components/analyses/PairGauges.vue'
@@ -402,9 +402,54 @@ onMounted(() => {
 watch(footerCss, (css) => { if (footerStyle) footerStyle.textContent = css })
 onBeforeUnmount(() => footerStyle?.remove())
 
+// Die drei Diagramme stehen immer zusammen auf einer Seite: Vor dem Druck wird der Abschnitt in
+// Seitenbreite gemessen und, falls er höher ist als die Seite, verkleinert. Gemessen wird in einem
+// unsichtbaren Rahmen so breit wie die Seite, denn im Druck gelten die Regeln für schmale Fenster.
+// Gesetzt wird in voller A4-Breite (layout), gedruckt im Satzspiegel bei den Rändern aus ReportView
+// (12 mm seitlich und oben, 24 mm unten) – Chrome verkleinert im Verhältnis width / layout.
+const PAGE_MM = { portrait: { layout: 210, width: 186, height: 261 }, landscape: { layout: 297, width: 273, height: 174 } }
+const chartsSection = ref(null)
+const chartsZoom = ref(1)
+async function fitCharts() {
+  chartsZoom.value = 1
+  await nextTick()
+  const root = chartsSection.value?.closest('.rp-root')
+  if (!root) return
+  const page = PAGE_MM[props.settings.format.orientation] || PAGE_MM.portrait
+  const px = 96 / 25.4
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${page.layout * px}px;height:${page.height * px}px;border:0;visibility:hidden`
+  document.body.appendChild(frame)
+  try {
+    const styles = [...document.querySelectorAll('style, link[rel="stylesheet"]')].map((node) => node.outerHTML).join('')
+    await new Promise((resolve) => {
+      frame.onload = resolve
+      setTimeout(resolve, 1500)
+      frame.srcdoc = `<!doctype html><html><head>${styles}</head><body style="margin:0">${root.outerHTML}</body></html>`
+    })
+    const copy = frame.contentDocument.querySelector('.rp-root')
+    copy.style.display = 'block'
+    const height = copy.querySelector('.rp-charts')?.getBoundingClientRect().height || 0
+    // Etwas Luft lassen, damit Rundungen im Druck nicht doch eine Seite mehr ergeben.
+    const available = page.height * px * (page.layout / page.width) * 0.96
+    if (height > available) chartsZoom.value = Math.floor((available / height) * 100) / 100
+  } catch {
+    // Ohne Messung bleibt der Abschnitt in voller Größe.
+  } finally {
+    frame.remove()
+  }
+  await nextTick()
+}
+
 // Fertig zum Drucken, sobald Logo, Titelbild und QR-Codes da sind – spätestens nach 2 s, damit der Druck nie hängt.
 let signalled = false
-function signal() { if (!signalled) { signalled = true; emit('ready') } }
+async function signal() {
+  if (signalled) return
+  signalled = true
+  await fitCharts()
+  emit('ready')
+}
 watch([logoReady, heroReady, qrReady], (ready) => { if (ready.every(Boolean)) signal() })
 onMounted(() => setTimeout(signal, 2000))
 
@@ -429,6 +474,10 @@ function formatDate(date) {
 }
 @media print {
   html.rp-printing body > *:not(.rp-root) { display: none !important; }
+  /* Fest auf die volle A4-Breite: Chrome verkleinert den Bericht dann immer gleich auf den Satzspiegel.
+     Ohne feste Breite richtet sie sich nach dem Fenster, und jeder Druck fiele anders aus. */
+  .rp-root.rp-portrait { width: 210mm; }
+  .rp-root.rp-landscape { width: 297mm; }
   html.rp-printing, html.rp-printing body { background: #fff !important; }
 }
 </style>
@@ -451,9 +500,10 @@ h3 { margin: 0; font-size: 11pt; }
 .rp-head p { margin: 3px 0 0; color: #5b6b82; font: 9.5pt/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
 /* ── Deckblatt ── */
-/* Seitenhöhe ohne Ränder (oben 12 mm, unten 24 mm für die Fußzeile) */
-.rp-cover { display: flex; flex-direction: column; gap: 14px; height: 259mm; overflow: hidden; }
-.rp-landscape .rp-cover { height: 172mm; gap: 8px; }
+/* Seitenhöhe ohne Ränder (oben 12 mm, unten 24 mm für die Fußzeile), umgerechnet auf die volle
+   A4-Breite, in der gesetzt wird: 259 mm × 210/186 hoch, quer 172 mm × 297/273 */
+.rp-cover { display: flex; flex-direction: column; gap: 14px; height: 292mm; overflow: hidden; }
+.rp-landscape .rp-cover { height: 187mm; gap: 8px; }
 .rp-brand { display: flex; align-items: center; justify-content: space-between; }
 .rp-brand img { height: 34px; }
 .rp-brand span { display: grid; text-align: right; }
@@ -490,12 +540,12 @@ h3 { margin: 0; font-size: 11pt; }
 .rp-score em { display: block; margin-top: 2px; color: rgba(255,255,255,0.72); font-size: 8.5pt; font-style: normal; }
 
 .rp-glance { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 8px; }
-.rp-tile { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid rgba(10,27,67,0.12); border-radius: 14px; background: #f8fbfe; }
-.rp-dial { position: relative; flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; }
+.rp-tile { display: flex; align-items: center; gap: 6px; padding: 9px 8px; border: 1px solid rgba(10,27,67,0.12); border-radius: 14px; background: #f8fbfe; }
+.rp-dial { position: relative; flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; }
 .rp-dial::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #f8fbfe; }
 .rp-dial b { position: relative; z-index: 1; font-size: 9.5pt; }
 .rp-tile-copy { display: grid; min-width: 0; }
-.rp-tile-copy strong { font-size: 8pt; line-height: 1.2; hyphens: auto; }
+.rp-tile-copy strong { font-size: 8pt; line-height: 1.2; hyphens: manual; overflow-wrap: normal; }
 .rp-tile-copy small { color: #9a4d0a; font-size: 7.5pt; font-weight: 600; }
 .rp-tile-copy small.ok { color: #047857; }
 
