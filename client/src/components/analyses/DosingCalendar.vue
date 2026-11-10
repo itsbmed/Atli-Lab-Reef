@@ -17,12 +17,12 @@
           <div class="dosing-head summary">Gesamt-Dosis</div>
 
           <template v-for="row in schedule.rows" :key="row.key">
-            <div class="dosing-element">
-              {{ row.label }}
+            <div :class="['dosing-element', { done: rowDone(row) }]">
+              <strong class="dose-name">{{ row.label }}</strong>
               <span>{{ row.productName }}</span>
               <small>{{ row.courseDays }} {{ row.courseDays === 1 ? 'Tag' : 'Tage' }} · Tageslimit {{ number(row.maxDailyMl) }} ml</small>
             </div>
-            <div v-for="(amount, index) in row.amounts" :key="`${row.key}-${index}`" :class="['dose-cell', { inactive: !amount }]">
+            <div v-for="(amount, index) in row.amounts" :key="`${row.key}-${index}`" :class="['dose-cell', { inactive: !amount, done: amount && ticked[`${row.key}-${index}`] }]">
               <label v-if="amount" class="dose-check">
                 <input v-model="ticked[`${row.key}-${index}`]" type="checkbox" :aria-label="`${row.label}, Tag ${index + 1}, ${number(amount)} ml`" />
                 <span></span>
@@ -30,14 +30,14 @@
               </label>
               <span v-else class="dose-empty" aria-hidden="true">–</span>
             </div>
-            <div class="dose-cell summary total">{{ number(row.totalMl) }} ml</div>
+            <div :class="['dose-cell summary total', { done: rowDone(row) }]">{{ number(row.totalMl) }} ml</div>
           </template>
         </div>
       </div>
 
       <!-- Schmal: je Element eine Karte mit den Kurstagen zum Abhaken (gleicher Haken-Status wie die Tabelle) -->
       <ol class="dose-cards" aria-label="Dosierungsplan je Element">
-        <li v-for="row in schedule.rows" :key="`card-${row.key}`" class="dose-card">
+        <li v-for="row in schedule.rows" :key="`card-${row.key}`" :class="['dose-card', { done: rowDone(row) }]">
           <header>
             <div>
               <strong>{{ row.label }}</strong>
@@ -106,6 +106,8 @@ const printContent = ref(null)
 const error = ref('')
 const number = formatMl
 const doneCount = row => row.amounts.filter((amount, index) => amount && ticked[`${row.key}-${index}`]).length
+// Alle Kurstage abgehakt: das Element tritt zurück wie eine erledigte Empfehlung.
+const rowDone = row => row.courseDays > 0 && doneCount(row) >= row.courseDays
 // Das Druckfenster hat keine eigene Basis-URL, der Pfad muss absolut sein.
 const logoUrl = computed(() => absolutePublicUrl('/ati-logo.png'))
 const printDate = computed(() => `Erstellt am ${new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`)
@@ -172,6 +174,12 @@ const printStyles = `@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box
 .dose-day b{color:var(--text);font-size:13.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
 .dose-day.done{border-color:color-mix(in srgb,var(--teal-500,#0f9f8f) 45%,transparent);background:#effaf7}
 .dose-day.done b{color:var(--teal-700)}
+/* Erledigt wie bei den Empfehlungen: blasser und durchgestrichen */
+.dosing-element,.dose-cell,.dose-day,.dose-card{transition:opacity .18s,border-color .15s,background .15s}
+.dose-cell.done,.dosing-element.done,.dose-cell.total.done,.dose-day.done,.dose-card.done{opacity:.55}
+.dose-cell.done .dose-check b,.dose-cell.total.done,.dose-day.done b,.dose-card.done>header strong{text-decoration:line-through}
+.dosing-element.done .dose-name{text-decoration:line-through}
+.dose-card.done .dose-day.done{opacity:1}
 .dose-card>footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;color:var(--teal-700);font-size:11.5px;font-weight:700}
 .dose-card-progress{color:var(--text-muted)}
 @container (max-width:620px){.dose-scroll{display:none}.dose-cards{display:grid}}
